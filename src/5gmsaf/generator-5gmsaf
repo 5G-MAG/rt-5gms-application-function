@@ -1,0 +1,121 @@
+#!/bin/sh
+#
+# 5G-MAG Reference Tools: Generate OpenAPI bindings tool
+# ======================================================
+#
+# Author(s): David Waring <david.warin2@bbc.co.uk>
+#            Dev Audsin <dev.audsin@bbc.co.uk>
+# Copyright: ©2022 British Broadcasting Corporation
+#   License: 5G-MAG Public License v1.0
+#
+# Prerequisites:
+#   - git
+#   - java
+#   - wget
+#
+# For full license terms please see the LICENSE file distributed with this
+# program. If this file is missing then the license can be retrieved from
+# https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+#
+# This script will use wget and git to download the openapi-generator-cli tool
+# and a specified branch of the 5G APIs. It will then create a set of bindings
+# in a specified output language.
+#
+
+# Save location of this script and the name it was called by
+scriptname=`basename "$0"`
+scriptdir=`dirname "$0"`
+scriptdir=`cd "$scriptdir"; pwd`
+
+# Command line option defaults
+default_branch='REL-17'
+default_apis="TS26512_M1_ContentHostingProvisioning TS26512_M5_ServiceAccessInformation"
+
+# Parse command line arguments
+ARGS=`getopt -n "$scriptname" -o 'a:b:h' -l 'api:,branch:,help' -s sh -- "$@"`
+
+if [ $? -ne 0 ]; then
+    print_syntax >&2
+    exit 1
+fi
+
+print_syntax() {
+    echo "Syntax: $scriptname [-h] [-b <release-branch>] [-a <API-name>]"
+}
+
+print_help() {
+    cat <<EOF
+5G-MAG Reference Tools - Generate OpenAPI bindings
+
+This script will download the 5G APIs and openapi-generator-cli tool and uses
+them to create bindings of the specified language.
+
+EOF
+    print_syntax
+    cat <<EOF
+
+Options:
+  -h         --help           Show this help message and exit.
+  -a API     --api API        The OpenAPI interface to generate the bindings
+			      from (e.g. TS26512_M1_ContentHostingProvisioning).
+			      [default: $default_apis]
+  -b BRANCH  --branch BRANCH  Use the given branch of the 5G_APIs repository.
+                              [default: $default_branch]
+EOF
+}
+
+eval set -- "$ARGS"
+unset ARGS
+
+APIS="$default_apis"
+BRANCH="$default_branch"
+
+while true; do
+    case "$1" in
+    -a|--api)
+	APIS="$2"
+	shift 2
+	continue
+	;;
+    -b|--branch)
+	BRANCH="$2"
+	shift 2
+	continue
+	;;
+    -h|--help)
+	print_help
+	exit 0
+	;;
+    --)
+	shift
+	break
+	;;
+    *)
+	echo "Error: Command line argument \"$1\" unexpected" >&2
+	print_syntax >&2
+	exit 1
+	;;
+    esac
+done
+
+if [ $# -gt 0 ]; then
+    echo "Error: Command line argument \"$1\" unexpected" >&2
+    print_syntax >&2
+    exit 1
+fi
+
+# Get the absolute path to the destination directory
+destdir=`realpath -m "$scriptdir/openapi"`
+openapi_gen_dir=`realpath "$scriptdir/../../subprojects/open5gs/lib/sbi/support/20210629/openapi-generator"`
+
+sed "s@^templateDir:.*@templateDir: \"${openapi_gen_dir}/templates\"@" $openapi_gen_dir/config.yaml > $scriptdir/config.yaml
+
+# call the common generate_openapi script
+if [ ! -d "$scriptdir/openapi" ]; then
+    mkdir "$scriptdir/openapi"
+fi
+
+"$scriptdir/../../subprojects/rt-common-shared/5gms/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 5.2.0 -y "$scriptdir/fix_openapi_yaml.py"
+
+exit 0
+

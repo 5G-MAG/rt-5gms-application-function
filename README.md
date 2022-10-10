@@ -25,17 +25,29 @@ The source can be obtained by cloning the github repository.
 git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-function.git
 ```
 
-## Building a Python distribution
+## Build the 5GMS Application Function
 
-_TODO_
+To build the 5GMS Application Function from the source: 
+
+``` 
+rt-5gms-application-function$ meson build --prefix=`pwd`/install
+rt-5gms-application-function$ ninja -C build
+```
 
 ## Installing
 
-_TODO_
+To install the built Application Function:
+```
+rt-5gms-application-function$ cd build
+rt-5gms-application-function/build$ ninja install
+```
 
 ## Running
 
-_TODO_
+The Application Function can be executed with the command:
+```
+rt-5gms-application-function/src/5gmsaf$ ../../install/bin/open5gs-msafd -c msaf.yaml
+```
 
 ## Development
 
