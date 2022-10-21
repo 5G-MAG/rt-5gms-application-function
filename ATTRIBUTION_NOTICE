@@ -1,0 +1,9 @@
+5G-MAG RT 5GMS Application Function uses the following open source software:
+
+- openapi-generator - OpenAPI to code generator
+  available at https://github.com/OpenAPITools/openapi-generator
+  Licensed under Apache Software License v2.0 terms (https://www.apache.org/licenses/LICENSE-2.0)
+
+- open5gs - Opensource 5G Core implementation
+  available from https://open5gs.org/
+  Licensed under GNU AGPL v3.0 (https://www.gnu.org/licenses/agpl-3.0.html)
