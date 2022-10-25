@@ -35,6 +35,10 @@ int msaf_initialize()
     }
 
     msaf_context_provisioning_session_set();
+    if (!msaf_context_distribution_certificate_check()) {
+	ogs_error("Consistency checks failed, aborting");
+	return OGS_ERROR;
+    }
 
     rv = ogs_log_config_domain(
             ogs_app()->logger.domain, ogs_app()->logger.level);

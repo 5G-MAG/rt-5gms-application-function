@@ -12,6 +12,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #define MSAF_EVENT_H
 
 #include "ogs-proto.h"
+#include "ogs-sbi.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,9 +44,9 @@ typedef struct msaf_event_s {
     msaf_sess_t *sess;
 } msaf_event_t;
 
-msaf_event_t *msaf_event_new(int id);
+OGS_STATIC_ASSERT(OGS_EVENT_SIZE >= sizeof(msaf_event_t));
 
-const char *msaf_event_get_name(msaf_event_t *e);
+extern const char *msaf_event_get_name(msaf_event_t *e);
 
 #ifdef __cplusplus
 }

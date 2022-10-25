@@ -37,6 +37,7 @@ typedef struct msaf_configuration_s {
     char *contentHostingConfiguration;
     char *provisioningSessionId;
     char *mediaPlayerEntrySuffix;
+    char *certificate;
     int  number_of_application_servers;
 } msaf_configuration_t;
 
@@ -57,6 +58,7 @@ typedef struct msaf_provisioning_session_s {
     char *provisioningSessionId;
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
     OpenAPI_service_access_information_resource_t *serviceAccessInformation;
+    ogs_hash_t  *certificate_map;
 } msaf_provisioning_session_t;
 
 extern void msaf_context_init(void);
@@ -65,7 +67,10 @@ extern msaf_context_t *msaf_self(void);
 extern int msaf_context_parse_config(void);
 
 extern msaf_provisioning_session_t *msaf_context_provisioning_session_set(void);
+extern int msaf_context_distribution_certificate_check(void);
+extern int  msaf_context_content_hosting_configuration_certificate_check(msaf_provisioning_session_t *provisioning_session);
 extern cJSON *msaf_context_retrieve_service_access_information(char *provisioning_session_id);
+extern cJSON *msaf_context_retrieve_certificate(char *provisioning_session_id, char *certificate_id);
 extern msaf_application_server_node_t *msaf_context_application_server_add(char *canonical_hostname, char *url_path_prefix_format);
 extern void msaf_context_application_server_remove(msaf_application_server_node_t *msaf_as);
 extern void msaf_context_application_server_remove_all(void);
