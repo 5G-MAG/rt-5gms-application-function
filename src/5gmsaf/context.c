@@ -411,7 +411,7 @@ msaf_context_service_access_information_create(char *media_player_entry) {
 			 media_player_entry, NULL);
  OpenAPI_service_access_information_resource_t *service_access_information
 	 = OpenAPI_service_access_information_resource_create(
-			 self->config.provisioningSessionId,
+			 ogs_strdup(self->config.provisioningSessionId),
 			 OpenAPI_provisioning_session_type_DOWNLINK, streaming_access, NULL, NULL,
 			 NULL, NULL,NULL);
  return (OpenAPI_service_access_information_resource_t *)service_access_information;
