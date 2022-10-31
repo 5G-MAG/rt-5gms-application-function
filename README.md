@@ -49,6 +49,52 @@ The Application Function can be executed with the command:
 rt-5gms-application-function/src/5gmsaf$ ../../install/bin/open5gs-msafd -c msaf.yaml
 ```
 
+## Testing with the example configuration
+
+If you started the 5GMS Application Function with the example configuration, you can test it by retrieving {http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f}.
+
+For example:
+```bash
+curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f
+```
+...would receive a response like:
+```
+< HTTP/1.1 200 OK
+< Date: Fri, 28 Oct 2022 16:26:09 GMT
+< Connection: close
+< Content-Type: application/json
+< Content-Length: 278
+< 
+{
+	"provisioningSessionId":	"d54a1fcc-d411-4e32-807b-2c60dbaeaf5f",
+	"provisioningSessionType":	"DOWNLINK",
+	"streamingAccess":	{
+		"mediaPlayerEntry":	"https://localhost/m4d/provisioning-session-d54a1fcc-d411-4e32-807b-2c60dbaeaf5f/BigBuckBunny_4s_onDemand_2014_05_09.mpd"
+	}
+}
+```
+
+The not found response can be tested using a different provisioningSessionId string to the value in the provisioningSessionId key in the configuration YAML file. For example
+```bash
+curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/does_not_exist
+```
+...which would receive a response like:
+```
+< HTTP/1.1 404 Not Found
+< Date: Fri, 28 Oct 2022 16:26:28 GMT
+< Connection: close
+< Content-Type: application/problem+json
+< Content-Length: 218
+< 
+{
+	"type":	"/3gpp-m5/v2",
+	"title":	"Service Access Information not found",
+	"status":	404,
+	"detail":	"Service Access Information does_not_exist not found.",
+	"instance":	"/service-access-information/does_not_exist"
+}
+```
+
 ## Development
 
 _TODO_
