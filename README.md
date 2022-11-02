@@ -22,7 +22,10 @@ Release sdist tar files can be downloaded from _TBC_.
 
 The source can be obtained by cloning the github repository.
 ```
+cd ~
 git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-function.git
+cd rt-5gms-application-function
+git submodule update
 ```
 
 ## Build the 5GMS Application Function
@@ -30,28 +33,30 @@ git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-fun
 To build the 5GMS Application Function from the source: 
 
 ``` 
-rt-5gms-application-function$ meson build --prefix=`pwd`/install
-rt-5gms-application-function$ ninja -C build
+cd ~/rt-5gms-application-function
+meson build --prefix=`pwd`/install
+ninja -C build
 ```
 
 ## Installing
 
 To install the built Application Function:
 ```
-rt-5gms-application-function$ cd build
-rt-5gms-application-function/build$ ninja install
+cd ~/rt-5gms-application-function/build
+ninja install
 ```
 
 ## Running
 
 The Application Function can be executed with the command:
 ```
-rt-5gms-application-function/src/5gmsaf$ ../../install/bin/open5gs-msafd -c msaf.yaml
+cd ~/rt-5gms-application-function/src/5gmsaf
+../../install/bin/open5gs-msafd -c msaf.yaml
 ```
 
 ## Testing with the example configuration
 
-If you started the 5GMS Application Function with the example configuration, you can test it by retrieving {http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f}.
+If you started the 5GMS Application Function with the example configuration, you can test it by retrieving { http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f }.
 
 For example:
 ```bash
