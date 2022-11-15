@@ -16,13 +16,23 @@ network function.
 * [ETSI TS 126 501](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66447) - 5G Media Streaming (5GMS): General description and architecture (3GPP TS 26.501 version 17.2.0 Release 17)
 * [ETSI TS 126 512](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66919) - 5G Media Streaming (5GMS): Protocols (3GPP TS 26.512 version 17.1.2 Release 17)
 
+## Install dependencies
+
+```
+sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson curl
+python3 -m pip install build
+```
+
 ## Downloading
 
 Release sdist tar files can be downloaded from _TBC_.
 
 The source can be obtained by cloning the github repository.
 ```
+cd ~
 git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-function.git
+cd rt-5gms-application-function
+git submodule update
 ```
 
 ## Build the 5GMS Application Function
@@ -30,28 +40,30 @@ git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-fun
 To build the 5GMS Application Function from the source: 
 
 ``` 
-rt-5gms-application-function$ meson build --prefix=`pwd`/install
-rt-5gms-application-function$ ninja -C build
+cd ~/rt-5gms-application-function
+meson build --prefix=`pwd`/install
+ninja -C build
 ```
 
 ## Installing
 
 To install the built Application Function:
 ```
-rt-5gms-application-function$ cd build
-rt-5gms-application-function/build$ ninja install
+cd ~/rt-5gms-application-function/build
+ninja install
 ```
 
 ## Running
 
 The Application Function can be executed with the command:
 ```
-rt-5gms-application-function/src/5gmsaf$ ../../install/bin/open5gs-msafd -c msaf.yaml
+cd ~/rt-5gms-application-function/src/5gmsaf
+../../install/bin/open5gs-msafd -c msaf.yaml
 ```
 
 ## Testing with the example configuration
 
-If you started the 5GMS Application Function with the example configuration, you can test it by retrieving {http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f}.
+If you started the 5GMS Application Function with the example configuration, you can test it by retrieving { http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f }.
 
 For example:
 ```bash
