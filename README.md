@@ -18,17 +18,19 @@ network function.
 
 ## Install dependencies
 
-```
+```bash
 sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson curl
 python3 -m pip install build
 ```
 
 ## Downloading
 
-Release sdist tar files can be downloaded from _TBC_.
+Release tar files can be downloaded from <https://github.com/5G-MAG/rt-5gms-application-function/releases>.
 
 The source can be obtained by cloning the github repository.
-```
+
+For example to download the latest release you can use:
+```bash
 cd ~
 git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-function.git
 cd rt-5gms-application-function
@@ -39,7 +41,7 @@ git submodule update
 
 To build the 5GMS Application Function from the source: 
 
-``` 
+```bash
 cd ~/rt-5gms-application-function
 meson build --prefix=`pwd`/install
 ninja -C build
@@ -48,7 +50,7 @@ ninja -C build
 ## Installing
 
 To install the built Application Function:
-```
+```bash
 cd ~/rt-5gms-application-function/build
 ninja install
 ```
@@ -56,7 +58,7 @@ ninja install
 ## Running
 
 The Application Function can be executed with the command:
-```
+```bash
 cd ~/rt-5gms-application-function/src/5gmsaf
 ../../install/bin/open5gs-msafd -c msaf.yaml
 ```
