@@ -109,4 +109,6 @@ curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/does_not_ex
 
 ## Development
 
-_TODO_
+This project follows the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow). The
+`development` branch of this project serves as an integration branch for new features. Consequently, please make sure to switch
+to the `development` branch before starting the implementation of a new feature.
