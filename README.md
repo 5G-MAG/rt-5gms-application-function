@@ -99,7 +99,7 @@ curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d4
 ```
 
 The not found response can be tested using a different provisioningSessionId string to the value in the
-provisioningSessionId key in the configuration YAML file. For example
+provisioningSessionId key in the configuration YAML file. For example:
 
 ```bash
 curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/does_not_exist
