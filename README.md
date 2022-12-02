@@ -1,20 +1,20 @@
 # 5G-MAG Reference Tools: 5GMS Application Function
 
-This repository holds the 5GMS Application Function implementation for the
-5G-MAG Reference Tools.
+This repository holds the 5GMS Application Function implementation for the 5G-MAG Reference Tools.
 
 ## Introduction
 
-The 5GMS application function (AF) is a Network Function that forms part of the
-5G Media Services framework as defined in ETSI TS 126.501.
+The 5GMS application function (AF) is a Network Function that forms part of the 5G Media Services framework as defined
+in ETSI TS 126.501.
 
-This AF uses the [Open5GS](https://open5gs.org/) framework to implement the
-network function.
+This AF uses the [Open5GS](https://open5gs.org/) framework to implement the network function.
 
 ## Specifications
 
-* [ETSI TS 126 501](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66447) - 5G Media Streaming (5GMS): General description and architecture (3GPP TS 26.501 version 17.2.0 Release 17)
-* [ETSI TS 126 512](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66919) - 5G Media Streaming (5GMS): Protocols (3GPP TS 26.512 version 17.1.2 Release 17)
+* [ETSI TS 126 501](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66447) - 5G Media Streaming (
+  5GMS): General description and architecture (3GPP TS 26.501 version 17.2.0 Release 17)
+* [ETSI TS 126 512](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66919) - 5G Media Streaming (
+  5GMS): Protocols (3GPP TS 26.512 version 17.1.2 Release 17)
 
 ## Install dependencies
 
@@ -30,6 +30,7 @@ Release tar files can be downloaded from <https://github.com/5G-MAG/rt-5gms-appl
 The source can be obtained by cloning the github repository.
 
 For example to download the latest release you can use:
+
 ```bash
 cd ~
 git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-function.git
@@ -39,7 +40,7 @@ git submodule update
 
 ## Build the 5GMS Application Function
 
-To build the 5GMS Application Function from the source: 
+To build the 5GMS Application Function from the source:
 
 ```bash
 cd ~/rt-5gms-application-function
@@ -50,6 +51,7 @@ ninja -C build
 ## Installing
 
 To install the built Application Function:
+
 ```bash
 cd ~/rt-5gms-application-function/build
 ninja install
@@ -58,20 +60,28 @@ ninja install
 ## Running
 
 The Application Function can be executed with the command:
+
 ```bash
 cd ~/rt-5gms-application-function/src/5gmsaf
 ../../install/bin/open5gs-msafd -c msaf.yaml
 ```
 
+Use `-c` to specify a configuration file. The example configuration file can
+be `rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
+
 ## Testing with the example configuration
 
-If you started the 5GMS Application Function with the example configuration, you can test it by retrieving { http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f }.
+If you started the 5GMS Application Function with the example configuration (`msaf.yaml`), you can test it by retrieving
+http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f.
 
 For example:
+
 ```bash
 curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f
 ```
+
 ...would receive a response like:
+
 ```
 < HTTP/1.1 200 OK
 < Date: Fri, 28 Oct 2022 16:26:09 GMT
@@ -88,11 +98,15 @@ curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d4
 }
 ```
 
-The not found response can be tested using a different provisioningSessionId string to the value in the provisioningSessionId key in the configuration YAML file. For example
+The not found response can be tested using a different provisioningSessionId string to the value in the
+provisioningSessionId key in the configuration YAML file. For example
+
 ```bash
 curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/does_not_exist
 ```
+
 ...which would receive a response like:
+
 ```
 < HTTP/1.1 404 Not Found
 < Date: Fri, 28 Oct 2022 16:26:28 GMT
@@ -111,6 +125,7 @@ curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/does_not_ex
 
 ## Development
 
-This project follows the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow). The
-`development` branch of this project serves as an integration branch for new features. Consequently, please make sure to switch
-to the `development` branch before starting the implementation of a new feature.
+This project follows
+the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow). The
+`development` branch of this project serves as an integration branch for new features. Consequently, please make sure to
+switch to the `development` branch before starting the implementation of a new feature.
