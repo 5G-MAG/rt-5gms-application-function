@@ -138,6 +138,7 @@ msaf:
     applicationServers:
       - canonicalHostname: localhost
         urlPathPrefixFormat: /m4d/provisioning-session-{provisioningSessionId}/
+        m3Port: 7777
     # The following parameters are only needed for MVP#2 and will be automated
     # in future.
     contentHostingConfiguration: ../../subprojects/rt-common-shared/5gms/examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_http_and_https.json
