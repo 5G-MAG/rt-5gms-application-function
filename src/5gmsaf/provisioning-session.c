@@ -1,0 +1,383 @@
+/*
+License: 5G-MAG Public License (v1.0)
+Author: Dev Audsin
+Copyright: (C) 2022 British Broadcasting Corporation
+
+For full license terms please see the LICENSE file distributed with this
+program. If this file is missing then the license can be retrieved from
+https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+*/
+
+#include "provisioning-session.h"
+#include "application-server.h"
+#include "media-player.h"
+#include "context.h"
+#include "utilities.h"
+
+static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value);
+
+/***** Public functions *****/
+
+OpenAPI_content_hosting_configuration_t *
+msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session)
+{
+
+    ogs_assert(provisioning_session);
+    OpenAPI_content_hosting_configuration_t *chc_with_af_unique_cert_id = NULL;
+    OpenAPI_lnode_t *dist_config_node = NULL;
+    OpenAPI_distribution_configuration_t *dist_config = NULL;
+    char *af_unique_cert_id;
+    chc_with_af_unique_cert_id = OpenAPI_content_hosting_configuration_copy(chc_with_af_unique_cert_id, provisioning_session->contentHostingConfiguration);
+    if (chc_with_af_unique_cert_id) {
+
+       OpenAPI_list_for_each(chc_with_af_unique_cert_id->distribution_configurations, dist_config_node) {
+           dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
+           if (dist_config->certificate_id) {
+              af_unique_cert_id = ogs_msprintf("%s:%s", provisioning_session->provisioningSessionId, dist_config->certificate_id);
+              ogs_info("af_unique_cert_id: %s",af_unique_cert_id);
+              ogs_free(dist_config->certificate_id);
+              dist_config->certificate_id = af_unique_cert_id;
+              ogs_info("dist_config->certificate_id: %s",dist_config->certificate_id);
+            }
+       }
+    }
+    return chc_with_af_unique_cert_id;
+}
+
+msaf_provisioning_session_t *msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, char *external_app_id)
+{
+    msaf_provisioning_session_t *msaf_provisioning_session;
+    char *media_player_entry;
+
+    ogs_uuid_t uuid;
+    char id[OGS_UUID_FORMATTED_LENGTH + 1];
+
+    OpenAPI_provisioning_session_t *provisioning_session;
+
+    ogs_uuid_get(&uuid);
+    ogs_uuid_format(id, &uuid);
+
+    provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id), OpenAPI_provisioning_session_type_FromString(provisioning_session_type), ogs_strdup(asp_id), ogs_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
+
+
+    msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
+    ogs_assert(msaf_provisioning_session);
+  
+    msaf_provisioning_session->provisioningSessionId = ogs_strdup(provisioning_session->provisioning_session_id);
+    
+    if(msaf_self()->config.provisioningSessionId)
+        ogs_free(msaf_self()->config.provisioningSessionId);
+    msaf_self()->config.provisioningSessionId =  ogs_strdup(msaf_provisioning_session->provisioningSessionId);
+    
+    msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
+    msaf_provisioning_session->aspId = ogs_strdup(provisioning_session->asp_id);
+    msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
+    
+    msaf_provisioning_session->certificate_map = msaf_certificate_map();
+    ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
+    
+    application_server_state_init();
+    msaf_context_content_hosting_configuration_file_map(msaf_provisioning_session->provisioningSessionId);
+
+    msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
+    media_player_entry = media_player_entry_create(msaf_provisioning_session->provisioningSessionId, msaf_provisioning_session->contentHostingConfiguration);
+    ogs_assert(media_player_entry);
+    msaf_provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(media_player_entry);
+    
+    OpenAPI_provisioning_session_free(provisioning_session);
+
+   return msaf_provisioning_session;
+}
+
+cJSON *msaf_provisioning_session_get_json(char *provisioning_session_id) {
+    
+    msaf_provisioning_session_t *msaf_provisioning_session;
+    OpenAPI_provisioning_session_type_e provisioning_session_type;
+    char *asp_id;
+    char *external_application_id;
+    cJSON *provisioning_session_json;
+
+    OpenAPI_provisioning_session_t *provisioning_session = NULL;
+    provisioning_session = ogs_malloc(sizeof(OpenAPI_provisioning_session_t));
+    ogs_assert(provisioning_session);
+
+    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
+
+    if(msaf_provisioning_session)
+    {
+   
+        provisioning_session->provisioning_session_id = msaf_provisioning_session->provisioningSessionId;
+        provisioning_session->provisioning_session_type = msaf_provisioning_session->provisioningSessionType;
+        provisioning_session->asp_id = msaf_provisioning_session->aspId;
+        provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
+        
+        provisioning_session->server_certificate_ids = NULL;
+        provisioning_session->content_preparation_template_ids = NULL;
+        provisioning_session->metrics_reporting_configuration_ids = NULL;
+        provisioning_session->policy_template_ids = NULL;
+        provisioning_session->edge_resources_configuration_ids = NULL;
+        provisioning_session->event_data_processing_configuration_ids = NULL;
+
+        provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
+    } else {
+        ogs_error("Unable to retrieve Provisioning Session");
+        ogs_free(provisioning_session);
+        return NULL;
+
+    }
+    ogs_free(provisioning_session);
+    return provisioning_session_json;
+}
+
+int msaf_distribution_certificate_check(void)
+{
+    if (msaf_self()->provisioningSessions_map) {
+        return ogs_hash_do(ogs_hash_do_cert_check, NULL, msaf_self()->provisioningSessions_map);
+    }
+    return 1;
+}
+
+int msaf_content_hosting_configuration_certificate_check(msaf_provisioning_session_t *provisioning_session)
+{
+    ogs_assert(provisioning_session);
+    OpenAPI_lnode_t *dist_config_node = NULL;
+    OpenAPI_distribution_configuration_t *dist_config = NULL;
+    if (provisioning_session->contentHostingConfiguration && provisioning_session->certificate_map) {
+        OpenAPI_list_for_each(provisioning_session->contentHostingConfiguration->distribution_configurations, dist_config_node) {
+            dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
+            if (dist_config->certificate_id) {
+                const char *cert =ogs_hash_get(provisioning_session->certificate_map, dist_config->certificate_id, OGS_HASH_KEY_STRING);
+                if(cert){
+                    ogs_info("Matching certificate found: %s", cert);
+                } else {
+                    ogs_error("No matching certificate found %s", dist_config->certificate_id);
+                    return 0;
+                }
+                break;
+            }
+        } 
+    }
+    return 1;
+}
+
+void msaf_delete_certificate(char *resource_id) {
+ 
+    msaf_application_server_state_node_t *as_state;
+    ogs_list_for_each(&msaf_self()->application_server_states, as_state) {
+        resource_id_node_t *certificate, *next = NULL;
+        resource_id_node_t *upload_certificate, *next_node = NULL;
+        resource_id_node_t *delete_certificate, *delete_cert, *node = NULL;
+	    ogs_list_init(&as_state->delete_certificates);
+
+        if (as_state->current_certificates) {
+            
+            char *current_cert_id;
+            char *provisioning_session;
+            char *cert_id;
+            
+            ogs_list_for_each_safe(as_state->current_certificates, next, certificate){
+                
+                current_cert_id = ogs_strdup(certificate->state);
+                provisioning_session = strtok_r(current_cert_id,":",&cert_id);
+                
+                if(!strcmp(provisioning_session, resource_id))
+                    break;
+                
+                if(current_cert_id)
+                   ogs_free(current_cert_id);
+
+                }
+                
+                if(certificate) {
+                    delete_cert = ogs_calloc(1, sizeof(resource_id_node_t));
+                    ogs_assert(delete_cert);
+                    delete_cert->state = ogs_strdup(certificate->state);
+                    ogs_list_add(&as_state->delete_certificates, delete_cert);
+
+                }
+                
+                if(current_cert_id)
+                ogs_free(current_cert_id);
+            }
+
+        if(&as_state->upload_certificates) {
+            
+            char *upload_cert_id = NULL;
+            char *provisioning_session;
+            char *cert_id;
+        
+            ogs_list_for_each_safe(&as_state->upload_certificates, next_node, upload_certificate){
+                
+                upload_cert_id = ogs_strdup(upload_certificate->state);
+                provisioning_session = strtok_r(upload_cert_id,":",&cert_id);
+                if(!strcmp(provisioning_session, resource_id))
+                    break;
+            }
+            
+            if(upload_certificate) {
+        
+                ogs_list_remove(&as_state->upload_certificates, upload_certificate);
+                
+                ogs_list_add(&as_state->delete_certificates, upload_certificate);
+                
+            }
+            
+            if(upload_cert_id)
+                ogs_free(upload_cert_id);
+        }
+        
+    }	 
+}
+
+void msaf_delete_content_hosting_configuration(char *resource_id) {
+
+    msaf_application_server_state_node_t *as_state;
+    ogs_list_for_each(&msaf_self()->application_server_states, as_state) {
+
+        resource_id_node_t *content_hosting_configuration, *next = NULL;
+        resource_id_node_t *upload_content_hosting_configuration, *next_node = NULL;
+        resource_id_node_t *delete_content_hosting_configuration, *delete_chc, *node = NULL;
+
+        ogs_list_init(&as_state->delete_content_hosting_configurations);
+
+        if (as_state->current_content_hosting_configurations) {
+
+            ogs_list_for_each_safe(as_state->current_content_hosting_configurations, next, content_hosting_configuration){
+
+                if(!strcmp(content_hosting_configuration->state, resource_id))
+                    break;
+            }
+            if(content_hosting_configuration) {
+                delete_chc = ogs_calloc(1, sizeof(resource_id_node_t));
+                ogs_assert(delete_chc);
+                delete_chc->state = ogs_strdup(content_hosting_configuration->state);
+                ogs_list_add(&as_state->delete_content_hosting_configurations, delete_chc);
+
+            }
+        }
+
+        if(&as_state->upload_content_hosting_configurations) {
+
+            ogs_list_for_each_safe(&as_state->upload_content_hosting_configurations, next_node, upload_content_hosting_configuration){
+                if(!strcmp(upload_content_hosting_configuration->state, resource_id))
+                    break;
+            }
+            if(upload_content_hosting_configuration) {
+
+                ogs_list_remove(&as_state->upload_content_hosting_configurations, upload_content_hosting_configuration);
+
+                ogs_list_add(&as_state->delete_content_hosting_configurations, upload_content_hosting_configuration);
+
+            }
+        }
+
+            next_action_for_application_server(as_state);
+    }
+
+}
+
+msaf_provisioning_session_t *
+msaf_provisioning_session_find_by_provisioningSessionId(char *provisioningSessionId)
+{
+    if (!msaf_self()->provisioningSessions_map) return NULL;
+    return (msaf_provisioning_session_t*) ogs_hash_get(msaf_self()->provisioningSessions_map, provisioningSessionId, OGS_HASH_KEY_STRING);
+}
+
+ogs_hash_t *
+msaf_certificate_map(void)
+{
+    char *path = NULL;
+    cJSON *entry;
+    ogs_hash_t *certificate_map = ogs_hash_make();
+    char *certificate = read_file(msaf_self()->config.certificate);
+    cJSON *cert = cJSON_Parse(certificate);
+    path = get_path(msaf_self()->config.certificate);
+    ogs_assert(path);
+    cJSON_ArrayForEach(entry, cert) {
+        char *abs_path;
+        if (entry->valuestring[0] != '/') {
+            abs_path = ogs_msprintf("%s/%s", path, entry->valuestring);
+        } else {
+            abs_path = ogs_strdup(entry->valuestring);
+        }
+        ogs_hash_set(certificate_map, ogs_strdup(entry->string), OGS_HASH_KEY_STRING, abs_path);
+    }
+    ogs_free(path);
+    cJSON_Delete(entry);
+    cJSON_Delete(cert);
+    free(certificate);
+    return certificate_map;
+}
+
+const char *
+msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id)
+{
+    msaf_provisioning_session_t *provisioning_session;
+
+    provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
+    ogs_assert(provisioning_session);
+
+    if (provisioning_session->certificate_map == NULL) return NULL;
+
+    return (const char*)ogs_hash_get(provisioning_session->certificate_map, certificate_id, OGS_HASH_KEY_STRING);
+}
+
+ogs_list_t  
+msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session, OpenAPI_content_hosting_configuration_t *contentHostingConfiguration)
+{
+
+    ogs_list_t certs;
+    resource_id_node_t *certificate = NULL;
+    OpenAPI_lnode_t *dist_config_node = NULL;
+    OpenAPI_distribution_configuration_t *dist_config = NULL;
+
+    ogs_assert(provisioning_session);
+
+    ogs_list_init(&certs);
+    if (contentHostingConfiguration && provisioning_session->certificate_map) {
+       	    OpenAPI_list_for_each(contentHostingConfiguration->distribution_configurations, dist_config_node) {
+            dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
+            if (dist_config->certificate_id) {
+                const char *cert = ogs_hash_get(provisioning_session->certificate_map, dist_config->certificate_id, OGS_HASH_KEY_STRING);
+                if(cert){
+                    certificate = ogs_calloc(1, sizeof(resource_id_node_t));
+                    ogs_assert(certificate);
+		    char *provisioning_session_id_plus_cert_id = ogs_msprintf("%s:%s", provisioning_session->provisioningSessionId, dist_config->certificate_id);
+                    certificate->state = provisioning_session_id_plus_cert_id;
+                    ogs_list_add(&certs, certificate);
+                } else {
+		        resource_id_node_t *next;
+                        ogs_list_for_each_safe(&certs, next, certificate) {
+                        ogs_list_remove(&certs, certificate);
+                        if (certificate->state) ogs_free(certificate->state);
+                        ogs_free(certificate);
+                    }
+                }
+                break;
+            }
+        }
+    }
+    ogs_assert(&certs);
+    return certs;
+}
+
+OpenAPI_content_hosting_configuration_t *
+msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session)
+{
+    char *content_host_config_data = read_file(msaf_self()->config.contentHostingConfiguration);
+    cJSON *content_host_config_json = cJSON_Parse(content_host_config_data);
+    OpenAPI_content_hosting_configuration_t *content_hosting_configuration
+        = OpenAPI_content_hosting_configuration_parseFromJSON(content_host_config_json);
+    cJSON_Delete(content_host_config_json);
+    free (content_host_config_data);
+    msaf_application_server_state_set(provisioning_session, content_hosting_configuration);
+    return content_hosting_configuration;
+}
+
+/***** Private functions *****/
+
+static int
+ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value)
+{
+    return msaf_content_hosting_configuration_certificate_check((msaf_provisioning_session_t*)value);
+}

@@ -13,9 +13,6 @@
 #include "sbi-path.h"
 #include "context.h"
 
-
-
-
 void msaf_state_initial(ogs_fsm_t *s, msaf_event_t *e)
 {
     msaf_sm_debug(e);
@@ -63,18 +60,14 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             stream = e->h.sbi.data;
             ogs_assert(stream);
 
-            rv = ogs_sbi_parse_request(&message, request);
+	    rv = ogs_sbi_parse_header(&message, &request->h);
             if (rv != OGS_OK) {
-                ogs_error("cannot parse HTTP sbi_message");
-                ogs_assert(true ==
-                        ogs_sbi_server_send_error(
-                            stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                            NULL, "cannot parse HTTP sbi_message", NULL));
+                ogs_error("ogs_sbi_parse_header() failed");
+                ogs_sbi_message_free(&message);
+                ogs_sbi_response_free(request);
                 break;
             }
-
-
-
+                    
             SWITCH(message.h.service.name)
                 CASE(OGS_SBI_SERVICE_NAME_NNRF_NFM)
                     if (strcmp(message.h.api.version, OGS_SBI_API_V1) != 0) {
@@ -111,6 +104,161 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             message.h.resource.component[0]));
                     END
                     break;
+
+                CASE("3gpp-m1")
+                    if (strcmp(message.h.api.version, "v2") != 0) {
+                        ogs_error("Not supported version [%s]", message.h.api.version);
+                        ogs_assert(true ==
+                                ogs_sbi_server_send_error(
+                                        stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
+                                        &message, "Not supported version", NULL));
+                        ogs_sbi_message_free(&message);
+                        break;
+                    }
+                    SWITCH(message.h.resource.component[0])
+                        CASE("provisioning-sessions") 
+                            SWITCH(message.h.method)
+                                CASE(OGS_SBI_HTTP_METHOD_POST)
+
+                                    cJSON *entry;
+                                    cJSON *prov_sess = cJSON_Parse(request->http.content);
+                                    cJSON *provisioning_session;
+				                    char *provisioning_session_type, *asp_id, *external_app_id;
+		                            msaf_provisioning_session_t *msaf_provisioning_session;
+
+                                    cJSON_ArrayForEach(entry, prov_sess) {
+                                        if(!strcmp(entry->string, "provisioningSessionType")){
+                                            provisioning_session_type = entry->valuestring;
+                                        }
+                                        if(!strcmp(entry->string, "aspId")){
+                                            asp_id = entry->valuestring;
+                                        }
+                                        if(!strcmp(entry->string, "externalApplicationId")){
+                                            external_app_id = entry->valuestring;
+                                        }
+                                  
+                                    }
+                                    msaf_provisioning_session = msaf_provisioning_session_create(provisioning_session_type, asp_id, external_app_id);
+	                                provisioning_session = msaf_provisioning_session_get_json(msaf_provisioning_session->provisioningSessionId);
+                                    if (provisioning_session != NULL) {
+                                        ogs_sbi_response_t *response;
+                                        char *text;
+					                    char *location;
+                                        response = ogs_sbi_response_new();
+                                        text = cJSON_Print(provisioning_session);
+                                        response->http.content_length = strlen(text);
+                                        response->http.content = text;
+                                        response->status = 201;
+                                        ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
+
+					                    if (request->h.uri[strlen(request->h.uri)-1] != '/') {
+                                            location = ogs_msprintf("%s/%s", request->h.uri,msaf_provisioning_session->provisioningSessionId);
+                                        } else {
+					                        location = ogs_msprintf("%s%s", request->h.uri,msaf_provisioning_session->provisioningSessionId);
+                                           }
+					                    ogs_sbi_header_set(response->http.headers, "Location", location);
+                                        ogs_assert(response);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        ogs_free(location);
+                                        cJSON_Delete(provisioning_session);
+                                        cJSON_Delete(prov_sess);
+                                    } else {
+                                        char *err = NULL;
+                                        asprintf(&err,"Creation of the Provisioning session failed.");
+                                        ogs_error("Creation of the Provisioning session failed.");
+                                        ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                    404, &message,
+                                                    "Creation of the Provisioning session failed.",
+                                                    err));
+                                    }
+                                    break;
+
+                                CASE(OGS_SBI_HTTP_METHOD_GET)
+				                    if (message.h.resource.component[1]) {
+                                        ogs_sbi_response_t *response;
+                                        msaf_provisioning_session_t *msaf_provisioning_session = NULL;
+                                        cJSON *provisioning_session = NULL;
+
+                                        msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+
+                                        provisioning_session = msaf_provisioning_session_get_json(message.h.resource.component[1]);
+
+                                        if (provisioning_session && msaf_provisioning_session && !msaf_provisioning_session->marked_for_deletion) {
+                                            ogs_sbi_response_t *response;
+                                            char *text;
+                                            char *location;
+                                            response = ogs_sbi_response_new();
+                                            text = cJSON_Print(provisioning_session);
+                                            response->http.content_length = strlen(text);
+                                            response->http.content = text;
+                                            response->status = 200;
+                                            ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
+
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                            cJSON_Delete(provisioning_session);
+                                            
+                                        } else {
+                                            char *err = NULL;
+                                            asprintf(&err,"Provisioning session is not available.");
+                                            ogs_error("Provisioning session is not available.");
+                                            ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                        404, &message,
+                                                        "Provisioning session is not available.",
+                                                        err));
+                                        }
+                                    }
+                                    break;
+
+                                CASE(OGS_SBI_HTTP_METHOD_DELETE)
+				                    if (message.h.resource.component[1]) {
+                                        ogs_sbi_response_t *response;
+                                        msaf_provisioning_session_t *provisioning_session = NULL;
+                                        provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+                                        if(!provisioning_session || provisioning_session->marked_for_deletion){
+                                            char *err = NULL;
+                                            ogs_error("Provisioning session either not found or already marked for deletion.");
+                                            ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                    404, &message,
+                                                    "Unable to find the Provisioning session or it is marked for deletion already.",
+                                                    err));
+                                        } else {
+                                            
+                                            provisioning_session->marked_for_deletion = 1;
+                                    
+                                            response = ogs_sbi_response_new();
+                                            ogs_assert(response);
+                                            response->status = 202;
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+                                            msaf_delete_content_hosting_configuration(message.h.resource.component[1]);
+                                            msaf_delete_certificate(message.h.resource.component[1]);
+                                            msaf_context_provisioning_session_free(provisioning_session);
+                                        }
+				                    }
+                                    break;
+
+				                DEFAULT
+                                    ogs_error("Invalid HTTP method [%s]", message.h.method);
+                                    ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                 OGS_SBI_HTTP_STATUS_FORBIDDEN,
+                                                 &message, "Invalid HTTP method",
+                                                 message.h.method));
+                            END
+                            break;
+                        
+                        DEFAULT
+                            ogs_error("Invalid resource name [%s]",
+                                    message.h.resource.component[0]);
+                            ogs_assert(true ==
+                                    ogs_sbi_server_send_error(stream,
+                                            OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
+                                            "Invalid resource name",
+                                            message.h.resource.component[0]));
+                    END
+                    ogs_sbi_message_free(&message);
+                    break;                  
+            
                 CASE("3gpp-m5")
                     if (strcmp(message.h.api.version, "v2") != 0) {
                         ogs_error("Not supported version [%s]", message.h.api.version);
@@ -317,14 +465,13 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 					     	    
                                             if(content_hosting_configuration) {
                                                 
-						                        msaf_context_application_server_state_list("Current Content Hosting Configurations", as_state->current_content_hosting_configurations);
+						                        msaf_application_server_state_log(as_state->current_content_hosting_configurations, "Current Content Hosting Configurations");
 						    					
                                                 ogs_info("Removing %s from current_content_hosting_configurations", content_hosting_configuration->state);
-
 						                        ogs_free(content_hosting_configuration->state);
-						                        ogs_list_remove(as_state->current_content_hosting_configurations, content_hosting_configuration);
-
-                                                msaf_context_application_server_state_list("Current Content Hosting Configurations", as_state->current_content_hosting_configurations);
+                                                ogs_list_remove(as_state->current_content_hosting_configurations, content_hosting_configuration);
+                                                 ogs_free(content_hosting_configuration);
+                                                msaf_application_server_state_log(as_state->current_content_hosting_configurations, "Current Content Hosting Configurations");
 					                        }
 					    
 					                        if(&as_state->delete_content_hosting_configurations) {
@@ -333,14 +480,14 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                                     if(!strcmp(delete_content_hosting_configuration->state, message.h.resource.component[1])) {
                                                         
-                                                        msaf_context_application_server_state_list("Delete Content Hosting Configurations", &as_state->delete_content_hosting_configurations);    
+                                                        msaf_application_server_state_log(&as_state->delete_content_hosting_configurations, "Delete Content Hosting Configurations");    
     						                            
-                                                        ogs_info("Removing %s from delete_content_hosting_configurations", delete_content_hosting_configuration->state);
-
+                                                        ogs_info("Destroying Content Hosting Configuration: %s", delete_content_hosting_configuration->state);
+                                                        ogs_free(delete_content_hosting_configuration->state);
                                                         ogs_list_remove(&as_state->delete_content_hosting_configurations, delete_content_hosting_configuration);
                                                         ogs_free(delete_content_hosting_configuration);
                                                         
-                                                        msaf_context_application_server_state_list("Delete Content Hosting Configurations", &as_state->delete_content_hosting_configurations);
+                                                        msaf_application_server_state_log(&as_state->delete_content_hosting_configurations, "Delete Content Hosting Configurations");
                                                     }                                    
                                                 }
        					                    }
@@ -393,6 +540,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 ogs_list_for_each_safe(as_state->current_content_hosting_configurations, next, node) {
                                                     ogs_free(node->state);
                                                     ogs_list_remove(as_state->current_content_hosting_configurations, node);
+                                                    ogs_free(node);
                                                 }
                                             }	
                                             cJSON_ArrayForEach(entry, chc_array) {
@@ -441,7 +589,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 char *cert;
                                 char *location;
                                 char *upload_cert_id;
-				                char *current_cert_id;
+				char *current_cert_id;
 
                                 SWITCH(message.h.method)
                                     CASE(OGS_SBI_HTTP_METHOD_POST)
@@ -495,7 +643,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                             resource_id_node_t *certificate;	
 
-                                            msaf_context_application_server_state_list("upload certificates", &as_state->upload_certificates);
+                                            msaf_application_server_state_log(&as_state->upload_certificates, "Upload Certificates");
 
                                             //Iterate upload_certs and find match strcmp resource component 0 
                                             ogs_list_for_each(&as_state->upload_certificates,certificate){
@@ -554,14 +702,14 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 					     	    
                                             if(certificate) {
 				                            
-						                        msaf_context_application_server_state_list("Current Certificates", as_state->current_certificates);
+						                        msaf_application_server_state_log(as_state->current_certificates, "Current Certificates");
 
                                                 ogs_info("Removing certificate [%s] from current_certificates", certificate->state);
-
-						                        ogs_free(certificate->state);
+                                                ogs_free(certificate->state);    
+						    
 						                        ogs_list_remove(as_state->current_certificates, certificate);
-
-                                                msaf_context_application_server_state_list("Current Certificates", as_state->current_certificates);
+                                                 ogs_free(certificate);  
+                                                msaf_application_server_state_log(as_state->current_certificates, "Current Certificates");
 					                        }
 					    
 					                        if(&as_state->delete_certificates) {
@@ -569,13 +717,13 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
            				                        ogs_list_for_each_safe(&as_state->delete_certificates, node, delete_certificate){
 
                                                     if(!strcmp(delete_certificate->state, message.h.resource.component[1])) {
-                                                        msaf_context_application_server_state_list("Delete Certificates", &as_state->delete_certificates);
+                                                        msaf_application_server_state_log(&as_state->delete_certificates, "Delete Certificates");
                                                         
-                                                        ogs_info("Removing %s from delete_certificates", delete_certificate->state);
-
+                                                        ogs_info("Destroying Certificate: %s", delete_certificate->state);
+                                                        ogs_free(delete_certificate->state);
                                                         ogs_list_remove(&as_state->delete_certificates, delete_certificate);
                                                         ogs_free(delete_certificate);
-                                                        msaf_context_application_server_state_list("Delete Certificates", &as_state->delete_certificates);
+                                                        msaf_application_server_state_log(&as_state->delete_certificates, "Delete Certificates");
                                                     
                                                     }                                    
                                                 }
@@ -631,6 +779,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                    
                                                     ogs_free(node->state);
                                                     ogs_list_remove(as_state->current_certificates, node);
+                                                    ogs_free(node);
                                                 }
                                             }	
                                             cJSON_ArrayForEach(entry, cert_array) {
@@ -722,15 +871,6 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     END
                     break;
 
-#if 0
-                CASE(OGS_SBI_SERVICE_NAME_NNRF_DISC)
-                    SWITCH(message.h.resource.component[0])
-                        DEFAULT
-                            ogs_error("Invalid HTTP method [%s]", message.h.method);
-                            ogs_assert_if_reached();
-                    END
-                    break;
-#endif
                 DEFAULT
                     ogs_error("Invalid service name [%s]", message.h.service.name);
                     ogs_assert_if_reached();
@@ -797,6 +937,3 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             break;
     }
 }
-
-/* vim:ts=8:sts=4:sw=4:expandtab:
-*/
