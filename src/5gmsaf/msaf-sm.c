@@ -119,58 +119,80 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         CASE("provisioning-sessions") 
                             SWITCH(message.h.method)
                                 CASE(OGS_SBI_HTTP_METHOD_POST)
+                                    if (message.h.resource.component[1] && message.h.resource.component[2]) {
+                                        msaf_provisioning_session_t *msaf_provisioning_session;
+                                        if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
+                                            msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+                                            if(msaf_provisioning_session) {
+                                                // process the POST body
 
-                                    cJSON *entry;
-                                    cJSON *prov_sess = cJSON_Parse(request->http.content);
-                                    cJSON *provisioning_session;
-				                    char *provisioning_session_type, *asp_id, *external_app_id;
-		                            msaf_provisioning_session_t *msaf_provisioning_session;
+                                            } else {
+                                                char *err = NULL;
+                                                asprintf(&err,"Provisioning session does not exists.");
+                                                ogs_error("Provisioning session does not exists.");
+                                                ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                        404, &message,
+                                                        "Provisioning session does not exists.",
+                                                        err));
 
-                                    cJSON_ArrayForEach(entry, prov_sess) {
-                                        if(!strcmp(entry->string, "provisioningSessionType")){
-                                            provisioning_session_type = entry->valuestring;
-                                        }
-                                        if(!strcmp(entry->string, "aspId")){
-                                            asp_id = entry->valuestring;
-                                        }
-                                        if(!strcmp(entry->string, "externalApplicationId")){
-                                            external_app_id = entry->valuestring;
-                                        }
-                                  
-                                    }
-                                    msaf_provisioning_session = msaf_provisioning_session_create(provisioning_session_type, asp_id, external_app_id);
-	                                provisioning_session = msaf_provisioning_session_get_json(msaf_provisioning_session->provisioningSessionId);
-                                    if (provisioning_session != NULL) {
-                                        ogs_sbi_response_t *response;
-                                        char *text;
-					                    char *location;
-                                        response = ogs_sbi_response_new();
-                                        text = cJSON_Print(provisioning_session);
-                                        response->http.content_length = strlen(text);
-                                        response->http.content = text;
-                                        response->status = 201;
-                                        ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
+                                            }
 
-					                    if (request->h.uri[strlen(request->h.uri)-1] != '/') {
-                                            location = ogs_msprintf("%s/%s", request->h.uri,msaf_provisioning_session->provisioningSessionId);
-                                        } else {
-					                        location = ogs_msprintf("%s%s", request->h.uri,msaf_provisioning_session->provisioningSessionId);
-                                           }
-					                    ogs_sbi_header_set(response->http.headers, "Location", location);
-                                        ogs_assert(response);
-                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                        ogs_free(location);
-                                        cJSON_Delete(provisioning_session);
-                                        cJSON_Delete(prov_sess);
+                                        }
+                                    
                                     } else {
-                                        char *err = NULL;
-                                        asprintf(&err,"Creation of the Provisioning session failed.");
-                                        ogs_error("Creation of the Provisioning session failed.");
-                                        ogs_assert(true == ogs_sbi_server_send_error(stream,
-                                                    404, &message,
-                                                    "Creation of the Provisioning session failed.",
-                                                    err));
-                                    }
+                                        cJSON *entry;
+                                        cJSON *prov_sess = cJSON_Parse(request->http.content);
+                                        cJSON *provisioning_session;
+                                        char *provisioning_session_type, *asp_id, *external_app_id;
+                                        msaf_provisioning_session_t *msaf_provisioning_session;
+
+                                        cJSON_ArrayForEach(entry, prov_sess) {
+                                            if(!strcmp(entry->string, "provisioningSessionType")){
+                                                provisioning_session_type = entry->valuestring;
+                                            }
+                                            if(!strcmp(entry->string, "aspId")){
+                                                asp_id = entry->valuestring;
+                                            }
+                                            if(!strcmp(entry->string, "externalApplicationId")){
+                                                external_app_id = entry->valuestring;
+                                            }
+                                    
+                                        }
+                                        msaf_provisioning_session = msaf_provisioning_session_create(provisioning_session_type, asp_id, external_app_id);
+                                        provisioning_session = msaf_provisioning_session_get_json(msaf_provisioning_session->provisioningSessionId);
+                                        if (provisioning_session != NULL) {
+                                            ogs_sbi_response_t *response;
+                                            char *text;
+                                            char *location;
+                                            response = ogs_sbi_response_new();
+                                            text = cJSON_Print(provisioning_session);
+                                            response->http.content_length = strlen(text);
+                                            response->http.content = text;
+                                            response->status = 201;
+                                            ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
+
+                                            if (request->h.uri[strlen(request->h.uri)-1] != '/') {
+                                                location = ogs_msprintf("%s/%s", request->h.uri,msaf_provisioning_session->provisioningSessionId);
+                                            } else {
+                                                location = ogs_msprintf("%s%s", request->h.uri,msaf_provisioning_session->provisioningSessionId);
+                                            }
+                                            ogs_sbi_header_set(response->http.headers, "Location", location);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                            ogs_free(location);
+                                            cJSON_Delete(provisioning_session);
+                                            cJSON_Delete(prov_sess);
+                                        } else {
+                                            char *err = NULL;
+                                            asprintf(&err,"Creation of the Provisioning session failed.");
+                                            ogs_error("Creation of the Provisioning session failed.");
+                                            ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                        404, &message,
+                                                        "Creation of the Provisioning session failed.",
+                                                        err));
+                                        }
+                                    }    
+                                   
                                     break;
 
                                 CASE(OGS_SBI_HTTP_METHOD_GET)
@@ -234,6 +256,8 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             msaf_delete_content_hosting_configuration(message.h.resource.component[1]);
                                             msaf_delete_certificate(message.h.resource.component[1]);
                                             msaf_context_provisioning_session_free(provisioning_session);
+                                            msaf_provisioning_session_hash_remove(message.h.resource.component[1]);
+
                                         }
 				                    }
                                     break;

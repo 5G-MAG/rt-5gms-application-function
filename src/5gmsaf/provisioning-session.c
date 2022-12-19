@@ -14,7 +14,16 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "context.h"
 #include "utilities.h"
 
+typedef struct free_ogs_hash_provisioning_session_s {
+    char *provisioning_session;
+    ogs_hash_t *hash;
+} free_ogs_hash_provisioning_session_t;
+
+
 static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value);
+static int free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const void *value);
+static int uri_relative_check(char *entry_point_path);
+
 
 /***** Public functions *****/
 
@@ -364,15 +373,68 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
 OpenAPI_content_hosting_configuration_t *
 msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session)
 {
+    OpenAPI_lnode_t *dist_config_node = NULL;
+    OpenAPI_distribution_configuration_t *dist_config = NULL;
+    OpenAPI_distribution_configuration_t *new_dist_config = NULL;
+    OpenAPI_list_t *dist_configs;
+    char *url_path;
+    char *base_url;
+    static const char macro[] = "{provisioningSessionId}";
+    msaf_application_server_node_t *msaf_as = NULL;
+
+    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
+
+    url_path = url_path_create(macro, provisioning_session->provisioningSessionId, msaf_as);
+
     char *content_host_config_data = read_file(msaf_self()->config.contentHostingConfiguration);
     cJSON *content_host_config_json = cJSON_Parse(content_host_config_data);
+
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
         = OpenAPI_content_hosting_configuration_parseFromJSON(content_host_config_json);
+        if(!uri_relative_check(content_hosting_configuration->entry_point_path)) {
+	     cJSON_Delete(content_host_config_json);
+             ogs_free(url_path);
+             ogs_info(" URI relative check return 0: After reading content_host_config_data: %s", content_host_config_data);
+	     if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
+             free (content_host_config_data);
+	     return NULL;
+	}
+	
+        if (content_hosting_configuration->distribution_configurations) {
+            OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
+		    char *protocol = "http";    
+            dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
+	        if(dist_config->canonical_domain_name) ogs_free(dist_config->canonical_domain_name);
+	        dist_config->canonical_domain_name = ogs_strdup(msaf_as->canonicalHostname);
+                if (dist_config->certificate_id) {
+                    protocol = "https";
+                    break;
+                }
+	        if(dist_config->base_url) ogs_free(dist_config->base_url);
+	        dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, dist_config->canonical_domain_name, url_path);
+	        ogs_info("dist_config->base_url: %s",dist_config->base_url);
+            }
+        } else {
+            ogs_error("The Content Hosting Configuration has no Distribution Configuration");
+        }
+
     cJSON_Delete(content_host_config_json);
+    ogs_free(url_path);
     free (content_host_config_data);
     msaf_application_server_state_set(provisioning_session, content_hosting_configuration);
     return content_hosting_configuration;
 }
+
+void msaf_provisioning_session_hash_remove(char *provisioning_session_id) {
+    
+    free_ogs_hash_provisioning_session_t fohps = {
+        provisioning_session_id,
+        msaf_self()->provisioningSessions_map
+    };
+    ogs_hash_do(free_ogs_hash_provisioning_session, &fohps, msaf_self()->provisioningSessions_map);
+
+}
+
 
 /***** Private functions *****/
 
@@ -380,4 +442,58 @@ static int
 ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value)
 {
     return msaf_content_hosting_configuration_certificate_check((msaf_provisioning_session_t*)value);
+}
+
+
+static int free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const void *value)
+{
+    free_ogs_hash_provisioning_session_t *fohps = (free_ogs_hash_provisioning_session_t *)rec;
+    if(!strcmp(fohps->provisioning_session, (char *)key)) {
+    
+    ogs_hash_set(fohps->hash, key, klen, NULL);
+    ogs_free((void*)key);
+    
+    }
+    return 1;
+}
+
+
+static int uri_relative_check(char *entry_point_path) {
+
+  regex_t regex;
+  int result;
+
+  result = regcomp(&regex,"^[^/#?:]{1,}(/[^#?/]{1,})*(\\?[^#]*)?(#.*)?$", REG_EXTENDED);
+
+  if (result)
+    {
+        if (result == REG_ESPACE)
+            ogs_error("Regex error: Out of memory");
+        else
+            ogs_error("Syntax error in the regular expression passed");
+            return 0;
+        } else {
+            result = regexec(&regex, entry_point_path, 0, NULL, 0);
+        if (!result)
+        {
+            ogs_info("%s matches the regular expression\n", entry_point_path);
+	        regfree (&regex);
+	        return 1;
+        }
+        else if (result == REG_NOMATCH)
+        {
+            ogs_info("%s does not match the regular expression\n", entry_point_path);
+	        regfree (&regex);
+            return 0;
+        }
+        else
+        {
+            int length = regerror(result, &regex, NULL, 0);
+            char buffer[length];
+            (void) regerror (result, &regex, buffer, length);
+            ogs_error("Regex match failed: %s\n", buffer);
+	        regfree (&regex);
+            return 0;
+        }
+    }
 }
