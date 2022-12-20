@@ -19,6 +19,7 @@ typedef struct free_ogs_hash_provisioning_session_s {
     ogs_hash_t *hash;
 } free_ogs_hash_provisioning_session_t;
 
+static regex_t *relative_path_re = NULL;
 
 static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value);
 static int free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const void *value);
@@ -457,43 +458,51 @@ static int free_ogs_hash_provisioning_session(void *rec, const void *key, int kl
     return 1;
 }
 
+static void tidy_relative_path_re(void) {
+    if (relative_path_re != NULL) {
+        regfree(relative_path_re);
+        ogs_free(relative_path_re);
+        relative_path_re = NULL;
+    }
+}
 
 static int uri_relative_check(char *entry_point_path) {
+    int result;
 
-  regex_t regex;
-  int result;
-
-  result = regcomp(&regex,"^[^/#?:]{1,}(/[^#?/]{1,})*(\\?[^#]*)?(#.*)?$", REG_EXTENDED);
-
-  if (result)
-    {
-        if (result == REG_ESPACE)
-            ogs_error("Regex error: Out of memory");
-        else
-            ogs_error("Syntax error in the regular expression passed");
-            return 0;
-        } else {
-            result = regexec(&regex, entry_point_path, 0, NULL, 0);
-        if (!result)
-        {
-            ogs_info("%s matches the regular expression\n", entry_point_path);
-	        regfree (&regex);
-	        return 1;
-        }
-        else if (result == REG_NOMATCH)
-        {
-            ogs_info("%s does not match the regular expression\n", entry_point_path);
-	        regfree (&regex);
+    if (relative_path_re == NULL) {
+        relative_path_re = (regex_t*) ogs_calloc(1,sizeof(*relative_path_re));
+        ogs_assert(relative_path_re != NULL);
+        result = regcomp(relative_path_re, "^[^/#?:]{1,}(/[^#?/]{1,})*(\\?[^#]*)?(#.*)?$", REG_EXTENDED);
+        if (result) {
+            if (result == REG_ESPACE) {
+                ogs_error("Regex error: Out of memory");
+            } else {
+                ogs_error("Syntax error in the regular expression passed");
+            }
+            ogs_free(relative_path_re);
+            relative_path_re = NULL;
             return 0;
         }
-        else
-        {
-            int length = regerror(result, &regex, NULL, 0);
-            char buffer[length];
-            (void) regerror (result, &regex, buffer, length);
-            ogs_error("Regex match failed: %s\n", buffer);
-	        regfree (&regex);
-            return 0;
-        }
+        atexit(tidy_relative_path_re);
+    }
+
+    result = regexec(relative_path_re, entry_point_path, 0, NULL, 0);
+
+    if (!result) {
+        ogs_info("%s matches the regular expression\n", entry_point_path);
+        return 1;
+    } else if (result == REG_NOMATCH) {
+        ogs_info("%s does not match the regular expression\n", entry_point_path);
+        return 0;
+    } else {
+        char *buffer;
+        int length;
+
+        length = regerror(result, relative_path_re, NULL, 0);
+        buffer = (char*) ogs_calloc(1, length);
+        (void) regerror (result, relative_path_re, buffer, length);
+        ogs_error("Regex match failed: %s\n", buffer);
+        ogs_free(buffer);
+        return 0;
     }
 }

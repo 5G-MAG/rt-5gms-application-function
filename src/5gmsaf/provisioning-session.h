@@ -11,6 +11,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #ifndef MSAF_PROVISIONING_SESSION_H
 #define MSAF_PROVISIONING_SESSION_H
 
+#include <regex.h>
 #include "openapi/model/content_hosting_configuration.h"
 #include "openapi/model/service_access_information_resource.h"
 #include "openapi/model/provisioning_session.h"
@@ -51,6 +52,8 @@ extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configurati
 extern void msaf_delete_content_hosting_configuration(char * resource_id);
 
 extern void msaf_delete_certificate(char *resource_id);
+
+extern void msaf_provisioning_session_hash_remove(char *provisioning_session_id);
 
 #ifdef __cplusplus
 }
