@@ -117,7 +117,7 @@ fi
 
 "$scriptdir/../../subprojects/rt-common-shared/5gms/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 5.2.0 -y "$scriptdir/fix_openapi_yaml.py"
 
-cp set.h openapi/model
+cp "$scriptdir/set.h" "$scriptdir/openapi/model"
 
 exit 0
 
