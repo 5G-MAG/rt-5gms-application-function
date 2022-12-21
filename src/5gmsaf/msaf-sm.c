@@ -145,7 +145,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         cJSON *entry;
                                         cJSON *prov_sess = cJSON_Parse(request->http.content);
                                         cJSON *provisioning_session;
-                                        char *provisioning_session_type, *asp_id, *external_app_id;
+                                        char *provisioning_session_type, *external_app_id, *asp_id = NULL;
                                         msaf_provisioning_session_t *msaf_provisioning_session;
 
                                         cJSON_ArrayForEach(entry, prov_sess) {

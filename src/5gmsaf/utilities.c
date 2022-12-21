@@ -21,7 +21,11 @@ char *read_file(const char *filename)
     char *data_json = NULL;
 
     /* open in read binary mode */
-    f = fopen(filename,"rb");
+    f = fopen(filename, "rb");
+    if (f == NULL) {
+	ogs_error("Unable to open file with name [%s]", filename);
+	return NULL;
+    }
     /* get the length */
     fseek(f, 0, SEEK_END);
     len = ftell(f);
@@ -33,7 +37,7 @@ char *read_file(const char *filename)
     fclose(f);
     return data_json;
 
-} 
+}
 
 char *get_path(const char *file)
 {
@@ -42,9 +46,9 @@ char *get_path(const char *file)
 
     path = realpath(file, NULL);
     if(path == NULL){
-        ogs_error("cannot find file with name[%s]\n", file);
+        ogs_error("cannot find file with name[%s]", file);
         return NULL;
-    } 
+    }
     file_dir = ogs_strdup(dirname(path));
     return file_dir;
 }

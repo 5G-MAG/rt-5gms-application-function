@@ -119,7 +119,8 @@ void msaf_context_final(void)
 
     msaf_context_application_server_state_remove_all();
 
-    ogs_pollset_remove(self->inotify_context->poll);
+    if (self->inotify_context->poll)
+        ogs_pollset_remove(self->inotify_context->poll);
 
     ogs_free(self);
     self = NULL;

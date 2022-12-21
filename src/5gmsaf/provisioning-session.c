@@ -70,7 +70,7 @@ msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, 
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
 
-    provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id), OpenAPI_provisioning_session_type_FromString(provisioning_session_type), ogs_strdup(asp_id), ogs_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
+    provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id), OpenAPI_provisioning_session_type_FromString(provisioning_session_type), (asp_id)?ogs_strdup(asp_id):NULL, ogs_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
 
 
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
@@ -83,7 +83,7 @@ msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, 
     msaf_self()->config.provisioningSessionId =  ogs_strdup(msaf_provisioning_session->provisioningSessionId);
 
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
-    msaf_provisioning_session->aspId = ogs_strdup(provisioning_session->asp_id);
+    msaf_provisioning_session->aspId = (provisioning_session->asp_id)?ogs_strdup(provisioning_session->asp_id):NULL;
     msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
