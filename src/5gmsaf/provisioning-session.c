@@ -72,7 +72,6 @@ msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, 
 
     provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id), OpenAPI_provisioning_session_type_FromString(provisioning_session_type), (asp_id)?ogs_strdup(asp_id):NULL, ogs_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
 
-
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
     ogs_assert(msaf_provisioning_session);
 
@@ -89,7 +88,7 @@ msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
-    application_server_state_init();
+    /* TODO: remove when inotify is removed */
     msaf_context_content_hosting_configuration_file_map(msaf_provisioning_session->provisioningSessionId);
 
     msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
@@ -336,10 +335,10 @@ msaf_get_certificate_filename(const char *provisioning_session_id, const char *c
 }
 
 ogs_list_t*
-msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session, OpenAPI_content_hosting_configuration_t *contentHostingConfiguration)
+msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session)
 {
 
-    ogs_list_t *certs;
+    ogs_list_t *certs = NULL;
     resource_id_node_t *certificate = NULL;
     OpenAPI_lnode_t *dist_config_node = NULL;
     OpenAPI_distribution_configuration_t *dist_config = NULL;
@@ -349,8 +348,8 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
     certs = (ogs_list_t*) ogs_calloc(1,sizeof(*certs));
     ogs_assert(certs);
     ogs_list_init(certs);
-    if (contentHostingConfiguration && provisioning_session->certificate_map) {
-        OpenAPI_list_for_each(contentHostingConfiguration->distribution_configurations, dist_config_node) {
+    if (provisioning_session->contentHostingConfiguration && provisioning_session->certificate_map) {
+        OpenAPI_list_for_each(provisioning_session->contentHostingConfiguration->distribution_configurations, dist_config_node) {
             dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
             if (dist_config->certificate_id) {
                 const char *cert = ogs_hash_get(provisioning_session->certificate_map, dist_config->certificate_id, OGS_HASH_KEY_STRING);
@@ -361,14 +360,16 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
                     certificate->state = provisioning_session_id_plus_cert_id;
                     ogs_list_add(certs, certificate);
                 } else {
+                    ogs_error("Certificate [%s] not found for Content Hosting Configuration [%s]", dist_config->certificate_id, provisioning_session->provisioningSessionId);
                     resource_id_node_t *next;
                     ogs_list_for_each_safe(certs, next, certificate) {
                         ogs_list_remove(certs, certificate);
                         if (certificate->state) ogs_free(certificate->state);
                         ogs_free(certificate);
                     }
+                    certs = NULL;
+                    break;
                 }
-                break;
             }
         }
     }
@@ -382,11 +383,11 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
     OpenAPI_distribution_configuration_t *dist_config = NULL;
     char *url_path;
     static const char macro[] = "{provisioningSessionId}";
-    msaf_application_server_node_t *msaf_as = NULL;
+    msaf_application_server_state_node_t *as_state;
 
-    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
+    as_state = ogs_list_first(&msaf_self()->application_server_states);
 
-    url_path = url_path_create(macro, provisioning_session->provisioningSessionId, msaf_as);
+    url_path = url_path_create(macro, provisioning_session->provisioningSessionId, as_state->application_server);
 
     char *content_host_config_data = read_file(msaf_self()->config.contentHostingConfiguration);
     cJSON *content_host_config_json = cJSON_Parse(content_host_config_data);
@@ -399,7 +400,7 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
         ogs_info(" URI relative check return 0: After reading content_host_config_data: %s", content_host_config_data);
         if (content_hosting_configuration)
             OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
-        free (content_host_config_data);
+        ogs_free(content_host_config_data);
         return NULL;
     }
 
@@ -409,10 +410,9 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
             dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
             if (dist_config->canonical_domain_name)
                 ogs_free(dist_config->canonical_domain_name);
-            dist_config->canonical_domain_name = ogs_strdup(msaf_as->canonicalHostname);
+            dist_config->canonical_domain_name = ogs_strdup(as_state->application_server->canonicalHostname);
             if (dist_config->certificate_id) {
                 protocol = "https";
-                break;
             }
             if (dist_config->base_url)
                 ogs_free(dist_config->base_url);
@@ -421,12 +421,17 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
         }
     } else {
         ogs_error("The Content Hosting Configuration has no Distribution Configuration");
+        if (content_hosting_configuration)
+            OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
+        ogs_free(content_host_config_data);
+        return NULL;
     }
 
     cJSON_Delete(content_host_config_json);
     ogs_free(url_path);
     free (content_host_config_data);
-    msaf_application_server_state_set(provisioning_session, content_hosting_configuration);
+    provisioning_session->contentHostingConfiguration = content_hosting_configuration;
+    msaf_application_server_state_set(as_state, provisioning_session);
     return content_hosting_configuration;
 }
 

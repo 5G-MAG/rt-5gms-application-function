@@ -44,7 +44,7 @@ extern int msaf_distribution_certificate_check(void);
 
 extern ogs_hash_t *msaf_certificate_map();
 extern const char *msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id);
-extern ogs_list_t *msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session, OpenAPI_content_hosting_configuration_t *contentHostingConfiguration);
+extern ogs_list_t *msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session);
 
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session);
 

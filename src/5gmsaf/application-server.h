@@ -48,9 +48,14 @@ typedef struct application_server_state_node_s {
     char *state;
 } resource_id_node_t;
 
-extern void msaf_application_server_state_set( msaf_provisioning_session_t *provisioning_session, OpenAPI_content_hosting_configuration_t *contentHostingConfiguration);
+/**
+ * Add a content hosting configuration to an application server
+ *
+ * @param as_state The application server state to add this CHC to.
+ * @param provisioning_session The provisioning session of the CHC.
+ */
+extern void msaf_application_server_state_set(msaf_application_server_state_node_t *as_state, msaf_provisioning_session_t *provisioning_session);
 extern void msaf_application_server_state_log(ogs_list_t *list, const char* list_name);
-extern void application_server_state_init();
 extern msaf_application_server_node_t *msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_format, int m3_port);
 extern void msaf_application_server_remove_all(void);
 extern void msaf_application_server_print_all(void);

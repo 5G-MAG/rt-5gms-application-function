@@ -735,7 +735,7 @@ msaf_context_content_hosting_configuration_file_map(char *provisioning_session_i
     chc_file = basename(self->config.contentHostingConfiguration);
     ogs_assert(chc_file);
     chc_file_name = ogs_msprintf("%s/%s", path, chc_file);
-    ogs_assert(chc_file);
+    ogs_assert(chc_file_name);
     ogs_hash_set(self->content_hosting_configuration_file_map, chc_file_name, OGS_HASH_KEY_STRING, ogs_strdup(provisioning_session_id));
     ogs_free(path);
     return self->content_hosting_configuration_file_map;

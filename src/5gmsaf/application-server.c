@@ -12,71 +12,44 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "context.h"
 #include "utilities.h"
 
+static void application_server_state_init(msaf_application_server_node_t *msaf_as);
 static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port);
 static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_state, const char *type, const char *data, const char *method, const char *component);
 static int client_notify_cb(int status, ogs_sbi_response_t *response, void *data);
 static void msaf_application_server_remove(msaf_application_server_node_t *msaf_as);
 
-
 /***** Public functions *****/
 
 void
-msaf_application_server_state_set( msaf_provisioning_session_t *provisioning_session, OpenAPI_content_hosting_configuration_t *contentHostingConfiguration)
+msaf_application_server_state_set(msaf_application_server_state_node_t *as_state, msaf_provisioning_session_t *provisioning_session)
 {
-    msaf_application_server_node_t *msaf_as;
-    msaf_application_server_state_node_t *as_state;
     resource_id_node_t *chc;
     assigned_provisioning_sessions_node_t *assigned_provisioning_sessions;
     ogs_list_t *certs;
+    ogs_lnode_t *node, *next_node;
 
-    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
-    ogs_assert(msaf_as);
-    ogs_list_for_each(&msaf_self()->application_server_states, as_state){
-        if(!strcmp(as_state->application_server->canonicalHostname, msaf_as->canonicalHostname)) {
-            ogs_lnode_t *node, *next_node;
-            certs = msaf_retrieve_certificates_from_map(provisioning_session, contentHostingConfiguration);
-            ogs_list_for_each_safe(certs, next_node, node) {
-                ogs_list_add(&as_state->upload_certificates, node);
-            }
-            ogs_free(certs);
-            chc = ogs_calloc(1, sizeof(resource_id_node_t));
-            ogs_assert(chc);
-            chc->state = ogs_strdup(provisioning_session->provisioningSessionId);
-            ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
-            assigned_provisioning_sessions = ogs_calloc(1, sizeof(assigned_provisioning_sessions_node_t));
-            ogs_assert(assigned_provisioning_sessions);
-            assigned_provisioning_sessions->assigned_provisioning_session = provisioning_session;
-            assigned_provisioning_sessions->assigned_provisioning_session->contentHostingConfiguration = contentHostingConfiguration;
-            ogs_list_add(&as_state->assigned_provisioning_sessions, assigned_provisioning_sessions);
-
-            next_action_for_application_server(as_state);
-            break;
-        }	
+    certs = msaf_retrieve_certificates_from_map(provisioning_session);
+    if (certs) {
+        ogs_list_for_each_safe(certs, next_node, node) {
+            ogs_list_add(&as_state->upload_certificates, node);
+        }
+        ogs_free(certs);
     }
+
+    chc = ogs_calloc(1, sizeof(resource_id_node_t));
+    ogs_assert(chc);
+    chc->state = ogs_strdup(provisioning_session->provisioningSessionId);
+    ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
+
+    assigned_provisioning_sessions = ogs_calloc(1, sizeof(assigned_provisioning_sessions_node_t));
+    ogs_assert(assigned_provisioning_sessions);
+    assigned_provisioning_sessions->assigned_provisioning_session = provisioning_session;
+    ogs_list_add(&as_state->assigned_provisioning_sessions, assigned_provisioning_sessions);
+
+    next_action_for_application_server(as_state);
 }
 
-void application_server_state_init()
-{
-
-    msaf_application_server_node_t *msaf_as = NULL;
-    msaf_application_server_state_node_t *as_state = NULL;
-
-    as_state = ogs_calloc(1, sizeof(msaf_application_server_state_node_t));
-    ogs_assert(as_state);
-
-    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list); /* just use first defined AS for now - change later to use AS picked from pool */
-    ogs_assert(msaf_as);
-
-    as_state->application_server = msaf_as;
-
-    ogs_list_init(&as_state->assigned_provisioning_sessions);
-    ogs_list_init(&as_state->upload_certificates);
-    ogs_list_init(&as_state->upload_content_hosting_configurations);
-
-    ogs_list_add(&msaf_self()->application_server_states, as_state);
-}
-
-    msaf_application_server_node_t *
+msaf_application_server_node_t *
 msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_format, int m3_port)
 {
     msaf_application_server_node_t *msaf_as = NULL;
@@ -88,6 +61,8 @@ msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_form
     msaf_as->urlPathPrefixFormat = url_path_prefix_format;
     msaf_as->m3Port = m3_port;
     ogs_list_add(&msaf_self()->config.applicationServers_list, msaf_as);
+
+    application_server_state_init(msaf_as);
 
     return msaf_as;
 }
@@ -218,6 +193,22 @@ void msaf_application_server_print_all()
 
 
 /***** Private functions *****/
+
+static void application_server_state_init(msaf_application_server_node_t *msaf_as)
+{
+    msaf_application_server_state_node_t *as_state = NULL;
+
+    as_state = ogs_calloc(1, sizeof(msaf_application_server_state_node_t));
+    ogs_assert(as_state);
+
+    as_state->application_server = msaf_as;
+
+    ogs_list_init(&as_state->assigned_provisioning_sessions);
+    ogs_list_init(&as_state->upload_certificates);
+    ogs_list_init(&as_state->upload_content_hosting_configurations);
+
+    ogs_list_add(&msaf_self()->application_server_states, as_state);
+}
 
 static void msaf_application_server_remove(msaf_application_server_node_t *msaf_as)
 {
