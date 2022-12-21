@@ -187,8 +187,7 @@ libmsaf_dep = declare_dependency(
 
 msaf_sources = files('''
     app.c
-    ../../subprojects/open5gs/src/main.c
-'''.split())
+'''.split()) + open5gs_project.get_variable('app_main_c')
 
 executable('open5gs-msafd',
     sources : msaf_sources,
