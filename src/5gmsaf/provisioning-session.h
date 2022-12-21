@@ -34,8 +34,8 @@ typedef struct msaf_provisioning_session_s {
 } msaf_provisioning_session_t;
 
 extern msaf_provisioning_session_t *msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, char *external_app_id);
-extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(char *provisioningSessionId);
-extern cJSON *msaf_provisioning_session_get_json(char *provisioning_session_id);
+extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
+extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
 
@@ -44,8 +44,7 @@ extern int msaf_distribution_certificate_check(void);
 
 extern ogs_hash_t *msaf_certificate_map();
 extern const char *msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id);
-extern ogs_list_t  
-msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session, OpenAPI_content_hosting_configuration_t *contentHostingConfiguration);
+extern ogs_list_t *msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session, OpenAPI_content_hosting_configuration_t *contentHostingConfiguration);
 
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session);
 
