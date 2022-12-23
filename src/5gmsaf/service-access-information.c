@@ -17,14 +17,14 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "provisioning-session.h"
 
 OpenAPI_service_access_information_resource_t *
-msaf_context_service_access_information_create(char *media_player_entry)
+msaf_context_service_access_information_create(const char *provisioning_session_id, char *media_player_entry)
 {
     OpenAPI_service_access_information_resource_streaming_access_t *streaming_access
         = OpenAPI_service_access_information_resource_streaming_access_create(
                 media_player_entry, NULL);
     OpenAPI_service_access_information_resource_t *service_access_information
         = OpenAPI_service_access_information_resource_create(
-                ogs_strdup(msaf_self()->config.provisioningSessionId),
+                ogs_strdup(provisioning_session_id),
                 OpenAPI_provisioning_session_type_DOWNLINK, streaming_access, NULL, NULL,
                 NULL, NULL,NULL);
     return service_access_information;

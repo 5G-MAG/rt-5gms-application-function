@@ -134,15 +134,14 @@ msaf:
     sbi:
       - addr: 127.0.0.22
         port: 7777
-    certificate: ../../subprojects/rt-common-shared/5gms/examples/Certificates.json    
     applicationServers:
       - canonicalHostname: localhost
         urlPathPrefixFormat: /m4d/provisioning-session-{provisioningSessionId}/
         m3Port: 7777
     # The following parameters are only needed for MVP#2 and will be automated
     # in future.
-    contentHostingConfiguration: ../../subprojects/rt-common-shared/5gms/examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_http_and_https.json
-    provisioningSessionId: d54a1fcc-d411-4e32-807b-2c60dbaeaf5f
+    certificate: ../../examples/Certificates.json    
+    contentHostingConfiguration: ../../examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_http_and_https.json
     mediaPlayerEntrySuffix: BigBuckBunny_4s_onDemand_2014_05_09.mpd 
 #
 # nrf:

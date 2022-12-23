@@ -95,13 +95,8 @@ void msaf_context_final(void)
     if(self->config.contentHostingConfiguration)
         ogs_free(self->config.contentHostingConfiguration);
 
-    if(self->config.provisioningSessionId)
-        ogs_free(self->config.provisioningSessionId);
-
-
     if(self->config.mediaPlayerEntrySuffix)
         ogs_free(self->config.mediaPlayerEntrySuffix);
-
 
     if(self->config.certificate)
         ogs_free(self->config.certificate);
@@ -160,8 +155,6 @@ int msaf_context_parse_config(void)
                     }
                 } else if (!strcmp(msaf_key, "certificate")) {
                     self->config.certificate = ogs_strdup(ogs_yaml_iter_value(&msaf_iter));
-                } else if (!strcmp(msaf_key, "provisioningSessionId")) {
-                    self->config.provisioningSessionId = ogs_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "contentHostingConfiguration")) {
                     self->config.contentHostingConfiguration = ogs_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "mediaPlayerEntrySuffix")) {

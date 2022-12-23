@@ -77,10 +77,6 @@ msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, 
 
     msaf_provisioning_session->provisioningSessionId = ogs_strdup(provisioning_session->provisioning_session_id);
 
-    if(msaf_self()->config.provisioningSessionId)
-        ogs_free(msaf_self()->config.provisioningSessionId);
-    msaf_self()->config.provisioningSessionId =  ogs_strdup(msaf_provisioning_session->provisioningSessionId);
-
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
     msaf_provisioning_session->aspId = (provisioning_session->asp_id)?ogs_strdup(provisioning_session->asp_id):NULL;
     msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
@@ -94,7 +90,7 @@ msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, 
     msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
     media_player_entry = media_player_entry_create(msaf_provisioning_session->provisioningSessionId, msaf_provisioning_session->contentHostingConfiguration);
     ogs_assert(media_player_entry);
-    msaf_provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(media_player_entry);
+    msaf_provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(msaf_provisioning_session->provisioningSessionId, media_player_entry);
 
     OpenAPI_provisioning_session_free(provisioning_session);
 
