@@ -32,6 +32,17 @@ if ! grep -q '/\* rt-5gms-applicatiopn-function patch applied \*/' "$open5gs_src
          ogs_sbi_server_actions = ogs_mhd_server_actions;
  #endif
      }
+--- open5gs.orig/src/meson.build
++++ open5gs/src/meson.build
+@@ -29,6 +29,8 @@ version_conf = configuration_data()
+ version_conf.set_quoted('OPEN5GS_VERSION', package_version)
+ configure_file(output : 'version.h', configuration : version_conf)
+
++app_main_c = files(['main.c'])
++
+ subdir('mme')
+ subdir('hss')
+ subdir('sgwc')
 EOF
 )
 fi

@@ -18,10 +18,20 @@ libmsaf_dist_sources = files('''
     context.h
     event.c
     event.h
+    provisioning-session.h
+    provisioning-session.c
+    application-server.h
+    application-server.c
+    media-player.h
+    media-player.c
     sbi-path.c
     sbi-path.h
+    service-access-information.h
+    service-access-information.c
     msaf-sm.c
     msaf-sm.h
+    utilities.h
+    utilities.c
     init.c
     init.h
 '''.split())
@@ -123,6 +133,8 @@ libmsaf_gen_sources = '''
     openapi/model/polygon_all_of.c
     openapi/model/provisioning_session_type.h
     openapi/model/provisioning_session_type.c
+    openapi/model/provisioning_session.h
+    openapi/model/provisioning_session.c
     openapi/model/relative_cartesian_location.h
     openapi/model/relative_cartesian_location.c
     openapi/model/sdf_method.h
@@ -175,8 +187,7 @@ libmsaf_dep = declare_dependency(
 
 msaf_sources = files('''
     app.c
-    ../../subprojects/open5gs/src/main.c
-'''.split())
+'''.split()) + open5gs_project.get_variable('app_main_c')
 
 executable('open5gs-msafd',
     sources : msaf_sources,

@@ -34,8 +34,7 @@ int msaf_initialize()
         if (rv != OGS_OK) return rv;
     }
 
-    msaf_context_provisioning_session_set();
-    if (!msaf_context_distribution_certificate_check()) {
+    if (!msaf_distribution_certificate_check()) {
 	ogs_error("Consistency checks failed, aborting");
 	return OGS_ERROR;
     }
