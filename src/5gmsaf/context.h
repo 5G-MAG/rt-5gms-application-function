@@ -44,7 +44,6 @@ typedef struct msaf_configuration_s {
     int open5gsIntegration_flag;
     ogs_list_t applicationServers_list;
     char *contentHostingConfiguration;
-    char *mediaPlayerEntrySuffix;
     char *certificate;
     int  number_of_application_servers;
 } msaf_configuration_t;

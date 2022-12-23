@@ -142,7 +142,6 @@ msaf:
     # in future.
     certificate: ../../examples/Certificates.json    
     contentHostingConfiguration: ../../examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_http_and_https.json
-    mediaPlayerEntrySuffix: BigBuckBunny_4s_onDemand_2014_05_09.mpd 
 #
 # nrf:
 #

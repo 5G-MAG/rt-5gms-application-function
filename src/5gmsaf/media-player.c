@@ -38,7 +38,7 @@ char *media_player_entry_create(const char *session_id, OpenAPI_content_hosting_
 
     url_path_prefix = url_path_prefix_create(macro, session_id);
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list); /* just use first defined AS for now - change later to use AS picked from pool */
-    media_player_entry = ogs_msprintf("%s://%s%s%s", protocol, msaf_as->canonicalHostname, url_path_prefix, msaf_self()->config.mediaPlayerEntrySuffix);
+    media_player_entry = ogs_msprintf("%s://%s%s%s", protocol, msaf_as->canonicalHostname, url_path_prefix, chc->entry_point_path);
 
     ogs_free(url_path_prefix);
 
