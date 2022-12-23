@@ -570,8 +570,8 @@ static void msaf_context_application_server_state_certificates_remove_all(void) 
         }
 
         if (as_state->current_certificates) {
+            ogs_debug("Removing all current certificates");
             ogs_list_for_each_safe(as_state->current_certificates, next, certificate){
-                ogs_debug("Removing all current certificates");
                 if (certificate->state)
                     ogs_free(certificate->state);
                 ogs_list_remove(as_state->current_certificates, certificate);
