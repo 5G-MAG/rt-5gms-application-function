@@ -46,10 +46,10 @@ msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_sess
             dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
             if (dist_config->certificate_id) {
                 af_unique_cert_id = ogs_msprintf("%s:%s", provisioning_session->provisioningSessionId, dist_config->certificate_id);
-                ogs_info("af_unique_cert_id: %s",af_unique_cert_id);
+                ogs_debug("af_unique_cert_id: %s",af_unique_cert_id);
                 ogs_free(dist_config->certificate_id);
                 dist_config->certificate_id = af_unique_cert_id;
-                ogs_info("dist_config->certificate_id: %s",dist_config->certificate_id);
+                ogs_debug("dist_config->certificate_id: %s",dist_config->certificate_id);
             }
         }
     }
@@ -155,12 +155,11 @@ msaf_content_hosting_configuration_certificate_check(msaf_provisioning_session_t
             if (dist_config->certificate_id) {
                 const char *cert =ogs_hash_get(provisioning_session->certificate_map, dist_config->certificate_id, OGS_HASH_KEY_STRING);
                 if (cert) {
-                    ogs_info("Matching certificate found: %s", cert);
+                    ogs_debug("Matching certificate found: %s", cert);
                 } else {
                     ogs_error("No matching certificate found %s", dist_config->certificate_id);
                     return 0;
                 }
-                break;
             }
         } 
     }
@@ -393,7 +392,7 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
     if (!uri_relative_check(content_hosting_configuration->entry_point_path)) {
         cJSON_Delete(content_host_config_json);
         ogs_free(url_path);
-        ogs_info(" URI relative check return 0: After reading content_host_config_data: %s", content_host_config_data);
+        ogs_debug(" URI relative check return 0: After reading content_host_config_data: %s", content_host_config_data);
         if (content_hosting_configuration)
             OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
         ogs_free(content_host_config_data);
@@ -413,7 +412,7 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
             if (dist_config->base_url)
                 ogs_free(dist_config->base_url);
             dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, dist_config->canonical_domain_name, url_path);
-            ogs_info("dist_config->base_url: %s",dist_config->base_url);
+            ogs_info("Distribution URL: %s",dist_config->base_url);
         }
     } else {
         ogs_error("The Content Hosting Configuration has no Distribution Configuration");
@@ -537,10 +536,10 @@ uri_relative_check(char *entry_point_path)
     result = regexec(relative_path_re, entry_point_path, 0, NULL, 0);
 
     if (!result) {
-        ogs_info("%s matches the regular expression\n", entry_point_path);
+        ogs_debug("%s matches the regular expression\n", entry_point_path);
         return 1;
     } else if (result == REG_NOMATCH) {
-        ogs_info("%s does not match the regular expression\n", entry_point_path);
+        ogs_debug("%s does not match the regular expression\n", entry_point_path);
         return 0;
     } else {
         char *buffer;

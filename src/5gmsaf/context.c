@@ -549,7 +549,7 @@ static void msaf_context_delete_content_hosting_configuration(const char *resour
 
 static void msaf_context_application_server_state_certificates_remove_all(void) {
 
-    ogs_info("Removing all certificates");
+    ogs_info("Removing all certificates from all Application Servers");
 
     msaf_application_server_state_node_t *as_state;
 
@@ -559,7 +559,7 @@ static void msaf_context_application_server_state_certificates_remove_all(void) 
         resource_id_node_t *upload_certificate, *next_node = NULL;
         resource_id_node_t *delete_certificate, *node = NULL;
 
-        ogs_info("Removing all upload certificates");
+        ogs_debug("Removing all upload certificates");
         ogs_list_for_each_safe(&as_state->upload_certificates, next_node, upload_certificate){
             if (upload_certificate->state)
                 ogs_free(upload_certificate->state);
@@ -571,7 +571,7 @@ static void msaf_context_application_server_state_certificates_remove_all(void) 
 
         if (as_state->current_certificates) {
             ogs_list_for_each_safe(as_state->current_certificates, next, certificate){
-                ogs_info("Removing all current certificates");
+                ogs_debug("Removing all current certificates");
                 if (certificate->state)
                     ogs_free(certificate->state);
                 ogs_list_remove(as_state->current_certificates, certificate);

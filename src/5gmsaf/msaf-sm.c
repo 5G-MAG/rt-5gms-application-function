@@ -395,7 +395,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                         if (response->status == 201) {
 
-                                            ogs_info("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
+                                            ogs_debug("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
 
                                             resource_id_node_t *content_hosting_configuration;
                                             ogs_list_for_each(&as_state->upload_content_hosting_configurations,content_hosting_configuration) {
@@ -404,9 +404,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
                                             if(content_hosting_configuration) {
 
-                                                ogs_info("Removing %s from upload_content_hosting_configurations", content_hosting_configuration->state);
+                                                ogs_debug("Removing %s from upload_content_hosting_configurations", content_hosting_configuration->state);
                                                 ogs_list_remove(&as_state->upload_content_hosting_configurations, content_hosting_configuration);
-                                                ogs_info("Adding %s to current_content_hosting_configurations",content_hosting_configuration->state);
+                                                ogs_debug("Adding %s to current_content_hosting_configurations",content_hosting_configuration->state);
                                                 ogs_list_add(as_state->current_content_hosting_configurations, content_hosting_configuration);
                                             }
 
@@ -434,7 +434,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     CASE(OGS_SBI_HTTP_METHOD_PUT)
                                         if(response->status == 200 || response->status == 204) {
 
-                                            ogs_info("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
+                                            ogs_debug("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
                                             resource_id_node_t *content_hosting_configuration;
                                             ogs_list_for_each(&as_state->upload_content_hosting_configurations,content_hosting_configuration){
                                                 if(!strcmp(content_hosting_configuration->state, message.h.resource.component[1]))
@@ -442,7 +442,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
                                             if(content_hosting_configuration) {
 
-                                                ogs_info("Removing %s from upload_content_hosting_configurations", content_hosting_configuration->state);
+                                                ogs_debug("Removing %s from upload_content_hosting_configurations", content_hosting_configuration->state);
                                                 ogs_free(content_hosting_configuration->state);
                                                 ogs_list_remove(&as_state->upload_content_hosting_configurations, content_hosting_configuration);
                                                 ogs_free(content_hosting_configuration);
@@ -472,7 +472,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     CASE(OGS_SBI_HTTP_METHOD_DELETE)
                                         if(response->status == 204) {
 
-                                            ogs_info("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status,message.h.resource.component[1]);
+                                            ogs_debug("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status,message.h.resource.component[1]);
 
                                             resource_id_node_t *content_hosting_configuration, *next = NULL;
                                             resource_id_node_t *delete_content_hosting_configuration, *node = NULL;
@@ -490,7 +490,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                                 msaf_application_server_state_log(as_state->current_content_hosting_configurations, "Current Content Hosting Configurations");
 
-                                                ogs_info("Removing %s from current_content_hosting_configurations", content_hosting_configuration->state);
+                                                ogs_debug("Removing %s from current_content_hosting_configurations", content_hosting_configuration->state);
                                                 ogs_free(content_hosting_configuration->state);
                                                 ogs_list_remove(as_state->current_content_hosting_configurations, content_hosting_configuration);
                                                 ogs_free(content_hosting_configuration);
@@ -503,7 +503,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                                     msaf_application_server_state_log(&as_state->delete_content_hosting_configurations, "Delete Content Hosting Configurations");
 
-                                                    ogs_info("Destroying Content Hosting Configuration: %s", delete_content_hosting_configuration->state);
+                                                    ogs_debug("Destroying Content Hosting Configuration: %s", delete_content_hosting_configuration->state);
                                                     ogs_free(delete_content_hosting_configuration->state);
                                                     ogs_list_remove(&as_state->delete_content_hosting_configurations, delete_content_hosting_configuration);
                                                     ogs_free(delete_content_hosting_configuration);
@@ -547,7 +547,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                         if(response->status == 200) {
 
-                                            ogs_info("[%s] Method [%s] with Response [%d] for Content Hosting Configuration operation [%s]",
+                                            ogs_debug("[%s] Method [%s] with Response [%d] for Content Hosting Configuration operation [%s]",
                                                     message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
 
                                             if (as_state->current_content_hosting_configurations == NULL) {
@@ -572,7 +572,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 }
                                                 current_chc = ogs_calloc(1, sizeof(*current_chc));
                                                 current_chc->state = ogs_strdup(id);
-                                                ogs_info("Adding [%s] to the current Content Hosting Configuration list",current_chc->state);
+                                                ogs_debug("Adding [%s] to the current Content Hosting Configuration list",current_chc->state);
                                                 ogs_list_add(as_state->current_content_hosting_configurations, current_chc);
                                             }
 
@@ -606,7 +606,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     CASE(OGS_SBI_HTTP_METHOD_POST)
                                         if(response->status == 201) {
 
-                                            ogs_info("[%s] Method [%s] with Response [%d] recieved for certificate [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
+                                            ogs_debug("[%s] Method [%s] with Response [%d] recieved for certificate [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
 
                                             resource_id_node_t *certificate;
 
@@ -617,11 +617,11 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
                                             if(certificate) {
 
-                                                ogs_info("Removing certificate [%s] from upload_certificates", certificate->state);
+                                                ogs_debug("Removing certificate [%s] from upload_certificates", certificate->state);
 
                                                 ogs_list_remove(&as_state->upload_certificates, certificate);
 
-                                                ogs_info("Adding certificate [%s] to  current_certificates", certificate->state);
+                                                ogs_debug("Adding certificate [%s] to  current_certificates", certificate->state);
 
                                                 ogs_list_add(as_state->current_certificates, certificate);
                                                 // ogs_free(upload_cert_id);
@@ -650,7 +650,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     CASE(OGS_SBI_HTTP_METHOD_PUT)
                                         if(response->status == 200 || response->status == 204) {
 
-                                            ogs_info("[%s] Method [%s] with Response [%d] recieved for certificate [%s]", message.h.resource.component[0], message.h.method, response->status,message.h.resource.component[1]);
+                                            ogs_debug("[%s] Method [%s] with Response [%d] recieved for certificate [%s]", message.h.resource.component[0], message.h.method, response->status,message.h.resource.component[1]);
 
                                             resource_id_node_t *certificate;
 
@@ -664,11 +664,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
 
                                             if(!certificate){
-                                                ogs_info("Certificate %s not found in upload certificates", message.h.resource.component[1]);
-                                            }
-
-                                            if(certificate) {
-                                                ogs_info("Removing certificate [%s] from upload_certificates", certificate->state);
+                                                ogs_debug("Certificate %s not found in upload certificates", message.h.resource.component[1]);
+                                            } else {
+                                                ogs_debug("Removing certificate [%s] from upload_certificates", certificate->state);
                                                 ogs_free(certificate->state);
 
                                                 ogs_list_remove(&as_state->upload_certificates, certificate);
@@ -698,7 +696,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     CASE(OGS_SBI_HTTP_METHOD_DELETE)
                                         if(response->status == 204) {
 
-                                            ogs_info("[%s] Method [%s] with Response [%d] recieved for Certificate [%s]", message.h.resource.component[0], message.h.method, response->status,message.h.resource.component[1]);
+                                            ogs_debug("[%s] Method [%s] with Response [%d] recieved for Certificate [%s]", message.h.resource.component[0], message.h.method, response->status,message.h.resource.component[1]);
 
                                             resource_id_node_t *certificate, *next = NULL;
                                             resource_id_node_t *delete_certificate, *node = NULL;
@@ -715,7 +713,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                                 msaf_application_server_state_log(as_state->current_certificates, "Current Certificates");
 
-                                                ogs_info("Removing certificate [%s] from current_certificates", certificate->state);
+                                                ogs_debug("Removing certificate [%s] from current_certificates", certificate->state);
                                                 ogs_free(certificate->state);
 
                                                 ogs_list_remove(as_state->current_certificates, certificate);
@@ -729,7 +727,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 if(!strcmp(delete_certificate->state, message.h.resource.component[1])) {
                                                     msaf_application_server_state_log(&as_state->delete_certificates, "Delete Certificates");
 
-                                                    ogs_info("Destroying Certificate: %s", delete_certificate->state);
+                                                    ogs_debug("Destroying Certificate: %s", delete_certificate->state);
                                                     ogs_free(delete_certificate->state);
                                                     ogs_list_remove(&as_state->delete_certificates, delete_certificate);
                                                     ogs_free(delete_certificate);
@@ -772,7 +770,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                         if(response->status == 200) {
 
-                                            ogs_info("[%s] Method [%s] with Response [%d] received",
+                                            ogs_debug("[%s] Method [%s] with Response [%d] received",
                                                     message.h.resource.component[0], message.h.method, response->status);
 
                                             if (as_state->current_certificates == NULL) {
@@ -784,7 +782,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 resource_id_node_t *next, *node;
                                                 ogs_list_for_each_safe(as_state->current_certificates, next, node) {
 
-                                                    ogs_info("Removing certificate [%s] from current_certificates", node->state);
+                                                    ogs_debug("Removing certificate [%s] from current_certificates", node->state);
 
                                                     ogs_free(node->state);
                                                     ogs_list_remove(as_state->current_certificates, node);
@@ -800,7 +798,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 }
                                                 current_cert = ogs_calloc(1, sizeof(*current_cert));
                                                 current_cert->state = ogs_strdup(id);
-                                                ogs_info("Adding certificate [%s] to Current certificates", current_cert->state);
+                                                ogs_debug("Adding certificate [%s] to Current certificates", current_cert->state);
                                                 ogs_list_add(as_state->current_certificates, current_cert);
                                             }
 
@@ -913,7 +911,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     ogs_assert(true ==
                             ogs_nnrf_nfm_send_nf_status_subscribe(subscription_data));
 
-                    ogs_info("Subscription validity expired [%s]",
+                    ogs_debug("Subscription validity expired [%s]",
                             subscription_data->id);
                     ogs_sbi_subscription_data_remove(subscription_data);
                     break;

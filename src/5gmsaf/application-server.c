@@ -70,11 +70,11 @@ msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_form
 void msaf_application_server_state_log(ogs_list_t *list, const char* list_name) {
     resource_id_node_t *state_node;
     if(!list || (ogs_list_count(list) == 0)){
-        ogs_info("%s is empty",list_name);
+        ogs_debug("%s is empty",list_name);
     } else{
         int i = 1;
         ogs_list_for_each(list, state_node){
-            ogs_info("%s[%d]: %s\n", list_name, i, state_node->state);
+            ogs_debug("%s[%d]: %s\n", list_name, i, state_node->state);
             i++;
         }
     }
@@ -110,11 +110,11 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
         component = ogs_msprintf("certificates/%s:%s", provisioning_session, cert_id);
 
         if (cert_id_node) {
-            ogs_info("M3 client: Sending PUT method to Application Server for Certificate: [%s]", upload_cert->state);
+            ogs_debug("M3 client: Sending PUT method to Application Server for Certificate: [%s]", upload_cert->state);
             m3_client_as_state_requests(as_state, "application/x-pem-file", data, (char *)OGS_SBI_HTTP_METHOD_PUT, component);
             free(data);
         } else {
-            ogs_info("M3 client: Sending POST method to Application Server for Certificate: [%s]", upload_cert->state);
+            ogs_debug("M3 client: Sending POST method to Application Server for Certificate: [%s]", upload_cert->state);
             m3_client_as_state_requests(as_state, "application/x-pem-file", data, (char *)OGS_SBI_HTTP_METHOD_POST, component);
             free(data);
         }
@@ -147,10 +147,10 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
         component = ogs_msprintf("content-hosting-configurations/%s", upload_chc->state);
 
         if (chc_id_node) {
-            ogs_info("M3 client: Sending PUT method to Application Server for Content Hosting Configuration: [%s]", upload_chc->state);
+            ogs_debug("M3 client: Sending PUT method to Application Server for Content Hosting Configuration: [%s]", upload_chc->state);
             m3_client_as_state_requests(as_state, "application/json", data, (char *)OGS_SBI_HTTP_METHOD_PUT, component);
         } else {
-            ogs_info("M3 client: Sending POST method to Application Server for Content Hosting Configuration:  [%s]", upload_chc->state);
+            ogs_debug("M3 client: Sending POST method to Application Server for Content Hosting Configuration:  [%s]", upload_chc->state);
             m3_client_as_state_requests(as_state, "application/json", data, (char *)OGS_SBI_HTTP_METHOD_POST, component);
         }
         if (chc_with_af_unique_cert_id) OpenAPI_content_hosting_configuration_free(chc_with_af_unique_cert_id);
@@ -160,14 +160,14 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
     }   else if (ogs_list_first(&as_state->delete_content_hosting_configurations) !=  NULL) {
         char *component;
         resource_id_node_t *delete_chc = ogs_list_first(&as_state->delete_content_hosting_configurations);
-        ogs_info("M3 client: Sending DELETE method for Content Hosting Configuration [%s] to the Application Server", delete_chc->state);
+        ogs_debug("M3 client: Sending DELETE method for Content Hosting Configuration [%s] to the Application Server", delete_chc->state);
         component = ogs_msprintf("content-hosting-configurations/%s", delete_chc->state);
         m3_client_as_state_requests(as_state, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_DELETE, component);
         ogs_free(component);
     }   else if (ogs_list_first(&as_state->delete_certificates) !=  NULL) {
         char *component;
         resource_id_node_t *delete_cert = ogs_list_first(&as_state->delete_certificates);
-        ogs_info("M3 client: Sending DELETE method for certificate [%s] to the Application Server", delete_cert->state);
+        ogs_debug("M3 client: Sending DELETE method for certificate [%s] to the Application Server", delete_cert->state);
         component = ogs_msprintf("certificates/%s", delete_cert->state);
         m3_client_as_state_requests(as_state, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_DELETE, component);
         ogs_free(component);
@@ -188,7 +188,7 @@ void msaf_application_server_print_all()
     msaf_application_server_node_t *msaf_as = NULL, *next = NULL;;
 
     ogs_list_for_each_safe(&msaf_self()->config.applicationServers_list, next, msaf_as)
-        ogs_info("AS %s %s", msaf_as->canonicalHostname, msaf_as->urlPathPrefixFormat);
+        ogs_debug("AS %s %s", msaf_as->canonicalHostname, msaf_as->urlPathPrefixFormat);
 }
 
 
