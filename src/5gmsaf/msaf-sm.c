@@ -49,11 +49,6 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     switch (e->h.id) {
         case OGS_FSM_ENTRY_SIG:
             ogs_info("[%s] MSAF Running", ogs_sbi_self()->nf_instance->id);
-            { /* TODO: Remove this when M1 is active */
-                msaf_provisioning_session_t *ps;
-                ps = msaf_provisioning_session_create("DOWNLINK", NULL, "5GMS-AF internal");
-                ogs_info("Provisioning session = %s", ps->provisioningSessionId);
-            }
             break;
 
         case OGS_FSM_EXIT_SIG:
@@ -127,21 +122,144 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         CASE("provisioning-sessions")
                             SWITCH(message.h.method)
                                 CASE(OGS_SBI_HTTP_METHOD_POST)
-                                    if (message.h.resource.component[1] && message.h.resource.component[2]) {
+
+                                    if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3]) {
+                                         msaf_provisioning_session_t *msaf_provisioning_session;
+                                        if (!strcmp(message.h.resource.component[2],"content-hosting-configuration") && !strcmp(message.h.resource.component[3],"purge")) {
+                                            msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+                                            if(msaf_provisioning_session) {
+                                                // process the POST body
+                                                purge_resource_id_node_t *purge_cache;
+                                                msaf_application_server_state_node_t *as_state;
+                                                assigned_provisioning_sessions_node_t *assigned_provisioning_sessions_resource;
+                                                const char *component = ogs_msprintf("%s/content-hosting-configuration/purge", message.h.resource.component[1]);
+                                                ogs_list_for_each(&msaf_provisioning_session->msaf_application_server_state_nodes, as_state) { 
+                                                    if(as_state->application_server && as_state->application_server->canonicalHostname) {
+                                                        ogs_list_for_each(&as_state->assigned_provisioning_sessions,assigned_provisioning_sessions_resource){
+                                                            if(!strcmp(assigned_provisioning_sessions_resource->assigned_provisioning_session->provisioningSessionId, msaf_provisioning_session->provisioningSessionId)) {
+
+                                                                purge_cache = ogs_calloc(1, sizeof(purge_resource_id_node_t));
+                                                                ogs_assert(purge_cache);
+                                                                purge_cache->state = ogs_strdup(assigned_provisioning_sessions_resource->assigned_provisioning_session->provisioningSessionId);
+                                                                if(request->http.content)
+                                                                    purge_cache->purge_regex = ogs_strdup(request->http.content);
+                                                                if (ogs_list_first(&as_state->purge_content_hosting_cache) == NULL)
+                                                                    ogs_list_init(&as_state->purge_content_hosting_cache);
+
+                                                                ogs_list_add(&as_state->purge_content_hosting_cache, purge_cache);
+                                                            }
+                                                        }
+                                                    }    
+
+                                                    as_state->stream = stream;
+
+                                                    next_action_for_application_server(as_state);
+                                                    ogs_free(component);
+
+                                                }
+                                            } else {
+                                                ogs_error("Unable to retrieve the Provisioning Session");
+                                            }
+
+                                        }
+                                    
+                                    } else if (message.h.resource.component[1] && message.h.resource.component[2]) {
                                         msaf_provisioning_session_t *msaf_provisioning_session;
                                         if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
                                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
                                             if(msaf_provisioning_session) {
                                                 // process the POST body
+						                        cJSON *entry;
+                                                int rv;
+                                                cJSON *chc;
+                                                cJSON *content_hosting_config = cJSON_Parse(request->http.content);
+						                        char *txt = cJSON_Print(content_hosting_config);
+						                        ogs_debug("txt:%s", txt);
+
+                                                cJSON_ArrayForEach(entry, content_hosting_config) {
+                                                    if(!strcmp(entry->string, "entryPointPath")){
+							                            if(!uri_relative_check(entry->valuestring)) {
+                                                            char *err = NULL;
+                                                            asprintf(&err,"Entry Point Path does not match the regular expression.");
+                                                            ogs_error("Entry Point Path does not match the regular expression.");
+                                                            ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                                404, &message,
+                                                                "Entry Point Path does not match the regular expression.",
+                                                                err));
+                                                            cJSON_Delete(content_hosting_config);
+								                            break;
+                                                    }
+
+                                                    }
+						                        }
+
+                                                if(msaf_provisioning_session->contentHostingConfiguration) {
+                                                    OpenAPI_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
+                                                    msaf_provisioning_session->contentHostingConfiguration = NULL;
+
+                                                }
+
+                                                if (msaf_provisioning_session->serviceAccessInformation) {
+                                                    OpenAPI_service_access_information_resource_free(msaf_provisioning_session->serviceAccessInformation);
+                                                    msaf_provisioning_session->serviceAccessInformation = NULL;
+                                                }
+                                            
+                                               
+                                                rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
+                                                
+                                                if(rv){
+                                                    
+                                                    ogs_debug("Content Hosting Configuration created successfully");
+                                                    msaf_application_server_state_set_on_post(msaf_provisioning_session);
+                                                    chc = msaf_get_content_hosting_configuration_by_provisioning_session_id(message.h.resource.component[1]);
+                                                    if (chc != NULL) {
+                                                        ogs_sbi_response_t *response;
+                                                        char *text;
+                                                        response = ogs_sbi_response_new();
+                                                        text = cJSON_Print(chc);
+                                                        response->http.content_length = strlen(text);
+                                                        response->http.content = text;
+                                                        response->status = 201;
+                                                        ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
+                                                        ogs_sbi_header_set(response->http.headers, "Location", request->h.uri);
+                                                        ogs_assert(response);
+                                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                        cJSON_Delete(chc);
+                                                        cJSON_Delete(content_hosting_config);
+                                                    } else {
+                                                    char *err = NULL;
+                                                    ogs_error("Unable to retrieve the Content Hosting Configuration"); 
+                                                    asprintf(&err,"Unable to retrieve the Content Hosting Configuration");
+                                                    ogs_error("Unable to retrieve the Content Hosting Configuration");
+                                                    ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                        404, &message,
+                                                        "Unable to retrieve the Content Hosting Configuration",
+                                                        err));
+
+                                                    }
+                                                    
+ 
+                                                } else {
+                                                    char *err = NULL;
+                                                    ogs_error("Failed to populate Content Hosting Configuration"); 
+                                                    asprintf(&err,"Creation of the Content Hosting Configuration failed.");
+                                                    ogs_error("Creation of the Content Hosting Configuration failed.");
+                                                    ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                        404, &message,
+                                                        "Creation of the Content Hosting Configuration failed.",
+                                                        err));
+
+                                                }
 
                                             } else {
                                                 char *err = NULL;
                                                 asprintf(&err,"Provisioning session does not exists.");
                                                 ogs_error("Provisioning session does not exists.");
                                                 ogs_assert(true == ogs_sbi_server_send_error(stream,
-                                                            404, &message,
-                                                            "Provisioning session does not exists.",
-                                                            err));
+                                                        404, &message,
+                                                        "Provisioning session does not exists.",
+                                                        err));
+
                                             }
 
                                         }
@@ -237,6 +355,93 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     }
                                     break;
 
+                                CASE(OGS_SBI_HTTP_METHOD_PUT)
+                                    if (message.h.resource.component[1] && message.h.resource.component[2]) {
+                                        msaf_provisioning_session_t *msaf_provisioning_session;
+                                        if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
+                                            msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+                                            if(msaf_provisioning_session) {
+                                                // process the POST body
+						                        cJSON *entry;
+                                                int rv;
+                                                cJSON *chc;
+                                                cJSON *content_hosting_config = cJSON_Parse(request->http.content);
+						                        char *txt = cJSON_Print(content_hosting_config);
+						                        ogs_debug("txt:%s", txt);
+
+                                                cJSON_ArrayForEach(entry, content_hosting_config) {
+                                                    if(!strcmp(entry->string, "entryPointPath")){
+							                            if(!uri_relative_check(entry->valuestring)) {
+                                                            char *err = NULL;
+                                                            asprintf(&err,"Entry Point Path does not match the regular expression.");
+                                                            ogs_error("Entry Point Path does not match the regular expression.");
+                                                            ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                                404, &message,
+                                                                "Entry Point Path does not match the regular expression.",
+                                                                err));
+                                                            cJSON_Delete(content_hosting_config);
+								                            break;
+                                                    }
+
+                                                    }
+						                        }
+                                                if(msaf_provisioning_session->contentHostingConfiguration) {
+                                                    OpenAPI_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
+                                                    msaf_provisioning_session->contentHostingConfiguration = NULL;
+
+                                                }
+
+                                                if (msaf_provisioning_session->serviceAccessInformation) {
+                                                    OpenAPI_service_access_information_resource_free(msaf_provisioning_session->serviceAccessInformation);
+                                                    msaf_provisioning_session->serviceAccessInformation = NULL;
+                                                }
+
+                                               
+                                                rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
+                                                                                            
+                                                if(rv){
+
+                                                    msaf_application_server_state_update(msaf_provisioning_session);
+
+                                                    ogs_debug("Content Hosting Configuration updated successfully");
+                                                    
+                                                    ogs_sbi_response_t *response;
+                                                    response = ogs_sbi_response_new();
+                                                    response->status = 204;
+                                                    ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
+                                                    ogs_sbi_header_set(response->http.headers, "Location", request->h.uri);
+                                                    ogs_assert(response);
+                                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                    cJSON_Delete(content_hosting_config);                                               
+ 
+                                                } else {
+                                                    char *err = NULL;
+                                                    ogs_error("Failed to update Content Hosting Configuration"); 
+                                                    asprintf(&err,"Update to Content Hosting Configuration failed.");
+                                                    ogs_error("Update of the Content Hosting Configuration failed.");
+                                                    ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                        404, &message,
+                                                        "Creation of the Content Hosting Configuration failed.",
+                                                        err));
+
+                                                }
+
+                                            } else {
+                                                char *err = NULL;
+                                                asprintf(&err,"Provisioning session does not exists.");
+                                                ogs_error("Provisioning session does not exists.");
+                                                ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                                        404, &message,
+                                                        "Provisioning session does not exists.",
+                                                        err));
+
+                                            }
+
+                                        }
+                                    
+                                    }
+                                    break;
+    
                                 CASE(OGS_SBI_HTTP_METHOD_DELETE)
                                     if (message.h.resource.component[1]) {
                                         ogs_sbi_response_t *response;
@@ -389,7 +594,312 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             msaf_application_server_state_node_t *as_state;
                             as_state = e->application_server_state;
                             ogs_assert(as_state);
-                            if (message.h.resource.component[1]) {
+
+                              if (message.h.resource.component[1] && message.h.resource.component[2]) {
+                                
+                                if (!strcmp(message.h.resource.component[2],"purge")) {
+
+                                    SWITCH(message.h.method)
+                                        CASE(OGS_SBI_HTTP_METHOD_POST)
+
+                                            if (response->status == 204) {
+
+                                                int elements_in_purge_list = 0;
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+
+                                                if(&as_state->purge_content_hosting_cache) {
+
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1]))
+                                                            break;
+                                                    }
+                                                        
+
+                                                    if(content_hosting_cache) {
+
+                                                        msaf_application_server_state_log(&as_state->purge_content_hosting_cache, "Purge Content Hosting Cache list");
+
+                                                        if(content_hosting_cache->purge_regex) {
+                                                            ogs_debug("Application Server [%s]: Purged cache pertainining to resource [%s] matching %s", as_state->application_server->canonicalHostname, content_hosting_cache->state, content_hosting_cache->purge_regex);
+
+                                                        } else {
+                                                            ogs_debug("Application Server [%s]: Purged cache pertainining to resource [%s]", as_state->application_server->canonicalHostname, content_hosting_cache->state);
+
+                                                        }
+                                                        if (content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                        if(content_hosting_cache->purge_regex) ogs_free(content_hosting_cache->purge_regex);
+                                                        ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                        ogs_free(content_hosting_cache);
+                                                        msaf_application_server_state_log(&as_state->purge_content_hosting_cache, "Purge Content Hosting Cache list");
+
+                                                    }
+
+                                                    ogs_list_for_each(&as_state->purge_content_hosting_cache, content_hosting_cache) {
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1]))
+                                                            elements_in_purge_list++;
+                                                    }
+
+                                                    if(!elements_in_purge_list) {
+                                                        ogs_sbi_response_t *response;
+                                                        response = ogs_sbi_response_new();
+                                                        response->status = 200;
+                                                        ogs_assert(response);
+                                                        ogs_assert(true == ogs_sbi_server_send_response(as_state->stream, response));
+
+                                                    }
+                                                }
+
+                                            }
+
+                                            if (response->status == 200) {
+
+                                                int elements_in_purge_list = 0;
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+
+                                                if(&as_state->purge_content_hosting_cache) {
+
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1]))
+                                                            break;
+                                                    }
+                                                        
+
+                                                    if(content_hosting_cache) {
+
+                                                        msaf_application_server_state_log(&as_state->purge_content_hosting_cache, "Purge Content Hosting Cache list");
+
+                                                        if(content_hosting_cache->purge_regex) {
+                                                            ogs_debug("Application Server [%s] encountered a problem when purging its cache pertainining to resource [%s] for %s", as_state->application_server->canonicalHostname, content_hosting_cache->state, content_hosting_cache->purge_regex);
+
+                                                        } else {
+                                                            ogs_debug("Application Server [%s]: Failed to purge cache pertainining to resource [%s]", as_state->application_server->canonicalHostname, content_hosting_cache->state);
+
+                                                        }
+                                                        if (content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                        if(content_hosting_cache->purge_regex) ogs_free(content_hosting_cache->purge_regex);
+                                                        ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                        ogs_free(content_hosting_cache);
+                                                        msaf_application_server_state_log(&as_state->purge_content_hosting_cache, "Purge Content Hosting Cache list");
+ 
+                                                    }
+
+                                                    ogs_list_for_each(&as_state->purge_content_hosting_cache, content_hosting_cache) {
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1]))
+                                                            elements_in_purge_list++;
+                                                    }
+
+                                                    if(!elements_in_purge_list) {
+                                                        ogs_sbi_response_t *response;
+                                                        response = ogs_sbi_response_new();
+                                                        response->status = 200;
+                                                        ogs_assert(response);
+                                                        ogs_assert(true == ogs_sbi_server_send_response(as_state->stream, response));
+
+                                                    }
+                                                }
+
+                                            }
+
+                                            if(response->status == 404){
+                                                
+                                                ogs_error("Error message from the Application Server [%s]: Cache not found\n", as_state->application_server->canonicalHostname);
+
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+                                                if(&as_state->purge_content_hosting_cache) {
+
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1])) {
+                                                                        
+                                                            if (content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                            if(content_hosting_cache->purge_regex) ogs_free(content_hosting_cache->purge_regex);
+
+                                                            ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                            ogs_free(content_hosting_cache);	
+                                                        }
+                                                    }
+                                                    ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,
+                                                        404, &message, "The cache to be purged is not found in the Application Server", NULL));
+                                                }
+
+                                                
+
+                                            } 
+                                            if(response->status == 413){
+                                                
+                                                ogs_error("Error message from the Application Server [%s]: Payload too large\n", as_state->application_server->canonicalHostname);
+                                                char *regex_purge = NULL;
+                                                char *error;
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+                                                if(&as_state->purge_content_hosting_cache) {
+
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1])) {
+                                                                        
+                                                            if(content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                            if(content_hosting_cache->purge_regex) {
+                                                                regex_purge = content_hosting_cache->purge_regex;
+                                                                ogs_free(content_hosting_cache->purge_regex);
+                                                            }
+
+                                                            ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                            ogs_free(content_hosting_cache);	
+                                                        }
+                                                    }
+                                                    if (regex_purge) {
+                                                        error = ogs_msprintf("Application Server encountered a problem when purging its cache for the %s", regex_purge);
+                                                    } else {
+                                                        error = ogs_msprintf("Application Server encountered a problem when purging its cache"); 
+                                                    }
+
+                                                    ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,
+                                                                    413, &message, "Application Server encountered a problem when purging its cache", error));
+                                                }
+                                             
+                                            } 		 
+                                            if(response->status == 414){
+                                                
+                                                ogs_error("Error message from the Application Server [%s]: URI too long\n",as_state->application_server->canonicalHostname);
+                                                char *regex_purge = NULL;
+                                                char *error;
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+                                                if(&as_state->purge_content_hosting_cache) {
+
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1])) {
+                                                
+                                                            if (content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                            if(content_hosting_cache->purge_regex) {
+                                                                regex_purge = content_hosting_cache->purge_regex;
+                                                                ogs_free(content_hosting_cache->purge_regex);
+                                                            }
+                    
+                                                                ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                                ogs_free(content_hosting_cache);	
+                                                        }
+                                                    }
+                                                     if (regex_purge) {
+                                                        error = ogs_msprintf("Application Server encountered a problem when purging its cache for the %s", regex_purge);
+                                                    } else {
+                                                        error = ogs_msprintf("Application Server encountered a problem when purging its cache"); 
+                                                    }
+                                                    ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,
+                                                        414, &message, "Application Server encountered a problem when purging its cache", error));
+                                                }
+
+                                                
+
+                                            }		 
+                                            if(response->status == 415){
+                                                ogs_error("Error message from the Application Server [%s]: Unsupported media type\n", as_state->application_server->canonicalHostname);
+                                                char *regex_purge = NULL;
+                                                char *error;
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+                                                if(&as_state->purge_content_hosting_cache) {
+
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1])) {
+                                                                        
+                                                            if (content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                             if(content_hosting_cache->purge_regex) {
+                                                                regex_purge = content_hosting_cache->purge_regex;
+                                                                ogs_free(content_hosting_cache->purge_regex);
+                                                            }
+                                                            ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                            ogs_free(content_hosting_cache);	
+                                                        }
+                                                    }
+                                                    if (regex_purge) {
+                                                        error = ogs_msprintf("Application Server encountered a problem when purging its cache for the %s", regex_purge);
+                                                    } else {
+                                                        error = ogs_msprintf("Application Server encountered a problem when purging its cache"); 
+                                                    }
+
+                                                    ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,
+                                                        415, &message, "Application Server encountered a problem when purging its cache: Unsupported type", error));
+                                                }
+                                           
+
+                                            }		 
+                                            if(response->status == 500){
+                                                
+                                                ogs_error("Error message from the Application Server [%s]: Internal server error\n", as_state->application_server->canonicalHostname);
+                                                char *regex_purge = NULL;
+                                                char *error;
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+                                                if(&as_state->purge_content_hosting_cache) {
+
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1])) {
+                                                
+                                                            if (content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                             if(content_hosting_cache->purge_regex) {
+                                                                regex_purge = content_hosting_cache->purge_regex;
+                                                                ogs_free(content_hosting_cache->purge_regex);
+                                                            }
+
+                                                            ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                            ogs_free(content_hosting_cache);	
+                                                        }
+                                                    } 
+                                                }
+
+                                                if (regex_purge) {
+                                                    error = ogs_msprintf("Application Server encountered a problem when purging its cache for the %s", regex_purge);
+                                                } else {
+                                                    error = ogs_msprintf("Application Server encountered a problem when purging its cache"); 
+                                                }
+
+                                                ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,
+                                                    500, &message, "Application Server encountered a problem when purging its cache", error));
+
+                                            }		 
+                                            if(response->status == 503){
+                                                
+                                                ogs_error("Error message from the Application Server [%s]: Service unavailable\n", as_state->application_server->canonicalHostname);
+                                                char *regex_purge = NULL;
+                                                char *error;
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+                                                if(&as_state->purge_content_hosting_cache) {
+
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1])) {
+                                                                        
+                                                            if (content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                             if(content_hosting_cache->purge_regex) {
+                                                                regex_purge = content_hosting_cache->purge_regex;
+                                                                ogs_free(content_hosting_cache->purge_regex);
+                                                            }
+
+                                                            ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                            ogs_free(content_hosting_cache);	
+                                                        }
+                                                    }
+                                                    if (regex_purge) {
+                                                    error = ogs_msprintf("Application Server encountered a problem when purging its cache for the %s", regex_purge);
+                                                } else {
+                                                    error = ogs_msprintf("Application Server encountered a problem when purging its cache"); 
+                                                }
+                                                    ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,503, &message, "Application Server encountered a problem when purging its cache", error));
+
+                                                }
+
+                                            }
+                                            next_action_for_application_server(as_state);	 
+                                            break;
+                                    END
+                                    break;
+                            
+                                }
+                            } else if (message.h.resource.component[1]) {
+        
                                 SWITCH(message.h.method)
                                     CASE(OGS_SBI_HTTP_METHOD_POST)
 

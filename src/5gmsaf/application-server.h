@@ -28,6 +28,7 @@ typedef struct msaf_application_server_node_s {
 typedef struct msaf_application_server_state_node_s {
     ogs_lnode_t       node;
     ogs_sbi_client_t  *client;
+    ogs_sbi_stream_t  *stream;
     msaf_application_server_node_t *application_server;
     ogs_list_t        assigned_provisioning_sessions;
     ogs_list_t       *current_certificates;
@@ -36,6 +37,7 @@ typedef struct msaf_application_server_state_node_s {
     ogs_list_t       *current_content_hosting_configurations;
     ogs_list_t        upload_content_hosting_configurations;
     ogs_list_t        delete_content_hosting_configurations;
+    ogs_list_t	      purge_content_hosting_cache;
 } msaf_application_server_state_node_t;
 
 typedef struct assigned_provisioning_sessions_node_s {
@@ -47,6 +49,12 @@ typedef struct application_server_state_node_s {
     ogs_lnode_t       node;
     char *state;
 } resource_id_node_t;
+
+typedef struct purge_resource_node_s {
+    ogs_lnode_t node;
+    char *state;
+    char *purge_regex;
+} purge_resource_id_node_t;
 
 /**
  * Add a content hosting configuration to an application server
@@ -60,6 +68,8 @@ extern msaf_application_server_node_t *msaf_application_server_add(char *canonic
 extern void msaf_application_server_remove_all(void);
 extern void msaf_application_server_print_all(void);
 extern void next_action_for_application_server(msaf_application_server_state_node_t *as_state);
+extern void msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisioning_session);
+extern void msaf_application_server_state_update( msaf_provisioning_session_t *provisioning_session);
 
 
 #ifdef __cplusplus

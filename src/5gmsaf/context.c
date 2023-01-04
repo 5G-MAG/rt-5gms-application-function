@@ -35,13 +35,6 @@ static void msaf_context_application_server_state_content_hosting_configuration_
 static void msaf_context_application_server_state_assigned_provisioning_sessions_remove_all(void);
 static void msaf_context_application_server_state_remove_all(void);
 
-//Functions to handle inotify delete signal.
-
-static void msaf_context_inotify_init(void);
-static void msaf_context_inotify_event(short when, ogs_socket_t fd, void *data);
-static void msaf_context_delete_content_hosting_configuration(const char *resource_id);
-static void msaf_context_delete_certificate(const char *resource_id);
-
 /***** Public functions *****/
 
 void msaf_context_init(void)
@@ -63,8 +56,6 @@ void msaf_context_init(void)
 
     self->content_hosting_configuration_file_map = ogs_hash_make();
     ogs_assert(self->content_hosting_configuration_file_map);
-
-    msaf_context_inotify_init();
 }
 
 void msaf_context_final(void)
@@ -89,17 +80,11 @@ void msaf_context_final(void)
         ogs_hash_destroy(self->content_hosting_configuration_file_map);
     }
 
-    if(self->inotify_context)
-        ogs_free(self->inotify_context);
-
     if(self->config.contentHostingConfiguration)
         ogs_free(self->config.contentHostingConfiguration);
 
     if(self->config.certificate)
         ogs_free(self->config.certificate);
-
-    if(self->inotify_context->watch_dir)
-        ogs_free(self->inotify_context->watch_dir);
 
     msaf_application_server_remove_all();
 
@@ -110,9 +95,6 @@ void msaf_context_final(void)
     msaf_context_application_server_state_assigned_provisioning_sessions_remove_all();
 
     msaf_context_application_server_state_remove_all();
-
-    if (self->inotify_context->poll)
-        ogs_pollset_remove(self->inotify_context->poll);
 
     ogs_free(self);
     self = NULL;
@@ -383,53 +365,7 @@ msaf_context_get_content_hosting_configuration_resource_identifier(const char *c
     return (const char*)ogs_hash_get(self->content_hosting_configuration_file_map, content_hosting_configuration_file_name, OGS_HASH_KEY_STRING);
 }
 
-void msaf_context_inotify_poll_add(void){
-
-    self->inotify_context->fd = inotify_init1(IN_NONBLOCK);
-    self->inotify_context->watch_dir = get_path(self->config.contentHostingConfiguration);
-    if (self->inotify_context->fd < 0){
-        ogs_error("inotify_init() call failed");
-    }
-    else {
-        self->inotify_context->wd = inotify_add_watch(self->inotify_context->fd, self->inotify_context->watch_dir,  IN_DELETE);
-        if (self->inotify_context->wd < 0) {
-            ogs_error("inotify_add_watch() call failed");
-        }
-        self->inotify_context->poll = ogs_pollset_add(ogs_app()->pollset, OGS_POLLIN, self->inotify_context->fd, msaf_context_inotify_event, NULL);
-    }
-}
-
-
-
-
 /***** Private functions *****/
-
-static void
-msaf_context_inotify_event(short when, ogs_socket_t fd, void *data)
-{
-    char buf[BUF_LEN];
-    int len;
-    len = read(self->inotify_context->fd, buf, BUF_LEN);
-
-    if (len > 0)
-    {
-        int i;
-        struct inotify_event *event;
-        for (i = 0; i < len; i += EVENT_SIZE + event->len) {
-            event = (struct inotify_event *) &buf[i];
-            if (event->mask & IN_DELETE) {
-                char *chc;
-                const char *resource_id;
-
-                chc = ogs_msprintf("%s/%s", self->inotify_context->watch_dir, event->name);
-                resource_id = msaf_context_get_content_hosting_configuration_resource_identifier(chc);
-                msaf_context_delete_content_hosting_configuration(resource_id);
-                msaf_context_delete_certificate(resource_id);
-                ogs_free(chc);
-            }
-        }
-    }
-}
 
 static void msaf_context_delete_certificate(const char *resource_id) {
 
@@ -657,14 +593,7 @@ static void msaf_context_application_server_state_remove_all(void) {
     }
 }
 
-static void msaf_context_inotify_init(void){
-
-    self->inotify_context = ogs_calloc(1, sizeof(inotify_context_t));
-    ogs_assert(self->inotify_context);
-}
-
-static int
-msaf_context_prepare(void)
+static int msaf_context_prepare(void)
 {
     return OGS_OK;
 }

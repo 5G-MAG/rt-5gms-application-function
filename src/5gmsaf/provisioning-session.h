@@ -54,6 +54,13 @@ extern void msaf_delete_certificate(char *resource_id);
 
 extern void msaf_provisioning_session_hash_remove(char *provisioning_session_id);
 
+extern int uri_relative_check(char *entry_point_path);
+
+extern int
+msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session);
+
+extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(char *provisioning_session_id);
+
 #ifdef __cplusplus
 }
 #endif

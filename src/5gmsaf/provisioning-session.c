@@ -25,8 +25,6 @@ static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const vo
 static int free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const void *value);
 static char* url_path_create(const char* macro, const char* session_id, const msaf_application_server_node_t *msaf_as);
 static void tidy_relative_path_re(void);
-static int uri_relative_check(char *entry_point_path);
-
 
 /***** Public functions *****/
 
@@ -83,14 +81,6 @@ msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, 
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
-
-    /* TODO: remove when inotify is removed */
-    msaf_context_content_hosting_configuration_file_map(msaf_provisioning_session->provisioningSessionId);
-
-    msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
-    media_player_entry = media_player_entry_create(msaf_provisioning_session->provisioningSessionId, msaf_provisioning_session->contentHostingConfiguration);
-    ogs_assert(media_player_entry);
-    msaf_provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(msaf_provisioning_session->provisioningSessionId, media_player_entry);
 
     OpenAPI_provisioning_session_free(provisioning_session);
 
@@ -371,6 +361,91 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
     return certs;
 }
 
+int
+msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session)
+{
+    OpenAPI_lnode_t *dist_config_node = NULL;
+    OpenAPI_distribution_configuration_t *dist_config = NULL;
+    OpenAPI_distribution_configuration_t *new_dist_config = NULL;
+    OpenAPI_list_t *dist_configs;
+    char *url_path;
+    char *base_url;
+    char *domain_name;
+    char *media_player_entry;
+    static const char macro[] = "{provisioningSessionId}";
+    msaf_application_server_node_t *msaf_as = NULL;
+   
+    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
+    
+    url_path = url_path_create(macro, provisioning_session->provisioningSessionId, msaf_as);
+    
+    OpenAPI_content_hosting_configuration_t *content_hosting_configuration
+        = OpenAPI_content_hosting_configuration_parseFromJSON(content_hosting_config);
+        if(!uri_relative_check(content_hosting_configuration->entry_point_path)) {
+            cJSON_Delete(content_hosting_config);
+            ogs_free(url_path);
+	        if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
+	        return 0;
+	    }
+	
+        if (content_hosting_configuration->distribution_configurations) {
+            OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
+                
+                char *protocol = "http";    
+                
+                dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
+                
+                if(dist_config->canonical_domain_name) ogs_free(dist_config->canonical_domain_name);
+                
+                dist_config->canonical_domain_name = ogs_strdup(msaf_as->canonicalHostname);
+                
+                if (dist_config->certificate_id) {
+                    protocol = "https";  
+                }
+
+                if(dist_config->domain_name_alias){
+                    domain_name = dist_config->domain_name_alias;
+                } else {
+                    domain_name = dist_config->canonical_domain_name;
+                }
+
+                if(dist_config->base_url) ogs_free(dist_config->base_url);
+                
+                dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, domain_name, url_path);
+                
+                ogs_info("dist_config->base_url: %s",dist_config->base_url);
+            }
+        } else {
+            ogs_error("The Content Hosting Configuration has no Distribution Configuration");
+        }
+
+    media_player_entry = ogs_msprintf("%s%s", dist_config->base_url, content_hosting_configuration->entry_point_path);
+    provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_player_entry);
+    provisioning_session->contentHostingConfiguration =  content_hosting_configuration;
+    ogs_free(url_path);
+
+    return 1;
+}
+
+cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(char *provisioning_session_id) {
+    
+    msaf_provisioning_session_t *msaf_provisioning_session;
+    cJSON *content_hosting_configuration_json;
+
+    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
+
+    if(msaf_provisioning_session && msaf_provisioning_session->contentHostingConfiguration)
+    {
+       content_hosting_configuration_json = OpenAPI_content_hosting_configuration_convertToJSON(msaf_provisioning_session->contentHostingConfiguration);
+    } else {
+        ogs_error("Unable to retrieve Provisioning Session");
+        return NULL;
+
+    }
+    return content_hosting_configuration_json;
+}
+
+
 OpenAPI_content_hosting_configuration_t *
 msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session)
 {
@@ -438,6 +513,48 @@ msaf_provisioning_session_hash_remove(char *provisioning_session_id)
         msaf_self()->provisioningSessions_map
     };
     ogs_hash_do(free_ogs_hash_provisioning_session, &fohps, msaf_self()->provisioningSessions_map);
+}
+
+int uri_relative_check(char *entry_point_path)
+{
+    int result;
+
+    if (relative_path_re == NULL) {
+        relative_path_re = (regex_t*) ogs_calloc(1,sizeof(*relative_path_re));
+        ogs_assert(relative_path_re != NULL);
+        result = regcomp(relative_path_re, "^[^/#?:]{1,}(/[^#?/]{1,})*(\\?[^#]*)?(#.*)?$", REG_EXTENDED);
+        if (result) {
+            if (result == REG_ESPACE) {
+                ogs_error("Regex error: Out of memory");
+            } else {
+                ogs_error("Syntax error in the regular expression passed");
+            }
+            ogs_free(relative_path_re);
+            relative_path_re = NULL;
+            return 0;
+        }
+        atexit(tidy_relative_path_re);
+    }
+
+    result = regexec(relative_path_re, entry_point_path, 0, NULL, 0);
+
+    if (!result) {
+        ogs_debug("%s matches the regular expression\n", entry_point_path);
+        return 1;
+    } else if (result == REG_NOMATCH) {
+        ogs_debug("%s does not match the regular expression\n", entry_point_path);
+        return 0;
+    } else {
+        char *buffer;
+        int length;
+
+        length = regerror(result, relative_path_re, NULL, 0);
+        buffer = (char*) ogs_calloc(1, length);
+        (void) regerror (result, relative_path_re, buffer, length);
+        ogs_error("Regex match failed: %s\n", buffer);
+        ogs_free(buffer);
+        return 0;
+    }
 }
 
 
@@ -511,48 +628,3 @@ tidy_relative_path_re(void)
     }
 }
 
-static int
-uri_relative_check(char *entry_point_path)
-{
-    int result;
-
-    if (relative_path_re == NULL) {
-        relative_path_re = (regex_t*) ogs_calloc(1,sizeof(*relative_path_re));
-        ogs_assert(relative_path_re != NULL);
-        result = regcomp(relative_path_re, "^[^/#?:]{1,}(/[^#?/]{1,})*(\\?[^#]*)?(#.*)?$", REG_EXTENDED);
-        if (result) {
-            if (result == REG_ESPACE) {
-                ogs_error("Regex error: Out of memory");
-            } else {
-                ogs_error("Syntax error in the regular expression passed");
-            }
-            ogs_free(relative_path_re);
-            relative_path_re = NULL;
-            return 0;
-        }
-        atexit(tidy_relative_path_re);
-    }
-
-    result = regexec(relative_path_re, entry_point_path, 0, NULL, 0);
-
-    if (!result) {
-        ogs_debug("%s matches the regular expression\n", entry_point_path);
-        return 1;
-    } else if (result == REG_NOMATCH) {
-        ogs_debug("%s does not match the regular expression\n", entry_point_path);
-        return 0;
-    } else {
-        char *buffer;
-        int length;
-
-        length = regerror(result, relative_path_re, NULL, 0);
-        buffer = (char*) ogs_calloc(1, length);
-        (void) regerror (result, relative_path_re, buffer, length);
-        ogs_error("Regex match failed: %s\n", buffer);
-        ogs_free(buffer);
-        return 0;
-    }
-}
-
-/* vim:ts=8:sts=4:sw=4:expandtab:
-*/
