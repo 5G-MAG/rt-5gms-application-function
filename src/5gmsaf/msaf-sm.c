@@ -790,9 +790,6 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,
                                                         414, &message, "Application Server encountered a problem when purging its cache", error));
                                                 }
-
-                                                
-
                                             }		 
                                             if(response->status == 415){
                                                 ogs_error("Error message from the Application Server [%s]: Unsupported media type\n", as_state->application_server->canonicalHostname);
@@ -821,11 +818,39 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     }
 
                                                     ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,
-                                                        415, &message, "Application Server encountered a problem when purging its cache: Unsupported type", error));
+                                                        415, &message, "Application Server encountered a problem when purging its cache", error));
                                                 }
-                                           
+                                            }	
+                                            if(response->status == 422){
+                                                ogs_error("Error message from the Application Server [%s]: Unprocessable Entity \n", as_state->application_server->canonicalHostname);
+                                                char *regex_purge = NULL;
+                                                char *error;
+                                                purge_resource_id_node_t *content_hosting_cache, *next = NULL;
+                                                if(&as_state->purge_content_hosting_cache) {
 
-                                            }		 
+                                                    ogs_list_for_each_safe(&as_state->purge_content_hosting_cache, next, content_hosting_cache){
+
+                                                        if(!strcmp(content_hosting_cache->state, message.h.resource.component[1])) {
+                                                                        
+                                                            if (content_hosting_cache->state) ogs_free(content_hosting_cache->state);
+                                                             if(content_hosting_cache->purge_regex) {
+                                                                regex_purge = content_hosting_cache->purge_regex;
+                                                                ogs_free(content_hosting_cache->purge_regex);
+                                                            }
+                                                            ogs_list_remove(&as_state->purge_content_hosting_cache, content_hosting_cache);
+                                                            ogs_free(content_hosting_cache);	
+                                                        }
+                                                    }
+                                                    if (regex_purge) {
+                                                        error = ogs_msprintf("Application Server possibly encountered problem with regex %s", regex_purge);
+                                                    } else {
+                                                        error = ogs_msprintf("Application Server unable to process the contained instructions"); 
+                                                    }
+
+                                                    ogs_assert(true == ogs_sbi_server_send_error(as_state->stream,
+                                                        422, &message, "Application Server encountered a problem when purging its cache", error));
+                                                }
+                                            }	
                                             if(response->status == 500){
                                                 
                                                 ogs_error("Error message from the Application Server [%s]: Internal server error\n", as_state->application_server->canonicalHostname);
