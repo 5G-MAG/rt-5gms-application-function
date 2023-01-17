@@ -22,8 +22,8 @@ libmsaf_dist_sources = files('''
     provisioning-session.c
     application-server.h
     application-server.c
-    media-player.h
-    media-player.c
+    media-player-entry.h
+    media-player-entry.c
     sbi-path.c
     sbi-path.h
     service-access-information.h

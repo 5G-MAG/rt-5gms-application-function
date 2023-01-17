@@ -8,7 +8,7 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
-#include "media-player.h"
+#include "media-player-entry.h"
 #include "context.h"
 
 static char *url_path_prefix_create(const char *macro, const char *session_id);
