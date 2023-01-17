@@ -151,7 +151,7 @@ msaf_content_hosting_configuration_certificate_check(msaf_provisioning_session_t
                     return 0;
                 }
             }
-        } 
+        }
     }
     return 1;
 }
@@ -224,7 +224,7 @@ msaf_delete_certificate(char *resource_id)
                 ogs_free(upload_cert_id);
         }
 
-    }	 
+    }
 }
 
 void
@@ -374,11 +374,11 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     char *media_player_entry;
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_node_t *msaf_as = NULL;
-   
+
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
-    
+
     url_path = url_path_create(macro, provisioning_session->provisioningSessionId, msaf_as);
-    
+
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
         = OpenAPI_content_hosting_configuration_parseFromJSON(content_hosting_config);
         if(!uri_relative_check(content_hosting_configuration->entry_point_path)) {
@@ -390,17 +390,16 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 	
         if (content_hosting_configuration->distribution_configurations) {
             OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
-                
-                char *protocol = "http";    
-                
+                char *protocol = "http";
+
                 dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
-                
+
                 if(dist_config->canonical_domain_name) ogs_free(dist_config->canonical_domain_name);
-                
+
                 dist_config->canonical_domain_name = ogs_strdup(msaf_as->canonicalHostname);
-                
+
                 if (dist_config->certificate_id) {
-                    protocol = "https";  
+                    protocol = "https";
                 }
 
                 if(dist_config->domain_name_alias){
@@ -410,9 +409,9 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
                 }
 
                 if(dist_config->base_url) ogs_free(dist_config->base_url);
-                
+
                 dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, domain_name, url_path);
-                
+
                 ogs_info("dist_config->base_url: %s",dist_config->base_url);
             }
         } else {
@@ -428,7 +427,6 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 }
 
 cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(char *provisioning_session_id) {
-    
     msaf_provisioning_session_t *msaf_provisioning_session;
     cJSON *content_hosting_configuration_json;
 

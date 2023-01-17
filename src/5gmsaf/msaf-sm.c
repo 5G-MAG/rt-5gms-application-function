@@ -134,7 +134,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 purge_resource_id_node_t *purge_cache;
                                                 msaf_application_server_state_node_t *as_state;
                                                 assigned_provisioning_sessions_node_t *assigned_provisioning_sessions_resource;
-                                                ogs_list_for_each(&msaf_provisioning_session->msaf_application_server_state_nodes, as_state) { 
+                                                ogs_list_for_each(&msaf_provisioning_session->msaf_application_server_state_nodes, as_state) {
                                                     if (as_state->application_server && as_state->application_server->canonicalHostname) {
                                                         ogs_list_for_each(&as_state->assigned_provisioning_sessions,assigned_provisioning_sessions_resource) {
                                                             if (!strcmp(assigned_provisioning_sessions_resource->assigned_provisioning_session->provisioningSessionId, msaf_provisioning_session->provisioningSessionId)) {
@@ -161,14 +161,13 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
 
                                         }
-                                    
                                     } else if (message.h.resource.component[1] && message.h.resource.component[2]) {
                                         msaf_provisioning_session_t *msaf_provisioning_session;
                                         if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
                                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
                                             if (msaf_provisioning_session) {
                                                 // process the POST body
-						                        cJSON *entry;
+						cJSON *entry;
                                                 int rv;
                                                 cJSON *chc;
                                                 cJSON *content_hosting_config = cJSON_Parse(request->http.content);
@@ -177,20 +176,19 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                                 cJSON_ArrayForEach(entry, content_hosting_config) {
                                                     if (!strcmp(entry->string, "entryPointPath")){
-							                            if (!uri_relative_check(entry->valuestring)) {
+						        if (!uri_relative_check(entry->valuestring)) {
                                                             char *err = NULL;
                                                             asprintf(&err,"Entry Point Path does not match the regular expression.");
                                                             ogs_error("Entry Point Path does not match the regular expression.");
                                                             ogs_assert(true == ogs_sbi_server_send_error(stream,
-                                                                404, &message,
-                                                                "Entry Point Path does not match the regular expression.",
-                                                                err));
+                                                                    404, &message,
+                                                                    "Entry Point Path does not match the regular expression.",
+                                                                    err));
                                                             cJSON_Delete(content_hosting_config);
-								                            break;
+							    break;
+                                                        }
                                                     }
-
-                                                    }
-						                        }
+						}
 
                                                 if (msaf_provisioning_session->contentHostingConfiguration) {
                                                     OpenAPI_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
@@ -202,12 +200,10 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     OpenAPI_service_access_information_resource_free(msaf_provisioning_session->serviceAccessInformation);
                                                     msaf_provisioning_session->serviceAccessInformation = NULL;
                                                 }
-                                            
-                                               
+
                                                 rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
-                                                
-                                                if (rv){
-                                                    
+
+                                                if (rv) {
                                                     ogs_debug("Content Hosting Configuration created successfully");
                                                     msaf_application_server_state_set_on_post(msaf_provisioning_session);
                                                     chc = msaf_get_content_hosting_configuration_by_provisioning_session_id(message.h.resource.component[1]);
@@ -227,7 +223,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                         cJSON_Delete(content_hosting_config);
                                                     } else {
                                                     char *err = NULL;
-                                                    ogs_error("Unable to retrieve the Content Hosting Configuration"); 
+                                                    ogs_error("Unable to retrieve the Content Hosting Configuration");
                                                     asprintf(&err,"Unable to retrieve the Content Hosting Configuration");
                                                     ogs_error("Unable to retrieve the Content Hosting Configuration");
                                                     ogs_assert(true == ogs_sbi_server_send_error(stream,
@@ -236,11 +232,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                         err));
 
                                                     }
-                                                    
- 
                                                 } else {
                                                     char *err = NULL;
-                                                    ogs_error("Failed to populate Content Hosting Configuration"); 
+                                                    ogs_error("Failed to populate Content Hosting Configuration");
                                                     asprintf(&err,"Creation of the Content Hosting Configuration failed.");
                                                     ogs_error("Creation of the Content Hosting Configuration failed.");
                                                     ogs_assert(true == ogs_sbi_server_send_error(stream,
@@ -394,15 +388,13 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     msaf_provisioning_session->serviceAccessInformation = NULL;
                                                 }
 
-                                               
                                                 rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
-                                                                                            
-                                                if (rv){
 
+                                                if (rv) {
                                                     msaf_application_server_state_update(msaf_provisioning_session);
 
                                                     ogs_debug("Content Hosting Configuration updated successfully");
-                                                    
+
                                                     ogs_sbi_response_t *response;
                                                     response = ogs_sbi_response_new();
                                                     response->status = 204;
@@ -410,11 +402,11 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_sbi_header_set(response->http.headers, "Location", request->h.uri);
                                                     ogs_assert(response);
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                                    cJSON_Delete(content_hosting_config);                                               
- 
+                                                    cJSON_Delete(content_hosting_config);
+
                                                 } else {
                                                     char *err = NULL;
-                                                    ogs_error("Failed to update Content Hosting Configuration"); 
+                                                    ogs_error("Failed to update Content Hosting Configuration");
                                                     asprintf(&err,"Update to Content Hosting Configuration failed.");
                                                     ogs_error("Update of the Content Hosting Configuration failed.");
                                                     ogs_assert(true == ogs_sbi_server_send_error(stream,
@@ -436,10 +428,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
 
                                         }
-                                    
                                     }
                                     break;
-    
+
                                 CASE(OGS_SBI_HTTP_METHOD_DELETE)
                                     if (message.h.resource.component[1]) {
                                         ogs_sbi_response_t *response;
@@ -593,8 +584,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             as_state = e->application_server_state;
                             ogs_assert(as_state);
 
-                              if (message.h.resource.component[1] && message.h.resource.component[2]) {
-                                
+                            if (message.h.resource.component[1] && message.h.resource.component[2]) {
                                 if (!strcmp(message.h.resource.component[2],"purge")) {
 
                                     SWITCH(message.h.method)
@@ -609,7 +599,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     if (!strcmp(content_hosting_cache->state, message.h.resource.component[1]))
                                                         break;
                                                 }
-                                                        
+
                                                 if (content_hosting_cache) {
 
                                                     msaf_application_server_state_log(&as_state->purge_content_hosting_cache, "Purge Content Hosting Cache list");
@@ -652,7 +642,6 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     if (!strcmp(content_hosting_cache->state, message.h.resource.component[1]))
                                                         break;
                                                 }
-                                                        
 
                                                 if (content_hosting_cache) {
 
@@ -700,14 +689,12 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             } else if (response->status == 503) {
                                                 report_purging_error(as_state, &message, response->status, "Service unavailable");
                                             }
-                                            next_action_for_application_server(as_state);	 
+                                            next_action_for_application_server(as_state);
                                             break;
                                     END
                                     break;
-                            
                                 }
                             } else if (message.h.resource.component[1]) {
-        
                                 SWITCH(message.h.method)
                                     CASE(OGS_SBI_HTTP_METHOD_POST)
 

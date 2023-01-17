@@ -21,7 +21,7 @@ const char *msaf_event_get_name(msaf_event_t *e)
     case MSAF_EVENT_SBI_LOCAL:
         return "MSAF_EVENT_SBI_LOCAL";
 
-    default: 
+    default:
        break;
     }
 

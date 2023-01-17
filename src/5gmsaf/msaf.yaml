@@ -130,7 +130,7 @@ logger:
 #    * That is, 'no_service_names' has no effect.
 #
 msaf:
-    open5gsIntegration: false    
+    open5gsIntegration: false
     sbi:
       - addr: 127.0.0.22
         port: 7777
@@ -140,7 +140,7 @@ msaf:
         m3Port: 7777
     # The following parameters are only needed for MVP#2 and will be automated
     # in future.
-    certificate: ../../examples/Certificates.json    
+    certificate: ../../examples/Certificates.json
     contentHostingConfiguration: ../../examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_http_and_https.json
 #
 # nrf:

@@ -49,7 +49,7 @@ typedef struct msaf_context_s {
     ogs_hash_t  *provisioningSessions_map;
     ogs_list_t   application_server_states;
     ogs_hash_t *content_hosting_configuration_file_map;
-} msaf_context_t; 
+} msaf_context_t;
 
 extern void msaf_context_init(void);
 extern void msaf_context_final(void);
