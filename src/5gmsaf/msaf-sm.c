@@ -51,6 +51,11 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     switch (e->h.id) {
         case OGS_FSM_ENTRY_SIG:
             ogs_info("[%s] MSAF Running", ogs_sbi_self()->nf_instance->id);
+            { /* TODO: Remove this when M1 is active */
+                msaf_provisioning_session_t *ps;
+                ps = msaf_provisioning_session_create("DOWNLINK", NULL, "5GMS-AF internal");
+                ogs_info("Provisioning session = %s", ps->provisioningSessionId);
+            }
             break;
 
         case OGS_FSM_EXIT_SIG:
