@@ -24,7 +24,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "openapi/model/content_hosting_configuration.h"
 #include "openapi/model/service_access_information_resource.h"
 #include "provisioning-session.h"
-#include "application-server.h"
+#include "application-server-context.h"
 #include "service-access-information.h"
 
 #ifdef __cplusplus
