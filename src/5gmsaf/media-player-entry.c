@@ -24,6 +24,7 @@ char *media_player_entry_create(const char *session_id, OpenAPI_content_hosting_
     char *url_path_prefix = NULL;
     const char *protocol = "http";
     msaf_application_server_node_t *msaf_as = NULL;
+    char *domain_name;
 
     ogs_assert(session_id);
     ogs_assert(chc);
@@ -36,9 +37,16 @@ char *media_player_entry_create(const char *session_id, OpenAPI_content_hosting_
         }
     }
 
+    if(dist_config->domain_name_alias){
+        domain_name = dist_config->domain_name_alias;
+    } else {
+        domain_name = dist_config->canonical_domain_name;
+    }
+
+
     url_path_prefix = url_path_prefix_create(macro, session_id);
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list); /* just use first defined AS for now - change later to use AS picked from pool */
-    media_player_entry = ogs_msprintf("%s://%s%s%s", protocol, msaf_as->canonicalHostname, url_path_prefix, chc->entry_point_path);
+    media_player_entry = ogs_msprintf("%s://%s%s%s", protocol, domain_name, url_path_prefix, chc->entry_point_path);
 
     ogs_free(url_path_prefix);
 

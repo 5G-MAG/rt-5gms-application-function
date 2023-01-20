@@ -35,7 +35,12 @@ cJSON *msaf_context_retrieve_service_access_information(char *provisioning_sessi
     msaf_provisioning_session_t *provisioning_session_context = NULL;
     provisioning_session_context = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
     if (provisioning_session_context == NULL){
+	    ogs_error("Couldn't find the Provisioning Session ID [%s]", provisioning_session_id);    
         return NULL;
+    }
+    if (provisioning_session_context->serviceAccessInformation == NULL){
+       ogs_error("The provisioning Session [%s] does not have an associated Service Access Information");
+       return NULL;
     }
     cJSON *service_access_information = OpenAPI_service_access_information_resource_convertToJSON(provisioning_session_context->serviceAccessInformation);
     return service_access_information;
