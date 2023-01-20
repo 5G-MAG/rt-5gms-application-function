@@ -373,10 +373,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 {
     OpenAPI_lnode_t *dist_config_node = NULL;
     OpenAPI_distribution_configuration_t *dist_config = NULL;
-    OpenAPI_distribution_configuration_t *new_dist_config = NULL;
-    OpenAPI_list_t *dist_configs;
     char *url_path;
-    char *base_url;
     char *domain_name;
     char *media_player_entry;
     static const char macro[] = "{provisioningSessionId}";
