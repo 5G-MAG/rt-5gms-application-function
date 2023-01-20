@@ -502,20 +502,20 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 CASE(OGS_SBI_HTTP_METHOD_GET)
                                     cJSON *service_access_information;
 
-                                   msaf_provisioning_session_t *msaf_provisioning_session = NULL;
+                                    msaf_provisioning_session_t *msaf_provisioning_session = NULL;
                                     msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
 
-				                    if(msaf_provisioning_session) {
-				                        char *err = NULL;
+				    if(msaf_provisioning_session) {
+				        char *err = NULL;
                                         asprintf(&err,"Provisioning Session [%s] not found.", message.h.resource.component[1]);
                                         ogs_error("Client requested invalid Provisioning Session [%s]", message.h.resource.component[1]);
                                         ogs_assert(true == ogs_sbi_server_send_error(stream,
-                                            404, &message,
-                                            "Provisioning Session not found",
-                                            err));
-				                    }
+                                                404, &message,
+                                                "Provisioning Session not found",
+                                                err));
+				    }
 				    
-				                    if (msaf_provisioning_session->serviceAccessInformation) {
+				    if (msaf_provisioning_session->serviceAccessInformation) {
                                         service_access_information = msaf_context_retrieve_service_access_information(message.h.resource.component[1]);
                                         if (service_access_information != NULL) {
                                             ogs_sbi_response_t *response;
@@ -538,14 +538,14 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                        "Service Access Information not found",
                                                         err));
                                         }
-				                    } else {
+				    } else {
                                         char *err = NULL;
                                         asprintf(&err,"Provisioning Session [%s] has no Service Access Information associated with it.", message.h.resource.component[1]);
                                         ogs_error("Provisioning Session [%s] has no Service Access Information associated with it", message.h.resource.component[1]);
                                         ogs_assert(true == ogs_sbi_server_send_error(stream,
-                                            404, &message,
-                                            "Service Access Information not found",
-                                            err));
+                                                404, &message,
+                                                "Service Access Information not found",
+                                                err));
                                     }
                                     break;
                                 DEFAULT
@@ -561,9 +561,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     message.h.resource.component[0]);
                             ogs_assert(true ==
                                     ogs_sbi_server_send_error(stream,
-                                        OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
-                                        "Invalid resource name",
-                                        message.h.resource.component[0]));
+                                            OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
+                                            "Invalid resource name",
+                                            message.h.resource.component[0]));
                     END
                     ogs_sbi_message_free(&message);
                     break;
@@ -571,8 +571,8 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     ogs_error("Invalid API name [%s]", message.h.service.name);
                     ogs_assert(true ==
                             ogs_sbi_server_send_error(stream,
-                                OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
-                                "Invalid API name", message.h.service.name));
+                                    OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
+                                    "Invalid API name", message.h.service.name));
                     ogs_sbi_message_free(&message);
             END
             break;
