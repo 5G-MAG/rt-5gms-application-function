@@ -505,7 +505,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     msaf_provisioning_session_t *msaf_provisioning_session = NULL;
                                     msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
 
-				    if(msaf_provisioning_session) {
+				    if (!msaf_provisioning_session) {
 				        char *err = NULL;
                                         asprintf(&err,"Provisioning Session [%s] not found.", message.h.resource.component[1]);
                                         ogs_error("Client requested invalid Provisioning Session [%s]", message.h.resource.component[1]);
@@ -513,6 +513,8 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 404, &message,
                                                 "Provisioning Session not found",
                                                 err));
+                                        ogs_sbi_message_free(&message);
+                                        break;
 				    }
 				    
 				    if (msaf_provisioning_session->serviceAccessInformation) {

@@ -39,7 +39,7 @@ cJSON *msaf_context_retrieve_service_access_information(char *provisioning_sessi
         return NULL;
     }
     if (provisioning_session_context->serviceAccessInformation == NULL){
-       ogs_error("The provisioning Session [%s] does not have an associated Service Access Information");
+       ogs_error("The provisioning Session [%s] does not have an associated Service Access Information", provisioning_session_id);
        return NULL;
     }
     cJSON *service_access_information = OpenAPI_service_access_information_resource_convertToJSON(provisioning_session_context->serviceAccessInformation);

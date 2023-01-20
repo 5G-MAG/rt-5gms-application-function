@@ -82,6 +82,13 @@ msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
+#if 1 /* TODO: Remove when content hosting configuration is available via M1 interface */
+    msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
+    media_player_entry = media_player_entry_create(msaf_provisioning_session->provisioningSessionId, msaf_provisioning_session->contentHostingConfiguration);
+    ogs_assert(media_player_entry);
+    msaf_provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(msaf_provisioning_session->provisioningSessionId, media_player_entry);
+#endif
+
     OpenAPI_provisioning_session_free(provisioning_session);
 
     return msaf_provisioning_session;
