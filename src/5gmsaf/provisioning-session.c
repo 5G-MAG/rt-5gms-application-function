@@ -458,14 +458,21 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
     url_path = url_path_create(macro, provisioning_session->provisioningSessionId, as_state->application_server);
 
     char *content_host_config_data = read_file(msaf_self()->config.contentHostingConfiguration);
+    if (content_host_config_data == NULL){
+        ogs_error("Reading contentHostingConfiguration failed");
+    }
     cJSON *content_host_config_json = cJSON_Parse(content_host_config_data);
+
+     if (content_host_config_json == NULL){
+        ogs_error("Parsing contentHostingConfiguration to JSON structure failed");
+    }
 
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
         = OpenAPI_content_hosting_configuration_parseFromJSON(content_host_config_json);
     if (!uri_relative_check(content_hosting_configuration->entry_point_path)) {
         cJSON_Delete(content_host_config_json);
         ogs_free(url_path);
-        ogs_debug(" URI relative check return 0: After reading content_host_config_data: %s", content_host_config_data);
+        ogs_debug("Check for relative URI for entryPointPath fails");
         if (content_hosting_configuration)
             OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
         ogs_free(content_host_config_data);
