@@ -65,11 +65,12 @@ extern msaf_context_t *msaf_self(void);
 extern int msaf_context_parse_config(void);
 
 extern msaf_provisioning_session_t *msaf_context_provisioning_session_set(void);
-extern cJSON *msaf_context_retrieve_service_access_information(char *provisioning_session_id);
+extern cJSON *msaf_context_retrieve_service_access_information(const char *provisioning_session_id);
 extern msaf_application_server_node_t *msaf_context_application_server_add(char *canonical_hostname, char *url_path_prefix_format);
 extern void msaf_context_application_server_remove(msaf_application_server_node_t *msaf_as);
 extern void msaf_context_application_server_remove_all(void);
 extern void msaf_context_application_server_print_all(void);
+extern msaf_provisioning_session_t *msaf_context_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
 
 #ifdef __cplusplus
 }

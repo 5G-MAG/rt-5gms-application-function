@@ -11,7 +11,8 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "sbi-path.h"
 // #include "nnrf-handler.h"
 
-cJSON *msaf_context_retrieve_service_access_information(char *provisioning_session_id);
+cJSON *msaf_context_retrieve_service_access_information(const char *provisioning_session_id);
+msaf_provisioning_session_t *msaf_context_provisioning_session_find_by_provisioningSessionId(const char *provisioning_session_id);
 
 void msaf_state_initial(ogs_fsm_t *s, msaf_event_t *e)
 {
@@ -123,25 +124,51 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             CASE("service-access-information") 
                 SWITCH(message.h.method)
                 CASE(OGS_SBI_HTTP_METHOD_GET)
-                      cJSON *service_access_information = NULL;
-                    service_access_information =  msaf_context_retrieve_service_access_information(message.h.resource.component[1]);
-                   if (service_access_information != NULL){
-                     ogs_sbi_response_t *response = NULL;
-                     response = ogs_sbi_response_new(); 
-                     response->http.content_length = strlen(cJSON_Print(service_access_information));
-                     response->http.content = cJSON_Print(service_access_information);
-                     response->status = 200;
-                     ogs_sbi_header_set(response->http.headers,"Content-Type", "application/json");
-                     ogs_assert(response);
-                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                   } else {
-		    char *err = NULL;
-		    asprintf(&err,"Service Access Information %s not found.", message.h.resource.component[1]);
-                    ogs_error("Client requested invalid Service Access Information [%s]", message.h.resource.component[1]);
-		    ogs_assert(true ==
-                        ogs_sbi_server_send_error(stream,
-                            404, &message,
-                            "Service Access Information not found", err));
+                    cJSON *service_access_information = NULL;
+                    msaf_provisioning_session_t *msaf_provisioning_session = NULL;
+                    msaf_provisioning_session = msaf_context_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+
+		    if (!msaf_provisioning_session) {
+			char *err = NULL;
+                        asprintf(&err,"Provisioning Session [%s] not found.", message.h.resource.component[1]);
+                        ogs_error("Client requested invalid Provisioning Session [%s]", message.h.resource.component[1]);
+                        ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                    404, &message,
+                                    "Provisioning Session not found",
+                                    err));
+                    }
+
+                    if (msaf_provisioning_session->serviceAccessInformation) {
+                        service_access_information = msaf_context_retrieve_service_access_information(message.h.resource.component[1]);
+                        if (service_access_information != NULL) {
+                            ogs_sbi_response_t *response;
+                            char *text;
+                            response = ogs_sbi_response_new();
+                            text = cJSON_Print(service_access_information);
+                            response->http.content_length = strlen(text);
+                            response->http.content = text;
+                            response->status = 200;
+                            ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
+                            ogs_assert(response);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                            cJSON_Delete(service_access_information);
+                        } else {
+                            char *err = NULL;
+                            asprintf(&err,"Service Access Information for the Provisioning Session [%s] not found.", message.h.resource.component[1]);
+                            ogs_error("Client requested invalid Service Access Information for the Provisioning Session [%s]", message.h.resource.component[1]);
+                            ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                        404, &message,
+                                        "Service Access Information not found",
+                                        err));
+                        }
+                    } else {
+                        char *err = NULL;
+                        asprintf(&err,"Provisioning Session [%s] has no Service Access Information associated with it.", message.h.resource.component[1]);
+                        ogs_error("Provisioning Session [%s] has no Service Access Information associated with it", message.h.resource.component[1]);
+                        ogs_assert(true == ogs_sbi_server_send_error(stream,
+                                    404, &message,
+                                    "Service Access Information not found",
+                                    err));
                     }
 
                     break;
@@ -327,3 +354,6 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
         break;
     }
 }
+
+/* vim:ts=8:sts=4:sw=4:expandtab:
+ */
