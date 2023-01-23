@@ -303,7 +303,7 @@ msaf_certificate_map(void)
     }
     path = get_path(msaf_self()->config.certificate);
     if (!path) {
-        ogs_error("The Application Function could not get of the path certificate file.");
+        ogs_error("The Application Function could not get path of the certificate file.");
     }
     ogs_assert(path);
     cJSON_ArrayForEach(entry, cert) {
@@ -365,7 +365,7 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
                     certificate->state = provisioning_session_id_plus_cert_id;
                     ogs_list_add(certs, certificate);
                 } else {
-                    ogs_error("Certificate [%s] not found for Content Hosting Configuration [%s]", dist_config->certificate_id, provisioning_session->provisioningSessionId);
+                    ogs_error("Certificate id [%s] not found for Content Hosting Configuration [%s]", dist_config->certificate_id, provisioning_session->provisioningSessionId);
                     resource_id_node_t *next;
                     ogs_list_for_each_safe(certs, next, certificate) {
                         ogs_list_remove(certs, certificate);
@@ -480,6 +480,12 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
     msaf_application_server_state_node_t *as_state;
     char *domain_name;
 
+    if(!msaf_self()->config.contentHostingConfiguration) {
+        ogs_error("contentHostingConfiguration not present in the MSAF configuration file");
+    }
+
+    ogs_assert(msaf_self()->config.contentHostingConfiguration);
+
     as_state = ogs_list_first(&msaf_self()->application_server_states);
 
     url_path = url_path_create(macro, provisioning_session->provisioningSessionId, as_state->application_server);
@@ -488,11 +494,16 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
     if (content_host_config_data == NULL){
         ogs_error("Reading contentHostingConfiguration failed");
     }
+
+    ogs_assert(content_host_config_data);
+
     cJSON *content_host_config_json = cJSON_Parse(content_host_config_data);
 
      if (content_host_config_json == NULL){
         ogs_error("Parsing contentHostingConfiguration to JSON structure failed");
     }
+
+    ogs_assert(content_host_config_json);
 
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
         = OpenAPI_content_hosting_configuration_parseFromJSON(content_host_config_json);
