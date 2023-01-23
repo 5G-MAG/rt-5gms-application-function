@@ -50,8 +50,6 @@ void msaf_context_init(void)
 
     ogs_list_init(&self->application_server_states);
 
-    ogs_assert(self->config.contentHostingConfiguration);
-
     self->provisioningSessions_map = ogs_hash_make();
 
     ogs_assert(self->provisioningSessions_map);

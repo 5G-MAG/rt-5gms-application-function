@@ -55,7 +55,10 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 msaf_provisioning_session_t *ps;
                 ps = msaf_provisioning_session_create("DOWNLINK", NULL, "5GMS-AF internal");
                 ogs_info("Provisioning session = %s", ps->provisioningSessionId);
+                ogs_assert(msaf_self()->config.contentHostingConfiguration);
             }
+
+            
             break;
 
         case OGS_FSM_EXIT_SIG:
