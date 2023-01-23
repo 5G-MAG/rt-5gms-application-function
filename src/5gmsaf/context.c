@@ -456,7 +456,6 @@ media_player_entry_create(const char *session_id, OpenAPI_content_hosting_config
     } else {
 	msaf_application_server_node_t *msaf_as;
 	msaf_as = ogs_list_first(&self->config.applicationServers_list);
-	ogs_debug("dist_config: %s, msaf_as: %s", dist_config->canonical_domain_name, msaf_as->canonicalHostname);
         domain_name = msaf_as->canonicalHostname;
     }
 
