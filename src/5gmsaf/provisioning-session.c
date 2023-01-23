@@ -294,11 +294,24 @@ msaf_certificate_map(void)
     cJSON *entry;
     ogs_hash_t *certificate_map = ogs_hash_make();
     char *certificate = read_file(msaf_self()->config.certificate);
+     if(!certificate){
+        ogs_error("The certificates JSON file [%s] cannot be opened or read.", msaf_self()->config.certificate);
+    }
     cJSON *cert = cJSON_Parse(certificate);
+    if (!cert) {
+        ogs_error("The certificates JSON file [%s] does not parse as JSON.", msaf_self()->config.certificate);
+    }
     path = get_path(msaf_self()->config.certificate);
+    if (!path) {
+        ogs_error("The Application Function could not get of the path certificate file.");
+    }
     ogs_assert(path);
     cJSON_ArrayForEach(entry, cert) {
         char *abs_path;
+        if (!entry->valuestring) {
+            ogs_error("Certificates JSON file configuration parameter has not been set");
+
+        } else
         if (entry->valuestring[0] != '/') {
             abs_path = ogs_msprintf("%s/%s", path, entry->valuestring);
         } else {
@@ -421,9 +434,18 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
         } else {
             ogs_error("The Content Hosting Configuration has no Distribution Configuration");
         }
+    if (content_hosting_configuration->entry_point_path) {
+         
+        media_player_entry = ogs_msprintf("%s%s", dist_config->base_url, content_hosting_configuration->entry_point_path);
+    } else {
+         ogs_debug("The contentHostingConfiguration has no entryPointPath");  
+    }
+    if(media_player_entry) {
 
-    media_player_entry = ogs_msprintf("%s%s", dist_config->base_url, content_hosting_configuration->entry_point_path);
     provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_player_entry);
+    } else {
+        ogs_debug("Couldn't formulate serviceAccessInformation as media Player Entry is not formulated"); 
+    }
     provisioning_session->contentHostingConfiguration =  content_hosting_configuration;
     ogs_free(url_path);
 
@@ -456,6 +478,7 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
     char *url_path;
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_state_node_t *as_state;
+    char *domain_name;
 
     as_state = ogs_list_first(&msaf_self()->application_server_states);
 
@@ -493,10 +516,17 @@ msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provision
             if (dist_config->certificate_id) {
                 protocol = "https";
             }
+
+             if(dist_config->domain_name_alias){
+                    domain_name = dist_config->domain_name_alias;
+            } else {
+                    domain_name = dist_config->canonical_domain_name;
+            }      
+
             if (dist_config->base_url)
                 ogs_free(dist_config->base_url);
-            dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, dist_config->canonical_domain_name, url_path);
-            ogs_info("Distribution URL: %s",dist_config->base_url);
+            dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, domain_name, url_path);
+            ogs_debug("Distribution URL: %s",dist_config->base_url);
         }
     } else {
         ogs_error("The Content Hosting Configuration has no Distribution Configuration");

@@ -170,6 +170,11 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
         provisioning_session = strtok_r(upload_cert_id,":",&cert_id);
         upload_cert_filename = msaf_get_certificate_filename(provisioning_session, cert_id);
         data = read_file(upload_cert_filename);
+
+         if(!data) {
+            ogs_error("The certificate file [%s] referenced in the JSON cannot be read", upload_cert_filename);
+        }
+
         component = ogs_msprintf("certificates/%s:%s", provisioning_session, cert_id);
 
         if (cert_id_node) {
@@ -205,7 +210,19 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
         chc_with_af_unique_cert_id = msaf_content_hosting_configuration_with_af_unique_cert_id(provisioning_session);
 
         json = OpenAPI_content_hosting_configuration_convertToJSON(chc_with_af_unique_cert_id);
+
+         if(!json) {
+            ogs_error("OpenAPI function is not able to convert The contentHostingConfiguration to JSON");
+
+        }
+
         data = cJSON_Print(json);
+
+        if(!data) {
+            ogs_error("The contentHostingConfiguration cannot be parsed");
+
+        }
+
 
         component = ogs_msprintf("content-hosting-configurations/%s", upload_chc->state);
 
