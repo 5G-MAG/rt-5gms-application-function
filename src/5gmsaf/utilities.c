@@ -8,6 +8,7 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
+#include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +24,7 @@ char *read_file(const char *filename)
     /* open in read binary mode */
     f = fopen(filename, "rb");
     if (f == NULL) {
-	ogs_error("Unable to open file with name [%s]", filename);
+	ogs_error("Unable to open file with name [%s]: %s", filename, strerror(errno));
 	return NULL;
     }
     /* get the length */
@@ -46,7 +47,7 @@ char *get_path(const char *file)
 
     path = realpath(file, NULL);
     if(path == NULL){
-        ogs_error("cannot find file with name[%s]", file);
+        ogs_error("cannot find file with name[%s]: %s", file, strerror(errno));
         return NULL;
     }
     file_dir = ogs_strdup(dirname(path));
