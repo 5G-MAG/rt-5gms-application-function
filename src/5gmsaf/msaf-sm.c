@@ -136,6 +136,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     404, &message,
                                     "Provisioning Session not found",
                                     err));
+                        break;
                     }
 
                     if (msaf_provisioning_session->serviceAccessInformation) {
