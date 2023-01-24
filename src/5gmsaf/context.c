@@ -423,10 +423,36 @@ msaf_context_service_access_information_create(char *media_player_entry) {
 
 static OpenAPI_content_hosting_configuration_t *
 msaf_context_content_hosting_configuration_create() {
-    char *content_host_config_data = read_file(self->config.contentHostingConfiguration);
+    char *content_host_config_data;
+    cJSON *content_host_config_json;
+
+    if(!self->config.contentHostingConfiguration) {
+        ogs_error("contentHostingConfiguration not present in the MSAF configuration file");
+    }
+
+    ogs_assert(self->config.contentHostingConfiguration);
+
+    content_host_config_data = read_file(self->config.contentHostingConfiguration);
+    if (!content_host_config_data) {
+	ogs_error("The ContentHostingConfiguration JSON file [%s] cannot be opened", self->config.contentHostingConfiguration);
+    }
+    ogs_assert(content_host_config_data);
+
+    content_host_config_json = cJSON_Parse(content_host_config_data);
+    free(content_host_config_data);
+
+    if (content_host_config_json == NULL){
+        ogs_error("Parsing contentHostingConfiguration, from file [%s], to JSON structure failed", self->config.contentHostingConfiguration);
+    }
+    ogs_assert(content_host_config_json);
+
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
-	    = OpenAPI_content_hosting_configuration_parseFromJSON(cJSON_Parse(content_host_config_data));
-    free (content_host_config_data);
+	    = OpenAPI_content_hosting_configuration_parseFromJSON(content_host_config_json);
+
+    cJSON_Delete(content_host_config_json);
+
+    ogs_assert(content_hosting_configuration);
+
     return content_hosting_configuration;
 }
 
@@ -542,6 +568,8 @@ static char *read_file(const char *filename)
     len = ftell(f);
     fseek(f, 0, SEEK_SET);
     data_json = (char*)malloc(len + 1);
+
+    ogs_assert(data_json);
 
     fread(data_json, 1, len, f);
     data_json[len] = '\0';
