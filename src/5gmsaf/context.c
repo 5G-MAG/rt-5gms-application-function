@@ -8,6 +8,7 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,13 +20,11 @@ int __msaf_log_domain;
 
 static OpenAPI_content_hosting_configuration_t *msaf_context_content_hosting_configuration_create(void);
 static OpenAPI_service_access_information_resource_t *msaf_context_service_access_information_create(char *media_player_entry);
-static msaf_provisioning_session_t *msaf_context_provisioning_session_find_by_provisioningSessionId(char *provisioningSessionId);
 static char *media_player_entry_create(const char *provisioning_session_id, OpenAPI_content_hosting_configuration_t *content_hosting_configuration);
 static char *url_path_prefix_create(const char *macro, const char *session_id);
 static char *read_file(const char *filename);
 static int msaf_context_prepare(void);
 static int msaf_context_validation(void);
-static void msaf_context_get_content_host_config(void);
 static void msaf_context_display(void);
 static int ogs_hash_do_per_value(void *fn, const void *key, int klen, const void *value);
 static void msaf_context_provisioning_session_free(msaf_provisioning_session_t *provisioning_session);
@@ -347,11 +346,16 @@ msaf_context_provisioning_session_set() {
     return msaf_provisioning_session;
 }
 
-cJSON *msaf_context_retrieve_service_access_information(char *provisioning_session_id)
+cJSON *msaf_context_retrieve_service_access_information(const char *provisioning_session_id)
 {
     msaf_provisioning_session_t *provisioning_session_context = NULL;
     provisioning_session_context = msaf_context_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
-    if (provisioning_session_context == NULL){
+    if (provisioning_session_context == NULL) {
+	ogs_error("Couldn't find the Provisioning Session ID [%s]", provisioning_session_id);
+        return NULL;
+    }
+    if (provisioning_session_context->serviceAccessInformation == NULL) {
+        ogs_error("The provisioning Session [%s] does not have an associated Service Access Information", provisioning_session_id);
         return NULL;
     }
     cJSON *service_access_information = OpenAPI_service_access_information_resource_convertToJSON(provisioning_session_context->serviceAccessInformation);
@@ -396,13 +400,13 @@ void msaf_context_application_server_print_all()
         ogs_info("AS %s %s", msaf_as->canonicalHostname, msaf_as->urlPathPrefixFormat);
 }
 
-/***** Private functions *****/
-
-static msaf_provisioning_session_t *
-msaf_context_provisioning_session_find_by_provisioningSessionId(char *provisioningSessionId)
+msaf_provisioning_session_t *
+msaf_context_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId)
 {
     return ogs_hash_get(self->provisioningSessions_map, provisioningSessionId, OGS_HASH_KEY_STRING);
 }
+
+/***** Private functions *****/
 
 static OpenAPI_service_access_information_resource_t *
 msaf_context_service_access_information_create(char *media_player_entry) {
@@ -419,10 +423,36 @@ msaf_context_service_access_information_create(char *media_player_entry) {
 
 static OpenAPI_content_hosting_configuration_t *
 msaf_context_content_hosting_configuration_create() {
-    char *content_host_config_data = read_file(self->config.contentHostingConfiguration);
+    char *content_host_config_data;
+    cJSON *content_host_config_json;
+
+    if(!self->config.contentHostingConfiguration) {
+        ogs_error("contentHostingConfiguration not present in the MSAF configuration file");
+    }
+
+    ogs_assert(self->config.contentHostingConfiguration);
+
+    content_host_config_data = read_file(self->config.contentHostingConfiguration);
+    if (!content_host_config_data) {
+	ogs_error("The ContentHostingConfiguration JSON file [%s] cannot be opened", self->config.contentHostingConfiguration);
+    }
+    ogs_assert(content_host_config_data);
+
+    content_host_config_json = cJSON_Parse(content_host_config_data);
+    free(content_host_config_data);
+
+    if (content_host_config_json == NULL){
+        ogs_error("Parsing contentHostingConfiguration, from file [%s], to JSON structure failed", self->config.contentHostingConfiguration);
+    }
+    ogs_assert(content_host_config_json);
+
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
-	    = OpenAPI_content_hosting_configuration_parseFromJSON(cJSON_Parse(content_host_config_data));
-    free (content_host_config_data);
+	    = OpenAPI_content_hosting_configuration_parseFromJSON(content_host_config_json);
+
+    cJSON_Delete(content_host_config_json);
+
+    ogs_assert(content_hosting_configuration);
+
     return content_hosting_configuration;
 }
 
@@ -434,7 +464,7 @@ media_player_entry_create(const char *session_id, OpenAPI_content_hosting_config
     static const char macro[] = "{provisioningSessionId}";
     char *url_path_prefix = NULL;
     const char *protocol = "http";
-    msaf_application_server_node_t *msaf_as = NULL;
+    char *domain_name;
 
     ogs_assert(session_id);
     ogs_assert(chc);
@@ -447,9 +477,16 @@ media_player_entry_create(const char *session_id, OpenAPI_content_hosting_config
 	}
     }
 
+    if (dist_config->domain_name_alias && strlen(dist_config->domain_name_alias) > 0) {
+        domain_name = dist_config->domain_name_alias;
+    } else {
+	msaf_application_server_node_t *msaf_as;
+	msaf_as = ogs_list_first(&self->config.applicationServers_list);
+        domain_name = msaf_as->canonicalHostname;
+    }
+
     url_path_prefix = url_path_prefix_create(macro, session_id);
-    msaf_as = ogs_list_first(&self->config.applicationServers_list); /* just use first defined AS for now - change later to use AS picked from pool */
-    media_player_entry = ogs_msprintf("%s://%s%s%s", protocol, msaf_as->canonicalHostname, url_path_prefix, self->config.mediaPlayerEntrySuffix);
+    media_player_entry = ogs_msprintf("%s://%s%s%s", protocol, domain_name, url_path_prefix, self->config.mediaPlayerEntrySuffix);
 
     ogs_free(url_path_prefix);
 
@@ -506,7 +543,6 @@ static int msaf_context_validation(void)
 
 static void msaf_context_display()
 {
-    msaf_application_server_node_t *msaf_as = NULL, *next = NULL;
     msaf_provisioning_session_t *provisioning_session_context = NULL;
     provisioning_session_context = msaf_context_provisioning_session_find_by_provisioningSessionId(self->config.provisioningSessionId);
     ogs_assert(provisioning_session_context);
@@ -522,11 +558,18 @@ static char *read_file(const char *filename)
 
     /* open in read binary mode */
     f = fopen(filename,"rb");
+    if (!f) {
+	ogs_error("Failed to open file %s: %s", filename, strerror(errno));
+	return NULL;
+    }
+
     /* get the length */
     fseek(f, 0, SEEK_END);
     len = ftell(f);
     fseek(f, 0, SEEK_SET);
     data_json = (char*)malloc(len + 1);
+
+    ogs_assert(data_json);
 
     fread(data_json, 1, len, f);
     data_json[len] = '\0';

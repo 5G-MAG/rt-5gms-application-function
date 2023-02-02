@@ -4,7 +4,7 @@ This repository holds the 5GMS Application Function implementation for the 5G-MA
 
 ## Introduction
 
-The 5GMS application function (AF) is a Network Function that forms part of the 5G Media Services framework as defined
+The 5GMS application function (AF) is a Network Function that forms part of the 5G Media Streaming framework as defined
 in ETSI TS 126.501.
 
 This AF uses the [Open5GS](https://open5gs.org/) framework to implement the network function.
