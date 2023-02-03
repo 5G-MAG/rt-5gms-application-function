@@ -11,10 +11,10 @@ This AF uses the [Open5GS](https://open5gs.org/) framework to implement the netw
 
 ## Specifications
 
-* [ETSI TS 126 501](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66447) - 5G Media Streaming (
-  5GMS): General description and architecture (3GPP TS 26.501 version 17.2.0 Release 17)
-* [ETSI TS 126 512](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66919) - 5G Media Streaming (
-  5GMS): Protocols (3GPP TS 26.512 version 17.1.2 Release 17)
+* [ETSI TS 126 501](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=67203) - 5G Media Streaming (
+  5GMS): General description and architecture (3GPP TS 26.501 version 17.3.0 Release 17)
+* [ETSI TS 126 512](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=67679) - 5G Media Streaming (
+  5GMS): Protocols (3GPP TS 26.512 version 17.3.0 Release 17)
 
 ## Install dependencies
 
@@ -59,6 +59,8 @@ ninja install
 
 ## Running
 
+The Application Function requires a [5GMS Application Server](https://github.com/5G-MAG/rt-5gms-application-server) (release v1.1.0 or above) to be running. Please follow the [instructions](https://github.com/5G-MAG/rt-5gms-application-server/tree/development#readme) for installing and running the 5GMS Application Server before starting the Application Function.
+
 The Application Function can be executed with the command:
 
 ```bash
@@ -67,7 +69,7 @@ cd ~/rt-5gms-application-function/src/5gmsaf
 ```
 
 Use `-c` to specify a configuration file. The example configuration file can
-be `rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
+be found in `rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
 
 ## Testing with the example configuration
 
