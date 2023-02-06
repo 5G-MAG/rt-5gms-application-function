@@ -50,7 +50,7 @@ ninja -C build
 
 ## Installing
 
-To install the built Application Function:
+To install the built Application Function as a system process:
 
 ```bash
 cd ~/rt-5gms-application-function/build
