@@ -148,8 +148,10 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
     ogs_assert(as_state);
 
     if (as_state->current_certificates == NULL)  {
+	ogs_debug("M3 client: Sending GET method to Application Server [%s] to request the list of known certificates", as_state->application_server->canonicalHostname);
         m3_client_as_state_requests(as_state, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_GET, "certificates");
     } else if (as_state->current_content_hosting_configurations == NULL) {
+	ogs_debug("M3 client: Sending GET method to Application Server [%s] to request the list of known content-hosting-configurations", as_state->application_server->canonicalHostname);
         m3_client_as_state_requests(as_state, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_GET, "content-hosting-configurations");
     } else if (ogs_list_first(&as_state->upload_certificates) != NULL) {
         const char *upload_cert_filename;
@@ -255,12 +257,11 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
         purge_resource_id_node_t *purge_chc = ogs_list_first(&as_state->purge_content_hosting_cache);
 	char *component = ogs_msprintf("content-hosting-configurations/%s/purge", purge_chc->state);
 	if(purge_chc->purge_regex) {
-            ogs_debug("M3 client: Sending cache purge operation for resource [%s] to the Application Server", purge_chc->state);
-	    m3_client_as_state_requests(as_state, "application/x-www-form-urlencoded", purge_chc->purge_regex, (char *)OGS_SBI_HTTP_METHOD_POST, component);
+            ogs_debug("M3 client: Sending cache purge operation for resource [%s] using filter [%s] to the Application Server", purge_chc->state, purge_chc->purge_regex);
 	} else {
             ogs_debug("M3 client: Sending Purge operation for cache [%s] to the Application Server", purge_chc->state);
-            m3_client_as_state_requests(as_state, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_POST, component);
 	}
+        m3_client_as_state_requests(as_state, "application/x-www-form-urlencoded", purge_chc->purge_regex, (char *)OGS_SBI_HTTP_METHOD_POST, component);
 	ogs_free(component);
     }
 }
