@@ -9,12 +9,12 @@ certificate IDs in this file are used to find the matching certificate file
 (containing a public certificate, private key and any intermediate CA
 certificates) when referenced from a ContentHostingConfiguration file.
 
-The `subprojects/rt-common-shared/5gms/scripts/make_self_signed_certs.py` script can be used, passing a ContentHostingConfiguration and this `Certificates.json` file as parameters, to create suitable self-signed certificate files for testing purposes.
+The `subprojects/rt-common-shared/5gms/scripts/make_self_signed_certs.py` script can be used, passing a 5GMS Application Function YAML configuration file as a parameter, to create suitable self-signed certificate files for testing purposes.
 
 For example:
 ```bash
 cd ~/rt-5gms-application-function
-subprojects/rt-common-shared/5gms/scripts/make_self_signed_certs.py examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_https.json examples/Certificates.json
+subprojects/rt-common-shared/5gms/scripts/make_self_signed_certs.py --af-conf=examples/Test_https_canonical-msaf.yaml
 ```
 
 ## `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest.json`
@@ -32,3 +32,31 @@ This file is an alternative to `ContentHostingConfiguration_Big-Buck-Bunny_pull-
 ## `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_https.json`
 
 This file is an alternative to `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest.json` (see above) and can be used along with the `Certificates.json` file to run a rt-5gms-application-function to provision a 5GMS Application Server which will provide an HTTPS distribution point only.
+
+## `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_domain-name_http.json`
+
+This file is the same as `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest.json` except that the distribution configuration also has "media.example.com" as a domain name alias. This file is included for testing the portions of the Application Function that should prefer the use of the domain name alias over the canonical name or vice-versa.
+
+## `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_domain-name_http_and_https.json`
+
+This file is the same as `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_http_and_https.json` except that the distribution configuration also has "media.example.com" as a domain name alias. This file is included for testing the portions of the Application Function that should prefer the use of the domain name alias over the canonical name or vice-versa.
+
+## `Test_http_canonical-msaf.yaml`
+
+This is a 5GMS Application Function YAML configuration file used for testing. This configuration uses the `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest.json` ContentHostingConfiguration to test http protocol distribution using `localhost` as the canonical domain name of the Application Server.
+
+## `Test_http_domain_alias-msaf.yaml`
+
+This is a 5GMS Application Function YAML configuration file used for testing. This configuration uses the `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_domain-name_http.json` ContentHostingConfiguration to test http protocol distribution using `localhost` as the canonical domain name of the Application Server and `media.example.com` as a domain name alias for the distribution configuration.
+
+## `Test_https_canonical-msaf.yaml`
+
+This is a 5GMS Application Function YAML configuration file used for testing. This configuration uses the `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_http_and_https.json` ContentHostingConfiguration and the `Certificates.json` certificates index file to test https protocol distribution using `localhost` as the canonical domain name of the Application Server.
+
+Generate the certificates before using the configuration file. See [`Certificates.json`](#certificatesjson) for more information.
+
+## `Test_https_domain_alias-msaf.yaml`
+
+This is a 5GMS Application Function YAML configuration file used for testing. This configuration uses the `ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_domain-name_http_and_https.json` ContentHostingConfiguration and the `Certificates.json` certificates index file to test https protocol distribution using `localhost` as the canonical domain name of the Application Server and `media.example.com` as a domain name alias for the distribution configurations.
+
+Generate the certificates before using the configuration file. See [`Certificates.json`](#certificatesjson) for more information.
