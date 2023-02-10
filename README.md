@@ -42,11 +42,13 @@ git submodule update
 
 To build the 5GMS Application Function from the source:
 
-```bash
+```
 cd ~/rt-5gms-application-function
-meson build
+meson build --prefix=`pwd`/install
 ninja -C build
 ```
+In case of error during building process using `meson`, please check your Java version.
+Error is probably related to fetching `openapi-generator-cli.jar` module, which requires [Java Development Kit](https://www.oracle.com/java/technologies/downloads/) installed and configured on your system.
 
 ## Installing
 
@@ -54,7 +56,7 @@ To install the built Application Function as a system process:
 
 ```bash
 cd ~/rt-5gms-application-function/build
-sudo meson install --no-rebuild
+ninja install
 ```
 
 ## Running
