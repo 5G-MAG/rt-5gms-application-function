@@ -22,6 +22,7 @@ extern "C" {
 
 extern char *read_file(const char *filename);
 extern char *get_path(const char *file);
+extern char *rebase_path(const char *base, const char *file);
 extern long int ascii_to_long(const char *str);
 
 #ifdef __cplusplus

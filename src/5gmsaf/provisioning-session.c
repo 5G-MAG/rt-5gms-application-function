@@ -290,7 +290,6 @@ msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioning
 ogs_hash_t *
 msaf_certificate_map(void)
 {
-    char *path = NULL;
     cJSON *entry;
     ogs_hash_t *certificate_map = ogs_hash_make();
     char *certificate = read_file(msaf_self()->config.certificate);
@@ -301,25 +300,15 @@ msaf_certificate_map(void)
     if (!cert) {
         ogs_error("The certificates JSON file [%s] does not parse as JSON.", msaf_self()->config.certificate);
     }
-    path = get_path(msaf_self()->config.certificate);
-    if (!path) {
-        ogs_error("The Application Function could not get path of the certificate file.");
-    }
-    ogs_assert(path);
     cJSON_ArrayForEach(entry, cert) {
         char *abs_path;
         if (!entry->valuestring) {
             ogs_error("Certificates JSON file configuration parameter has not been set");
-
-        } else
-        if (entry->valuestring[0] != '/') {
-            abs_path = ogs_msprintf("%s/%s", path, entry->valuestring);
-        } else {
-            abs_path = ogs_strdup(entry->valuestring);
+	    continue;
         }
+	abs_path = rebase_path(msaf_self()->config.certificate, entry->valuestring);
         ogs_hash_set(certificate_map, ogs_strdup(entry->string), OGS_HASH_KEY_STRING, abs_path);
     }
-    ogs_free(path);
     cJSON_Delete(entry);
     cJSON_Delete(cert);
     free(certificate);

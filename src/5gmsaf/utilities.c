@@ -54,6 +54,21 @@ char *get_path(const char *file)
     return file_dir;
 }
 
+char *rebase_path(const char *base, const char *file)
+{
+    ogs_debug("rebase_path(\"%s\", \"%s\")", base, file);
+    if (file[0] != '/') {
+        /* relative path - prefix with the directory of the base filename */
+        char *base_path, *path;
+        base_path = get_path(base);
+        path = ogs_msprintf("%s/%s", base_path, file);
+        ogs_free(base_path);
+        return path;
+    }
+    /* absolute path - return a copy */
+    return ogs_strdup(file);
+}
+
 long int ascii_to_long(const char *str)
 {
     char *endp = NULL;
@@ -67,3 +82,5 @@ long int ascii_to_long(const char *str)
     return ret;
 }
 
+/* vim:ts=8:sts=4:sw=4:expandtab:
+ */

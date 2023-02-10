@@ -133,9 +133,9 @@ int msaf_context_parse_config(void)
                         self->config.open5gsIntegration_flag = 1;
                     }
                 } else if (!strcmp(msaf_key, "certificate")) {
-                    self->config.certificate = ogs_strdup(ogs_yaml_iter_value(&msaf_iter));
+                    self->config.certificate = rebase_path(ogs_app()->file, ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "contentHostingConfiguration")) {
-                    self->config.contentHostingConfiguration = ogs_strdup(ogs_yaml_iter_value(&msaf_iter));
+                    self->config.contentHostingConfiguration = rebase_path(ogs_app()->file, ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "applicationServers")) {
                     ogs_yaml_iter_t as_iter, as_array;
                     ogs_yaml_iter_recurse(&msaf_iter, &as_array);
@@ -644,17 +644,7 @@ safe_ogs_free(void *memory)
 ogs_hash_t *
 msaf_context_content_hosting_configuration_file_map(char *provisioning_session_id)
 {
-    char *chc_file = NULL;
-    char *chc_file_name = NULL;
-    char *path = NULL;
-    path = get_path(self->config.contentHostingConfiguration);
-    ogs_assert(path);
-    chc_file = basename(self->config.contentHostingConfiguration);
-    ogs_assert(chc_file);
-    chc_file_name = ogs_msprintf("%s/%s", path, chc_file);
-    ogs_assert(chc_file_name);
-    ogs_hash_set(self->content_hosting_configuration_file_map, chc_file_name, OGS_HASH_KEY_STRING, ogs_strdup(provisioning_session_id));
-    ogs_free(path);
+    ogs_hash_set(self->content_hosting_configuration_file_map, ogs_strdup(self->config.contentHostingConfiguration), OGS_HASH_KEY_STRING, ogs_strdup(provisioning_session_id));
     return self->content_hosting_configuration_file_map;
 }
 
