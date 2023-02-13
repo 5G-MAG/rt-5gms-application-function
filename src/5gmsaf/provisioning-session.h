@@ -28,7 +28,15 @@ typedef struct msaf_provisioning_session_s {
     char *externalApplicationId;
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
     OpenAPI_service_access_information_resource_t *serviceAccessInformation;
+    time_t provisioningSessionReceived;
+    char *provisioningSessionHash;
+    time_t contentHostingConfigurationReceived;
+    char *contentHostingConfigurationHash;
+    time_t serviceAccessInformationCreated;
+    char *serviceAccessInformationHash;
+    ogs_list_t certificates;  //Nodes for this list are msaf_assigned_certificate_t *
     ogs_hash_t  *certificate_map;
+    ogs_list_t msaf_application_servers; // Nodes for this list are msaf_application_server_node_t *
     ogs_list_t msaf_application_server_state_nodes; //Nodes for this list are msaf_application_server_state_node_t *
     int marked_for_deletion;
 } msaf_provisioning_session_t;

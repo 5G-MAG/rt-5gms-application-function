@@ -16,11 +16,17 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 static ogs_thread_t *thread;
 static void msaf_main(void *data);
 
+static int msaf_set_time(void);
+
+
 static int initialized = 0;
 
 int msaf_initialize()
 {
     int rv;
+
+    rv = msaf_set_time();
+    if(rv != 0) return OGS_ERROR;
 
     ogs_sbi_context_init();
 
@@ -119,4 +125,21 @@ static void msaf_main(void *data)
 done:
 
     ogs_fsm_fini(&msaf_sm, 0);
+}
+
+static int msaf_set_time(void)
+{
+    if(ogs_env_set("TZ", "GMT") != OGS_OK)
+    {
+        ogs_error("Failed to set TZ to GMT");
+	return OGS_ERROR;
+    }
+
+    if(ogs_env_set("LC_TIME", "C") != OGS_OK)
+    {
+        ogs_error("Failed to set LC_TIME to C");
+	return OGS_ERROR;
+    }
+    return OGS_OK;
+
 }

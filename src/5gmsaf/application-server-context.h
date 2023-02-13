@@ -28,7 +28,6 @@ typedef struct msaf_application_server_node_s {
 typedef struct msaf_application_server_state_node_s {
     ogs_lnode_t       node;
     ogs_sbi_client_t  *client;
-    ogs_sbi_stream_t  *stream;
     msaf_application_server_node_t *application_server;
     ogs_list_t        assigned_provisioning_sessions;
     ogs_list_t       *current_certificates;
@@ -50,10 +49,19 @@ typedef struct application_server_state_node_s {
     char *state;
 } resource_id_node_t;
 
-typedef struct purge_resource_node_s {
+typedef struct m1_purge_information_s {
+    int refs;
+    int purged_entries_total;
+
+    ogs_sbi_stream_t *m1_stream;
+    ogs_sbi_message_t m1_message;
+} m1_purge_information_t;
+
+typedef struct purge_resource_id_node_s {
     ogs_lnode_t node;
-    char *state;
+    char *provisioning_session_id;
     char *purge_regex;
+    m1_purge_information_t *m1_purge_info;
 } purge_resource_id_node_t;
 
 /**

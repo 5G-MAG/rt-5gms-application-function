@@ -8,11 +8,13 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
+#include <time.h>
 #include "provisioning-session.h"
 #include "application-server-context.h"
 #include "media-player-entry.h"
 #include "context.h"
 #include "utilities.h"
+#include "hash.h"
 
 typedef struct free_ogs_hash_provisioning_session_s {
     char *provisioning_session;
@@ -25,6 +27,8 @@ static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const vo
 static int free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const void *value);
 static char* url_path_create(const char* macro, const char* session_id, const msaf_application_server_node_t *msaf_as);
 static void tidy_relative_path_re(void);
+static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
+static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
 
 /***** Public functions *****/
 
@@ -57,32 +61,27 @@ msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_sess
 msaf_provisioning_session_t *
 msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, char *external_app_id)
 {
-    msaf_provisioning_session_t *msaf_provisioning_session;
-    char *media_player_entry;
-
+    msaf_provisioning_session_t *msaf_provisioning_session;    
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
-
     OpenAPI_provisioning_session_t *provisioning_session;
-
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
-
     provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id), OpenAPI_provisioning_session_type_FromString(provisioning_session_type), (asp_id)?ogs_strdup(asp_id):NULL, ogs_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
 
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
     ogs_assert(msaf_provisioning_session);
-
     msaf_provisioning_session->provisioningSessionId = ogs_strdup(provisioning_session->provisioning_session_id);
-
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
     msaf_provisioning_session->aspId = (provisioning_session->asp_id)?ogs_strdup(provisioning_session->asp_id):NULL;
     msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
+    msaf_provisioning_session->provisioningSessionReceived = time(NULL);
+    msaf_provisioning_session->provisioningSessionHash = ogs_strdup(calculate_provisioning_session_hash(provisioning_session));
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
-#if 1 /* TODO: Remove when content hosting configuration is available via M1 interface */
+#if 0 /* TODO: Remove when content hosting configuration is available via M1 interface */
     msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
     media_player_entry = media_player_entry_create(msaf_provisioning_session->provisioningSessionId, msaf_provisioning_session->contentHostingConfiguration);
     ogs_assert(media_player_entry);
@@ -375,11 +374,12 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 {
     OpenAPI_lnode_t *dist_config_node = NULL;
     OpenAPI_distribution_configuration_t *dist_config = NULL;
-    char *url_path;
+    char *url_path;    
     char *domain_name;
     char *media_player_entry;
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_node_t *msaf_as = NULL;
+    char *content_hosting_config_to_hash = NULL;
 
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
 
@@ -432,10 +432,19 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     if(media_player_entry) {
 
     provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_player_entry);
+    provisioning_session->serviceAccessInformationCreated = time(NULL);    
+    provisioning_session->serviceAccessInformationHash = ogs_strdup(calculate_service_access_information_hash(provisioning_session->serviceAccessInformation));
     } else {
         ogs_debug("Couldn't formulate serviceAccessInformation as media Player Entry is not formulated"); 
     }
     provisioning_session->contentHostingConfiguration =  content_hosting_configuration;
+    if(provisioning_session->contentHostingConfiguration)
+    {
+        content_hosting_config_to_hash = cJSON_Print(content_hosting_config);
+	    provisioning_session->contentHostingConfigurationReceived = time(NULL);
+
+        provisioning_session->contentHostingConfigurationHash = ogs_strdup(calculate_hash(content_hosting_config_to_hash));
+    }
     ogs_free(url_path);
 
     return 1;
@@ -598,6 +607,32 @@ int uri_relative_check(char *entry_point_path)
 
 
 /***** Private functions *****/
+
+static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
+{
+    cJSON *provisioning_sess = NULL;
+    char *provisioning_session_to_hash;
+    char *provisioning_session_hashed = NULL;
+    provisioning_sess = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
+    provisioning_session_to_hash = cJSON_Print(provisioning_sess);
+    cJSON_Delete(provisioning_sess);
+    provisioning_session_hashed =  calculate_hash(provisioning_session_to_hash);
+    ogs_free(provisioning_session_to_hash);
+    return provisioning_session_hashed;
+}
+
+static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information)
+{
+    cJSON *service_access_info = NULL;
+    char *service_access_information_to_hash;
+    char *service_access_information_hashed = NULL;
+    service_access_info = OpenAPI_service_access_information_resource_convertToJSON(service_access_information);
+    service_access_information_to_hash = cJSON_Print(service_access_info);
+    cJSON_Delete(service_access_info);
+    service_access_information_hashed =  calculate_hash(service_access_information_to_hash);
+    ogs_free(service_access_information_to_hash);
+    return service_access_information_hashed;
+}
 
 static int
 ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value)

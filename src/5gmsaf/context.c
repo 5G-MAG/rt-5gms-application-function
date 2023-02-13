@@ -30,10 +30,15 @@ static int msaf_context_validation(void);
 static int free_ogs_hash_entry(void *free_ogs_hash_context, const void *key, int klen, const void *value);
 static void safe_ogs_free(void *memory);
 
+static void msaf_context_server_addr_add(const char *server_addr);
+
+
 static void msaf_context_application_server_state_certificates_remove_all(void);
 static void msaf_context_application_server_state_content_hosting_configuration_remove_all(void);
 static void msaf_context_application_server_state_assigned_provisioning_sessions_remove_all(void);
 static void msaf_context_application_server_state_remove_all(void);
+static void msaf_context_server_addr_remove_all(void);
+static void msaf_context_server_addr_remove(msaf_context_server_addr_t *msaf_server_addr);
 
 /***** Public functions *****/
 
@@ -48,6 +53,8 @@ void msaf_context_init(void)
 
     ogs_list_init(&self->config.applicationServers_list);
 
+    ogs_list_init(&self->config.server_addr_list);
+
     ogs_list_init(&self->application_server_states);
 
     self->provisioningSessions_map = ogs_hash_make();
@@ -56,6 +63,9 @@ void msaf_context_init(void)
 
     self->content_hosting_configuration_file_map = ogs_hash_make();
     ogs_assert(self->content_hosting_configuration_file_map);
+
+    msaf_server_response_cache_control_set();
+
 }
 
 void msaf_context_final(void)
@@ -85,6 +95,16 @@ void msaf_context_final(void)
 
     if(self->config.certificate)
         ogs_free(self->config.certificate);
+
+    if (self->config.server_response_cache_control)
+    {
+        ogs_free(self->config.server_response_cache_control);	    
+    }
+ 
+    if (self->config.certificateManager)
+        ogs_free(self->config.certificateManager);
+    
+    msaf_context_server_addr_remove_all();
 
     msaf_application_server_remove_all();
 
@@ -134,6 +154,8 @@ int msaf_context_parse_config(void)
                     }
                 } else if (!strcmp(msaf_key, "certificate")) {
                     self->config.certificate = rebase_path(ogs_app()->file, ogs_yaml_iter_value(&msaf_iter));
+                } else if (!strcmp(msaf_key, "certificateManager")) {
+                    self->config.certificateManager = ogs_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "contentHostingConfiguration")) {
                     self->config.contentHostingConfiguration = rebase_path(ogs_app()->file, ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "applicationServers")) {
@@ -164,7 +186,40 @@ int msaf_context_parse_config(void)
                         }
                     }
                     msaf_application_server_add(canonical_hostname, url_path_prefix_format, m3_port);
-                } else if (!strcmp(msaf_key, "sbi")) {
+                } else if (!strcmp(msaf_key, "serverResponseCacheControl")) {
+                    ogs_yaml_iter_t cc_iter, cc_array;
+                    ogs_yaml_iter_recurse(&msaf_iter, &cc_array);
+                    if (ogs_yaml_iter_type(&cc_array) == YAML_MAPPING_NODE) {
+                        memcpy(&cc_iter, &cc_array, sizeof(ogs_yaml_iter_t));
+                    } else if (ogs_yaml_iter_type(&cc_array) == YAML_SEQUENCE_NODE) {
+                        if (!ogs_yaml_iter_next(&cc_array))
+                            break;
+                        ogs_yaml_iter_recurse(&cc_array, &cc_iter);
+                    } else if (ogs_yaml_iter_type(&cc_array) == YAML_SCALAR_NODE) {
+                        break;
+                    } else
+                        ogs_assert_if_reached();
+
+                    int m1_provisioning_session_response_max_age = SERVER_RESPONSE_MAX_AGE;
+                    int m1_content_hosting_configurations_response_max_age = SERVER_RESPONSE_MAX_AGE;
+		            int m1_content_protocols_response_max_age = M1_CONTENT_PROTOCOLS_RESPONSE_MAX_AGE;
+		            int m5_service_access_information_response_max_age = SERVER_RESPONSE_MAX_AGE;
+                    while (ogs_yaml_iter_next(&cc_iter)) {
+                        const char *cc_key = ogs_yaml_iter_key(&cc_iter);
+                        ogs_assert(cc_key);
+                        if (!strcmp(cc_key, "m1ProvisioningSessions")) {
+                            m1_provisioning_session_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
+                        } else if (!strcmp(cc_key, "m1ContentHostingConfigurations")) {
+                            m1_content_hosting_configurations_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
+                        } else if (!strcmp(cc_key, "m1ContentProtocols")) {
+                            m1_content_protocols_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
+                        } else if (!strcmp(cc_key, "m5ServiceAccessInformation")) {
+                            m5_service_access_information_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
+                        }
+                    }
+		            msaf_server_response_cache_control_set_from_config(m1_provisioning_session_response_max_age,  m1_content_hosting_configurations_response_max_age, m1_content_protocols_response_max_age, m5_service_access_information_response_max_age);
+
+                }  else if (!strcmp(msaf_key, "sbi")) {
                     if(!self->config.open5gsIntegration_flag) {
                         ogs_list_t list, list6;
                         ogs_socknode_t *node = NULL, *node6 = NULL;
@@ -274,6 +329,7 @@ int msaf_context_parse_config(void)
                             addr = NULL;
                             for (i = 0; i < num; i++) {
                                 rv = ogs_addaddrinfo(&addr, family, hostname[i], port, 0);
+                                msaf_context_server_addr_add(hostname[i]);
                                 ogs_assert(rv == OGS_OK);
                             }
 
@@ -482,6 +538,21 @@ static void msaf_context_delete_content_hosting_configuration(const char *resour
     }
 }
 
+static void msaf_context_server_addr_remove_all()
+{
+    msaf_context_server_addr_t *msaf_server_addr = NULL, *next = NULL;
+    ogs_list_for_each_safe(&msaf_self()->config.server_addr_list, next, msaf_server_addr)
+        msaf_context_server_addr_remove(msaf_server_addr);
+
+}
+
+static void msaf_context_server_addr_remove(msaf_context_server_addr_t *msaf_server_addr)
+{
+        ogs_assert(msaf_server_addr);
+	ogs_list_remove(&msaf_self()->config.server_addr_list, msaf_server_addr);
+	ogs_free(msaf_server_addr);
+}
+
 static void msaf_context_application_server_state_certificates_remove_all(void) {
 
     ogs_info("Removing all certificates from all Application Servers");
@@ -628,8 +699,15 @@ msaf_context_provisioning_session_free(msaf_provisioning_session_t *provisioning
     if (provisioning_session->provisioningSessionId) ogs_free(provisioning_session->provisioningSessionId);
     if (provisioning_session->aspId) ogs_free(provisioning_session->aspId);
     if (provisioning_session->externalApplicationId) ogs_free(provisioning_session->externalApplicationId);
+    if (provisioning_session->provisioningSessionHash) ogs_free(provisioning_session->provisioningSessionHash);
+
     if (provisioning_session->contentHostingConfiguration) OpenAPI_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
+    if (provisioning_session->contentHostingConfigurationHash) ogs_free(provisioning_session->contentHostingConfigurationHash);
+
     if (provisioning_session->serviceAccessInformation) OpenAPI_service_access_information_resource_free(provisioning_session->serviceAccessInformation);
+    if (provisioning_session->serviceAccessInformationHash) ogs_free(provisioning_session->serviceAccessInformationHash);
+
+    
     ogs_free(provisioning_session);
 }
 
@@ -645,6 +723,35 @@ msaf_context_content_hosting_configuration_file_map(char *provisioning_session_i
 {
     ogs_hash_set(self->content_hosting_configuration_file_map, ogs_strdup(self->config.contentHostingConfiguration), OGS_HASH_KEY_STRING, ogs_strdup(provisioning_session_id));
     return self->content_hosting_configuration_file_map;
+}
+
+static void msaf_context_server_addr_add(const char *server_addr) {
+    msaf_context_server_addr_t *msaf_server_addr;
+    msaf_server_addr = ogs_calloc(1, sizeof(msaf_context_server_addr_t));
+    ogs_assert(msaf_server_addr);
+    msaf_server_addr->server_addr = server_addr;
+    ogs_list_add(&self->config.server_addr_list, msaf_server_addr);
+
+}
+
+int msaf_context_server_name_set(void) {
+
+    msaf_context_server_addr_t *msaf_server_addr;
+    struct sockaddr_in sa;
+    msaf_server_addr = ogs_list_first(&self->config.server_addr_list);
+    memset(&sa, 0, sizeof sa);
+    sa.sin_family = AF_INET;
+    inet_pton(AF_INET, msaf_server_addr->server_addr, &sa.sin_addr);
+    int res = getnameinfo((struct sockaddr*)&sa, sizeof(sa),
+                          self->server_name, sizeof(self->server_name),
+                          NULL, 0, NI_NAMEREQD);
+    if (res) {
+        printf("error: %d\n", res);
+    }
+    else
+        printf("node=%s\n", self->server_name);
+
+    return 0;
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:
