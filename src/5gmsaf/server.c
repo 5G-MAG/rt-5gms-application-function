@@ -58,9 +58,9 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
     if(cache_control)
     {
         char *response_cache_control;
-	response_cache_control = ogs_msprintf("%d", cache_control);
-        ogs_sbi_header_set(response->http.headers, "Cache-Control: max-age=", response_cache_control);
-	ogs_free(response_cache_control);
+        response_cache_control = ogs_msprintf("max-age=%d", cache_control);
+        ogs_sbi_header_set(response->http.headers, "Cache-Control", response_cache_control);    	    
+	    ogs_free(response_cache_control);
     }
 
     if(!interface){
