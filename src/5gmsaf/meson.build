@@ -172,7 +172,12 @@ libmsaf_gen_sources = '''
 '''.split()
 
 gen_5gmsaf_openapi = find_program('sh')
-openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf'], check: true, capture: false)
+openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf', '-b', 'REL-'+fiveg_api_release], check: true, capture: false)
+
+version_conf = configuration_data()
+version_conf.set_quoted('MSAF_VERSION', meson.project_version())
+version_conf.set_quoted('FIVEG_API_RELEASE', fiveg_api_release)
+configure_file(output : 'msaf-version.h', configuration : version_conf)
 
 libmsaf_sources = libmsaf_dist_sources + libmsaf_gen_sources
 

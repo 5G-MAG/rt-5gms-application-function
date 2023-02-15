@@ -29,7 +29,7 @@ scriptdir=`cd "$scriptdir"; pwd`
 
 # Command line option defaults
 default_branch='REL-17'
-default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M5_ServiceAccessInformation"
+default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation"
 
 # Parse command line arguments
 ARGS=`getopt -n "$scriptname" -o 'a:b:h' -l 'api:,branch:,help' -s sh -- "$@"`
@@ -109,6 +109,13 @@ destdir=`realpath -m "$scriptdir/openapi"`
 openapi_gen_dir=`realpath "$scriptdir/../../subprojects/open5gs/lib/sbi/support/20210629/openapi-generator"`
 
 sed "s@^templateDir:.*@templateDir: \"${openapi_gen_dir}/templates\"@" $openapi_gen_dir/config.yaml > $scriptdir/config.yaml
+cp "${scriptdir}/"*.mustache "${openapi_gen_dir}/templates/"
+cat >> $scriptdir/config.yaml << EOF
+files:
+  api-info-head.mustache:
+    templateType: API
+    destinationFilename: -info.h
+EOF
 
 # call the common generate_openapi script
 if [ ! -d "$scriptdir/openapi" ]; then

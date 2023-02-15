@@ -14,6 +14,9 @@ project('rt-5gms-application-function', 'c',
         'c_std=gnu89',
     ],
 )
+
+fiveg_api_release = '17'
+
 sh_cmd = find_program('sh')
 patch_open5gs_result = run_command([sh_cmd, '-c', '"$MESON_SOURCE_ROOT/subprojects/patch_open5gs.sh" open5gs'], check: true, capture: false)
 open5gs_project=subproject('open5gs',required:true)
