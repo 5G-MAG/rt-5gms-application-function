@@ -1,0 +1,8 @@
+{
+    "downlinkIngestProtocols": [
+        {
+            "termIdentifier": "urn:3gpp:5gms:content-protocol:http-pull-ingest",
+            "descriptionLocator": "https://www.etsi.org/deliver/etsi_ts/126500_126599/126512/17.03.00_60/ts_126512v170300p.pdf#page=67"
+        }
+    ]
+}

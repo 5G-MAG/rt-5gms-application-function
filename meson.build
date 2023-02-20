@@ -9,13 +9,13 @@
 project('rt-5gms-application-function', 'c',
     version : '1.2.0',
     license : '5G-MAG Public',
-    meson_version : '>= 0.47.0',
+    meson_version : '>= 0.59.0',
     default_options : [
         'c_std=gnu89',
     ],
 )
 
-fiveg_api_release = '17'
+fiveg_api_release = '17.3.0'
 
 sh_cmd = find_program('sh')
 patch_open5gs_result = run_command([sh_cmd, '-c', '"$MESON_SOURCE_ROOT/subprojects/patch_open5gs.sh" open5gs'], check: true, capture: false)

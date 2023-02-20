@@ -11,13 +11,13 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "ogs-sbi.h"
 #include "server.h"
 #include "utilities.h"
-#include "version.h"
+#include "msaf-version.h"
 
 static bool nf_server_send_problem(
-        ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem);
+        ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem, char *interface);
 
 static ogs_sbi_response_t *nf_build_response(
-        ogs_sbi_message_t *message, int status);
+        ogs_sbi_message_t *message, int status, char *interface);
 
 static bool nf_build_content(
         ogs_sbi_http_message_t *http, ogs_sbi_message_t *message);
@@ -65,30 +65,56 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
 
     if(!interface){
         
-        server = ogs_msprintf("5GMSdAF-%s/%s %s/%s",msaf_self()->server_name, FIVE_API_RELEASE, MSAF_NAME, MSAF_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, MSAF_NAME, MSAF_VERSION);
 
 
     } else if(!strcmp(interface, "m1 provisioningSession"))
     {
 
-        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", _OpenAPI_provisioning_session_info_title, _OpenAPI_provisioning_session_info_version);
-        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVE_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
+        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", M1_PROVISIONINGSESSIONS_API_NAME, M1_PROVISIONINGSESSIONS_API_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
     
     } else  if(!strcmp(interface, "m1 contentHostingConfiguration"))
     {
 
-        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", _OpenAPI_content_hosting_configuration_info_title, _OpenAPI_content_hosting_configuration_info_version);
-        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVE_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
+        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", M1_CONTENTHOSTINGPROVISIONING_API_NAME, M1_CONTENTHOSTINGPROVISIONING_API_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
     
-    } else if(!strcmp(interface, "m5"))
+    } else  if(!strcmp(interface, "m1 contentProtocolsDiscovery"))
     {
 
-        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", _OpenAPI_service_access_information_resource_info_title, _OpenAPI_service_access_information_resource_info_version);
-        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVE_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
+        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", M1_CONTENTPROTOCOLSDISCOVERY_API_NAME, M1_CONTENTPROTOCOLSDISCOVERY_API_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
+    
+    } 
+    else  if(!strcmp(interface, "m1 certificates"))
+    {
+
+        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", M1_SERVERCERTIFICATESPROVISIONING_API_NAME, M1_SERVERCERTIFICATESPROVISIONING_API_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
+
+    } else  if(!strcmp(interface, "m3 contentHostingConfiguration"))
+    {
+
+        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", M3_CONTENTHOSTINGPROVISIONING_API_NAME, M3_CONTENTHOSTINGPROVISIONING_API_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
+    
+    } else  if(!strcmp(interface, "m3 certificates"))
+    {
+
+        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", M3_SERVERCERTIFICATESPROVISIONING_API_NAME, M3_SERVERCERTIFICATESPROVISIONING_API_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
+    }
+    
+    else if(!strcmp(interface, "m5"))
+    {
+
+        server_api_info = ogs_msprintf("(info.title=%s; info.version=%s)", M5_SERVICEACCESSINFORMATION_API_NAME, M5_SERVICEACCESSINFORMATION_API_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, server_api_info, MSAF_NAME, MSAF_VERSION);
     
     } else {
 
-        server = ogs_msprintf("5GMSdAF-%s/%s %s/%s",msaf_self()->server_name, FIVE_API_RELEASE, MSAF_NAME, MSAF_VERSION);
+        server = ogs_msprintf("5GMSdAF-%s/%s %s/%s",msaf_self()->server_name, FIVEG_API_RELEASE, MSAF_NAME, MSAF_VERSION);
     }
 
     ogs_sbi_header_set(response->http.headers, "Server", server);
@@ -109,12 +135,8 @@ ogs_sbi_response_t *nf_server_populate_response(ogs_sbi_response_t *response, in
 
 }
 
-
-
-
-
 static bool nf_server_send_problem(
-        ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem)
+        ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem, char *interface)
 {
     ogs_sbi_message_t message;
     ogs_sbi_response_t *response = NULL;
@@ -127,7 +149,7 @@ static bool nf_server_send_problem(
     message.http.content_type = (char*)"application/problem+json";
     message.ProblemDetails = problem;
 
-    response = nf_build_response(&message, problem->status);
+    response = nf_build_response(&message, problem->status, interface);
     ogs_assert(response);
 
     ogs_sbi_server_send_response(stream, response);
@@ -138,7 +160,7 @@ static bool nf_server_send_problem(
 
 bool nf_server_send_error(ogs_sbi_stream_t *stream,
         int status, int number_of_components, ogs_sbi_message_t *message,
-        const char *title, const char *detail, cJSON * problem_detail)
+        const char *title, const char *detail, cJSON * problem_detail, char *interface)
 {
     OpenAPI_problem_details_t problem;
     OpenAPI_problem_details_t *problem_details = NULL;
@@ -177,7 +199,7 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
     problem.title = (char*)title;
     problem.detail = (char*)detail;
 
-    nf_server_send_problem(stream, &problem);
+    nf_server_send_problem(stream, &problem, interface);
 
     if (problem.type)
         ogs_free(problem.type);
@@ -190,13 +212,13 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
 }
 
 ogs_sbi_response_t *nf_build_response(
-        ogs_sbi_message_t *message, int status)
+        ogs_sbi_message_t *message, int status, char *interface)
 {
     ogs_sbi_response_t *response = NULL;
 
     ogs_assert(message);
 
-    response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL);
+    response = nf_server_new_response(NULL, NULL, 0, NULL, 0, interface);
 
     //response = ogs_sbi_response_new();
     ogs_expect_or_return_val(response, NULL);
