@@ -12,6 +12,12 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #define MSAF_EVENT_H
 
 #include "ogs-proto.h"
+#include "ogs-sbi.h"
+
+
+//#ifndef MSAF_CONTEXT_H
+#include "context.h"
+//#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,9 +34,12 @@ typedef enum {
 
 } msaf_event_e;
 
+typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;
+
 typedef struct msaf_event_s {
     ogs_event_t h;
     int local_id;
+    msaf_application_server_state_node_t *application_server_state;
 
     ogs_pkbuf_t *pkbuf;
 
@@ -43,9 +52,9 @@ typedef struct msaf_event_s {
     msaf_sess_t *sess;
 } msaf_event_t;
 
-msaf_event_t *msaf_event_new(int id);
+OGS_STATIC_ASSERT(OGS_EVENT_SIZE >= sizeof(msaf_event_t));
 
-const char *msaf_event_get_name(msaf_event_t *e);
+extern const char *msaf_event_get_name(msaf_event_t *e);
 
 #ifdef __cplusplus
 }

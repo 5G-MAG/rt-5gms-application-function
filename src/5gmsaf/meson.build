@@ -13,15 +13,29 @@ libsbi_dep = open5gs_project.get_variable('libsbi_dep')
 open5gs_sysconfdir = open5gs_project.get_variable('open5gs_sysconfdir')
 srcinc = open5gs_project.get_variable('srcinc')
 libdir = open5gs_project.get_variable('libdir')
+python3_exe = open5gs_project.get_variable('python3_exe')
+mkdir_p = open5gs_project.get_variable('mkdir_p')
+install_conf = open5gs_project.get_variable('install_conf')
+
 libmsaf_dist_sources = files('''
     context.c
     context.h
     event.c
     event.h
+    provisioning-session.h
+    provisioning-session.c
+    application-server-context.h
+    application-server-context.c
+    media-player-entry.h
+    media-player-entry.c
     sbi-path.c
     sbi-path.h
+    service-access-information.h
+    service-access-information.c
     msaf-sm.c
     msaf-sm.h
+    utilities.h
+    utilities.c
     init.c
     init.h
 '''.split())
@@ -123,6 +137,8 @@ libmsaf_gen_sources = '''
     openapi/model/polygon_all_of.c
     openapi/model/provisioning_session_type.h
     openapi/model/provisioning_session_type.c
+    openapi/model/provisioning_session.h
+    openapi/model/provisioning_session.c
     openapi/model/relative_cartesian_location.h
     openapi/model/relative_cartesian_location.c
     openapi/model/sdf_method.h
@@ -177,6 +193,10 @@ msaf_sources = files('''
     app.c
 '''.split()) + open5gs_project.get_variable('app_main_c')
 
+msaf_config_source = '''
+    msaf.yaml
+'''.split()
+
 executable('open5gs-msafd',
     sources : msaf_sources,
     c_args : '-DDEFAULT_CONFIG_FILENAME="@0@/msaf.yaml"'.format(open5gs_sysconfdir),
@@ -184,3 +204,9 @@ executable('open5gs-msafd',
     dependencies : [libmsaf_dep],
     install_rpath : libdir,
     install : true)
+
+meson.add_install_script(python3_exe, '-c', mkdir_p.format(open5gs_sysconfdir))
+foreach conf_file : msaf_config_source
+    gen = configure_file(input : conf_file, copy : true, output : conf_file)
+    meson.add_install_script(python3_exe, '-c', install_conf.format(gen, open5gs_sysconfdir))
+endforeach

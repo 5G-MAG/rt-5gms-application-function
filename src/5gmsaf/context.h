@@ -11,6 +11,8 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #ifndef MSAF_CONTEXT_H
 #define MSAF_CONTEXT_H
 
+#include <unistd.h>
+
 #include "ogs-sbi.h"
 #include "ogs-app.h"
 
@@ -21,6 +23,9 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include <stdlib.h>
 #include "openapi/model/content_hosting_configuration.h"
 #include "openapi/model/service_access_information_resource.h"
+#include "provisioning-session.h"
+#include "application-server-context.h"
+#include "service-access-information.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,42 +40,23 @@ typedef struct msaf_configuration_s {
     int open5gsIntegration_flag;
     ogs_list_t applicationServers_list;
     char *contentHostingConfiguration;
-    char *provisioningSessionId;
-    char *mediaPlayerEntrySuffix;
+    char *certificate;
     int  number_of_application_servers;
 } msaf_configuration_t;
-
-typedef struct msaf_application_server_node_s {
-    ogs_lnode_t   node;
-    char *canonicalHostname;
-    char *urlPathPrefixFormat;
-} msaf_application_server_node_t;
 
 typedef struct msaf_context_s {
     msaf_configuration_t config;
     ogs_hash_t  *provisioningSessions_map;
-    uint32_t sbi_port;
-    ogs_list_t server_list;
-} msaf_context_t; 
-
-typedef struct msaf_provisioning_session_s {
-    char *provisioningSessionId;
-    OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
-    OpenAPI_service_access_information_resource_t *serviceAccessInformation;
-} msaf_provisioning_session_t;
+    ogs_list_t   application_server_states;
+    ogs_hash_t *content_hosting_configuration_file_map;
+} msaf_context_t;
 
 extern void msaf_context_init(void);
 extern void msaf_context_final(void);
 extern msaf_context_t *msaf_self(void);
 extern int msaf_context_parse_config(void);
 
-extern msaf_provisioning_session_t *msaf_context_provisioning_session_set(void);
-extern cJSON *msaf_context_retrieve_service_access_information(const char *provisioning_session_id);
-extern msaf_application_server_node_t *msaf_context_application_server_add(char *canonical_hostname, char *url_path_prefix_format);
-extern void msaf_context_application_server_remove(msaf_application_server_node_t *msaf_as);
-extern void msaf_context_application_server_remove_all(void);
-extern void msaf_context_application_server_print_all(void);
-extern msaf_provisioning_session_t *msaf_context_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
+extern void msaf_context_provisioning_session_free(msaf_provisioning_session_t *provisioning_session);
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,28 @@
+logger:
+  level: debug
+  domain: msaf
+
+msaf:
+    open5gsIntegration: false
+    sbi:
+      - addr: 0.0.0.0
+        port: 7778
+    applicationServers:
+      - canonicalHostname: localhost
+        urlPathPrefixFormat: /m4d/provisioning-session-{provisioningSessionId}/
+        m3Port: 7777
+    certificate: Certificates.json
+    contentHostingConfiguration: ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_domain-name_http_and_https.json
+
+nrf:
+    sbi:
+      - addr:
+          - 127.0.0.10
+          - ::1
+        port: 7777
+
+parameter:
+
+max:
+
+time:

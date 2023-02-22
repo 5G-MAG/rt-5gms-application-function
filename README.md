@@ -11,15 +11,15 @@ This AF uses the [Open5GS](https://open5gs.org/) framework to implement the netw
 
 ## Specifications
 
-* [ETSI TS 126 501](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66447) - 5G Media Streaming (
-  5GMS): General description and architecture (3GPP TS 26.501 version 17.2.0 Release 17)
-* [ETSI TS 126 512](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=66919) - 5G Media Streaming (
-  5GMS): Protocols (3GPP TS 26.512 version 17.1.2 Release 17)
+* [ETSI TS 126 501](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=67203) - 5G Media Streaming (
+  5GMS): General description and architecture (3GPP TS 26.501 version 17.3.0 Release 17)
+* [ETSI TS 126 512](https://portal.etsi.org/webapp/workprogram/Report_WorkItem.asp?WKI_ID=67679) - 5G Media Streaming (
+  5GMS): Protocols (3GPP TS 26.512 version 17.3.0 Release 17)
 
 ## Install dependencies
 
 ```bash
-sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson curl
+sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson curl wget default-jdk
 python3 -m pip install build
 ```
 
@@ -40,88 +40,49 @@ git submodule update
 
 ## Build the 5GMS Application Function
 
+The build process requires a working Internet connection as the API files are retrieved at build time.
+
 To build the 5GMS Application Function from the source:
 
 ```bash
 cd ~/rt-5gms-application-function
-meson build --prefix=`pwd`/install
+meson build
 ninja -C build
 ```
 
+**Note:** Errors during the `meson build` command are often caused by missing dependancies or a network issue while trying to retrieve the API files and `openapi-generator` JAR file. See the `~/rt-5gms-application-function/build/meson-logs/meson-log.txt` log file for the errors in greater detail. Search for `generator-5gmsaf` to find the start of the API fetch sequence.
+
 ## Installing
 
-To install the built Application Function:
+To install the built Application Function as a system process:
 
 ```bash
 cd ~/rt-5gms-application-function/build
-ninja install
+sudo meson install --no-rebuild
 ```
 
 ## Running
 
+The Application Function requires a [5GMS Application Server](https://github.com/5G-MAG/rt-5gms-application-server) (release v1.1.0 or above) to be running. Please follow the [instructions](https://github.com/5G-MAG/rt-5gms-application-server/tree/development#readme) for installing and running the 5GMS Application Server before starting the Application Function.
+
 The Application Function can be executed with the command:
 
 ```bash
-cd ~/rt-5gms-application-function/src/5gmsaf
-../../install/bin/open5gs-msafd -c msaf.yaml
+/usr/local/bin/open5gs-msafd
 ```
 
-Use `-c` to specify a configuration file. The example configuration file can
-be `rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
-
-## Testing with the example configuration
-
-If you started the 5GMS Application Function with the example configuration (`msaf.yaml`), you can test it by retrieving
-http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f.
-
-For example:
+This uses the installed configuration file at `/usr/local/etc/open5gs/msaf.yaml`. You can use the `-c` command line parameter to
+specify an alternative configuration file. For example:
 
 ```bash
-curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/d54a1fcc-d411-4e32-807b-2c60dbaeaf5f
+/usr/local/bin/open5gs-msafd -c alternate-msaf.yaml
 ```
 
-...would receive a response like:
+The source example configuration file can be found in `~/rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
 
-```
-< HTTP/1.1 200 OK
-< Date: Fri, 28 Oct 2022 16:26:09 GMT
-< Connection: close
-< Content-Type: application/json
-< Content-Length: 278
-< 
-{
-	"provisioningSessionId":	"d54a1fcc-d411-4e32-807b-2c60dbaeaf5f",
-	"provisioningSessionType":	"DOWNLINK",
-	"streamingAccess":	{
-		"mediaPlayerEntry":	"https://localhost/m4d/provisioning-session-d54a1fcc-d411-4e32-807b-2c60dbaeaf5f/BigBuckBunny_4s_onDemand_2014_05_09.mpd"
-	}
-}
-```
+## Testing
 
-The not found response can be tested using a different provisioningSessionId string to the value in the
-provisioningSessionId key in the configuration YAML file. For example:
-
-```bash
-curl -v http://127.0.0.22:7777/3gpp-m5/v2/service-access-information/does_not_exist
-```
-
-...which would receive a response like:
-
-```
-< HTTP/1.1 404 Not Found
-< Date: Fri, 28 Oct 2022 16:26:28 GMT
-< Connection: close
-< Content-Type: application/problem+json
-< Content-Length: 218
-< 
-{
-	"type":	"/3gpp-m5/v2",
-	"title":	"Service Access Information not found",
-	"status":	404,
-	"detail":	"Service Access Information does_not_exist not found.",
-	"instance":	"/service-access-information/does_not_exist"
-}
-```
+See the section on [Testing](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Developing-and-Contributing#testing) in the wiki.
 
 ## Development
 

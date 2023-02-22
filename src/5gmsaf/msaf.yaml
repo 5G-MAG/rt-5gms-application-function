@@ -130,18 +130,17 @@ logger:
 #    * That is, 'no_service_names' has no effect.
 #
 msaf:
-    open5gsIntegration: false    
+    open5gsIntegration: false
     sbi:
-      - addr: 127.0.0.22
-        port: 7777
+      - addr: 0.0.0.0
+        port: 7778
     applicationServers:
       - canonicalHostname: localhost
         urlPathPrefixFormat: /m4d/provisioning-session-{provisioningSessionId}/
-    # The following parameters are only needed for MVP#2 and will be automated
-    # in future.
-    contentHostingConfiguration: ../../subprojects/rt-common-shared/5gms/examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest.json
-    provisioningSessionId: d54a1fcc-d411-4e32-807b-2c60dbaeaf5f
-    mediaPlayerEntrySuffix: BigBuckBunny_4s_onDemand_2014_05_09.mpd
+        m3Port: 7777
+    # The following parameters are only needed until M1 is implemented.
+    certificate: ../../examples/Certificates.json
+    contentHostingConfiguration: ../../examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest.json
 #
 # nrf:
 #

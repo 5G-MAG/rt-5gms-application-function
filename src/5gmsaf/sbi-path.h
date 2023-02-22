@@ -18,10 +18,8 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 extern "C" {
 #endif
 
-int msaf_sbi_open(void);
-void msaf_sbi_close(void);
-
-bool msaf_sbi_send_request(ogs_sbi_nf_instance_t *nf_instance, void *data);
+extern int msaf_sbi_open(void);
+extern void msaf_sbi_close(void);
 
 #ifdef __cplusplus
 }
