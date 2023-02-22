@@ -23,13 +23,6 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "openapi/api/TS26512_M1_ProvisioningSessionsAPI-info.h"
-#include "openapi/api/TS26512_M1_ServerCertificatesProvisioningAPI-info.h"
-#include "openapi/api/TS26512_M1_ContentHostingProvisioningAPI-info.h"
-#include "openapi/api/M3_ServerCertificatesProvisioningAPI-info.h"
-#include "openapi/api/M3_ContentHostingProvisioningAPI-info.h"
-#include "openapi/api/TS26512_M5_ServiceAccessInformationAPI-info.h"
-#include "openapi/api/TS26512_M1_ContentProtocolsDiscoveryAPI-info.h"
 #include "openapi/model/content_hosting_configuration.h"
 #include "openapi/model/service_access_information_resource.h"
 #include "provisioning-session.h"

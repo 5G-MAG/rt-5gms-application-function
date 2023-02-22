@@ -19,8 +19,6 @@ install_conf = open5gs_project.get_variable('install_conf')
 
 fs = import('fs')
 
-fiveg_api_release = '17.3.0'
-
 libmsaf_dist_sources = files('''
     context.c
     context.h

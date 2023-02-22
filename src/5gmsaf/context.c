@@ -202,6 +202,7 @@ int msaf_context_parse_config(void)
 
                     int m1_provisioning_session_response_max_age = SERVER_RESPONSE_MAX_AGE;
                     int m1_content_hosting_configurations_response_max_age = SERVER_RESPONSE_MAX_AGE;
+                    int m1_server_certificates_response_max_age = SERVER_RESPONSE_MAX_AGE;
 		            int m1_content_protocols_response_max_age = M1_CONTENT_PROTOCOLS_RESPONSE_MAX_AGE;
 		            int m5_service_access_information_response_max_age = SERVER_RESPONSE_MAX_AGE;
                     while (ogs_yaml_iter_next(&cc_iter)) {
@@ -209,6 +210,8 @@ int msaf_context_parse_config(void)
                         ogs_assert(cc_key);
                         if (!strcmp(cc_key, "m1ProvisioningSessions")) {
                             m1_provisioning_session_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
+                        } else if (!strcmp(cc_key, "m1ServerCertificates")) {
+                            m1_server_certificates_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
                         } else if (!strcmp(cc_key, "m1ContentHostingConfigurations")) {
                             m1_content_hosting_configurations_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
                         } else if (!strcmp(cc_key, "m1ContentProtocols")) {
@@ -217,7 +220,7 @@ int msaf_context_parse_config(void)
                             m5_service_access_information_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
                         }
                     }
-		            msaf_server_response_cache_control_set_from_config(m1_provisioning_session_response_max_age,  m1_content_hosting_configurations_response_max_age, m1_content_protocols_response_max_age, m5_service_access_information_response_max_age);
+		            msaf_server_response_cache_control_set_from_config(m1_provisioning_session_response_max_age,  m1_content_hosting_configurations_response_max_age, m1_server_certificates_response_max_age, m1_content_protocols_response_max_age, m5_service_access_information_response_max_age);
 
                 }  else if (!strcmp(msaf_key, "sbi")) {
                     if(!self->config.open5gsIntegration_flag) {
