@@ -93,7 +93,6 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     const nf_server_interface_metadata_t *m1_contentprotocolsdiscovery_api = &m1_contentprotocolsdiscovery_api_metadata;
     const nf_server_interface_metadata_t *m1_servercertificatesprovisioning_api = &m1_servercertificatesprovisioning_api_metadata;
     const nf_server_interface_metadata_t *m3_contenthostingprovisioning_api = &m3_contenthostingprovisioning_api_metatdata;
-    const nf_server_interface_metadata_t *m3_servercertificatesprovisioning_api = &m3_servercertificatesprovisioning_api_metadata;
     const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
     const nf_server_app_metadata_t *app_meta = &app_metadata;
 
@@ -112,6 +111,19 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             ogs_assert(request);
             stream = e->h.sbi.data;
             ogs_assert(stream);
+
+            if (!strcmp(request->h.method, OGS_SBI_HTTP_METHOD_OPTIONS) && !strcmp(request->h.uri, "*")){
+                char *methods = NULL;
+                ogs_sbi_response_t *response;
+                methods = ogs_msprintf("%s, %s, %s, %s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                response = nf_server_new_response(NULL, NULL,  0, NULL, 0, methods, NULL, app_meta);
+                nf_server_populate_response(response, 0, NULL, 204);
+                ogs_assert(response);
+                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                ogs_free(methods);
+                break;                
+           }
+
 
             rv = ogs_sbi_parse_header(&message, &request->h);
             if (rv != OGS_OK) {
@@ -255,6 +267,11 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 						                        if (m1_purge_info->refs == 0) {
 							                        ogs_free(m1_purge_info);
 							                        // Send 204 back to M1 client
+                                                    ogs_sbi_response_t *response;
+                                                    response = nf_server_new_response(NULL, NULL,  NULL, NULL, NULL, NULL, m1_contenthostingprovisioning_api, app_meta);
+                                                    nf_server_populate_response(response, NULL, NULL, 204);
+                                                    ogs_assert(response);
+                                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 						                        }
                                             } else {
                                                 ogs_error("Unable to retrieve the Provisioning Session [%s]", message.h.resource.component[1]);
@@ -318,7 +335,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     if (chc != NULL) {
                                                         char *text;
 							                            msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
-                                                        response = nf_server_new_response(request->h.uri, "application/json",  msaf_provisioning_session->contentHostingConfigurationReceived, msaf_provisioning_session->contentHostingConfigurationHash, msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age, m1_contentprotocolsdiscovery_api, app_meta);
+                                                        response = nf_server_new_response(request->h.uri, "application/json",  msaf_provisioning_session->contentHostingConfigurationReceived, msaf_provisioning_session->contentHostingConfigurationHash, msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age, NULL, m1_contentprotocolsdiscovery_api, app_meta);
                                                         text = cJSON_Print(chc);
                                                         nf_server_populate_response(response, strlen(text), text, 201);
                                                         ogs_assert(response);
@@ -386,7 +403,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 						                            } else {
 							                            m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
 						                            }
-						                            response = nf_server_new_response(location, "application/x-pem-file",  csr_cert->last_modified, csr_cert->server_certificate_hash, m1_server_certificates_response_max_age, m1_servercertificatesprovisioning_api, app_meta);
+						                            response = nf_server_new_response(location, "application/x-pem-file",  csr_cert->last_modified, csr_cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
 
                                                     nf_server_populate_response(response, strlen(csr_cert->certificate), ogs_strdup(csr_cert->certificate), 200);
                                                  
@@ -411,7 +428,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_sbi_response_t *response;
 						                            char *location;                                                    
 						                            location = ogs_msprintf("%s/%s", request->h.uri, cert);
-                                                    response = nf_server_new_response(location, NULL,  0, NULL, 0, m1_servercertificatesprovisioning_api, app_meta);
+                                                    response = nf_server_new_response(location, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
                                                     nf_server_populate_response(response, 0, NULL, 200);
                                                     ogs_assert(response);
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -428,7 +445,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     } else {
                                                         m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
                                                     }				    
-						                            response = nf_server_new_response(location, NULL,  new_cert->last_modified, new_cert->server_certificate_hash, m1_server_certificates_response_max_age, m1_servercertificatesprovisioning_api, app_meta);
+						                            response = nf_server_new_response(location, NULL,  new_cert->last_modified, new_cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
                                                     nf_server_populate_response(response, 0, NULL, 200);                                                    
                                                     ogs_assert(response);
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -481,7 +498,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             } else {
                                                 location = ogs_msprintf("%s%s", request->h.uri,msaf_provisioning_session->provisioningSessionId);
                                             }
-                                            response = nf_server_new_response(location, "application/json",  msaf_provisioning_session->provisioningSessionReceived, msaf_provisioning_session->provisioningSessionHash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, m1_provisioningsession_api, app_meta);
+                                            response = nf_server_new_response(location, "application/json",  msaf_provisioning_session->provisioningSessionReceived, msaf_provisioning_session->provisioningSessionHash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_provisioningsession_api, app_meta);
         
                                             nf_server_populate_response(response, strlen(text), text, 201);
                                             ogs_assert(response);
@@ -526,7 +543,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     } else {
                                                         m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
                                                     }
-                                                    response = nf_server_new_response(NULL, "application/x-pem-file",  cert->last_modified, cert->server_certificate_hash, m1_server_certificates_response_max_age, m1_servercertificatesprovisioning_api, app_meta);
+                                                    response = nf_server_new_response(NULL, "application/x-pem-file",  cert->last_modified, cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
                                                     nf_server_populate_response(response, strlen(cert->certificate), ogs_strdup(cert->certificate), 200);
                                                     ogs_assert(response);
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -578,7 +595,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                         char *text;
                                                         text = cJSON_Print(chc);
                                                      
-                                                        response = nf_server_new_response(request->h.uri, "application/json",  msaf_provisioning_session->contentHostingConfigurationReceived, msaf_provisioning_session->contentHostingConfigurationHash, msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age, m1_contenthostingprovisioning_api, app_meta);
+                                                        response = nf_server_new_response(request->h.uri, "application/json",  msaf_provisioning_session->contentHostingConfigurationReceived, msaf_provisioning_session->contentHostingConfigurationHash, msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age, NULL, m1_contenthostingprovisioning_api, app_meta);
                                                         ogs_assert(response);
                                                         nf_server_populate_response(response, strlen(text), text, 200);
                                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -608,7 +625,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             if(msaf_provisioning_session) {
                                                 ogs_sbi_response_t *response;
                                                 ogs_info("CONTENT_PROTOCOLS_DISCOVERY_JSON: %s", CONTENT_PROTOCOLS_DISCOVERY_JSON);
-						                        response = nf_server_new_response(NULL, "application/json",  CONTENT_PROTOCOLS_DISCOVERY_JSON_TIME, CONTENT_PROTOCOLS_DISCOVERY_JSON_HASH, msaf_self()->config.server_response_cache_control->m1_content_protocols_response_max_age, m1_contentprotocolsdiscovery_api, app_meta);
+						                        response = nf_server_new_response(NULL, "application/json",  CONTENT_PROTOCOLS_DISCOVERY_JSON_TIME, CONTENT_PROTOCOLS_DISCOVERY_JSON_HASH, msaf_self()->config.server_response_cache_control->m1_content_protocols_response_max_age, NULL, m1_contentprotocolsdiscovery_api, app_meta);
                                                 ogs_assert(response);
                                                 nf_server_populate_response(response, strlen(CONTENT_PROTOCOLS_DISCOVERY_JSON), ogs_strdup(CONTENT_PROTOCOLS_DISCOVERY_JSON), 200);
                                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -632,7 +649,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             char *text;
                                             text = cJSON_Print(provisioning_session);
                                             
-                                            response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->provisioningSessionReceived, msaf_provisioning_session->provisioningSessionHash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, m1_provisioningsession_api, app_meta);
+                                            response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->provisioningSessionReceived, msaf_provisioning_session->provisioningSessionHash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_provisioningsession_api, app_meta);
         
                                             nf_server_populate_response(response, strlen(text), text, 200);
                                             ogs_assert(response);
@@ -757,7 +774,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 				         	                        // response = ogs_sbi_response_new();
 
                                                     if (rv == 0){ 
- 						                                response = nf_server_new_response(NULL, NULL,  0, NULL, 0, m1_servercertificatesprovisioning_api, app_meta);
+ 						                                response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
                                                         nf_server_populate_response(response, 0, NULL, 204);
                                                         ogs_assert(response);
                                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -823,7 +840,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             int rv;
                                             rv = server_cert_delete(message.h.resource.component[3]);
 					                        if ((rv == 0) || (rv == 8)){
-                                                response = nf_server_new_response(NULL, NULL,  0, NULL, 0, m1_servercertificatesprovisioning_api, app_meta);
+                                                response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
                                                 nf_server_populate_response(response, 0, NULL, 204);
                                                 ogs_assert(response);
                                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -863,7 +880,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     msaf_delete_content_hosting_configuration(message.h.resource.component[1]);
                                                     OpenAPI_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
                                                     msaf_provisioning_session->contentHostingConfiguration = NULL;                                                
-						                            response = nf_server_new_response(NULL, NULL,  0, NULL, 0, m1_contenthostingprovisioning_api, app_meta);
+						                            response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_contenthostingprovisioning_api, app_meta);
 						                            ogs_assert(response);
                                                     nf_server_populate_response(response, 0, NULL, 204);					    
 						                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -897,7 +914,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             
                                         } else {
                                             provisioning_session->marked_for_deletion = 1;
-                                            response = nf_server_new_response(NULL, NULL,  0, NULL, 0, m1_provisioningsession_api, app_meta);
+                                            response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_provisioningsession_api, app_meta);
                                             ogs_assert(response);
                                             nf_server_populate_response(response, 0, NULL, 202);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -910,27 +927,121 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                     break;
                                 CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
-                                    if (message.h.resource.component[1] && !strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3]) { 
-                                        ogs_sbi_response_t *response;
-                                        msaf_provisioning_session_t *provisioning_session = NULL;
-                                        provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
-                                        if (provisioning_session) {
-                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, m1_servercertificatesprovisioning_api, app_meta);
+                                
+                                    if (!strcmp(message.h.resource.component[0],"provisioning-sessions")){ 
+                                        ogs_sbi_response_t *response;                                                                                     
+                                        char *methods = NULL;
+                                                                                                           
+                                        if (message.h.resource.component[1]) {
+                                            msaf_provisioning_session_t *provisioning_session = NULL;                                            
+                                            provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+                                            if (provisioning_session) { 
+                                                if (message.h.resource.component[2]) { 
+                                                    
+                                                                                                                                              
+                                                    if (!strcmp(message.h.resource.component[2],"certificates")) {
+                                                        if (message.h.resource.component[3]) { 
+                                                            msaf_certificate_t *cert;
+                                                            cert = server_cert_retrieve(message.h.resource.component[3]);
+                                                            if(cert){
+                                                                methods = ogs_msprintf("%s, %s, %s, %s",OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                                                response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_servercertificatesprovisioning_api, app_meta);
+                                                                nf_server_populate_response(response, 0, NULL, 204);
+                                                                ogs_assert(response);
+                                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                                ogs_free(cert->certificate);
+                                                                ogs_free(cert);
+                                                            } else {
+                                                                char *err = NULL;
+                                                                ogs_error("Method [%s]: Unable to retrieve certificate [%s]", message.h.method, message.h.resource.component[3]);                                                            
+                                                                asprintf(&err,"Method [%s]: Unable to retrieve certificate [%s]", message.h.method, message.h.resource.component[3]);
+                                                                ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Unable to retrieve certificate.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                         
+                                                            } 
+                                                        } else {
+                                                            methods = ogs_msprintf("%s",OGS_SBI_HTTP_METHOD_POST);                                                                                                        
+                                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_servercertificatesprovisioning_api, app_meta);
+                                                            nf_server_populate_response(response, 0, NULL, 204);
+                                                            ogs_assert(response);
+                                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                        }
+                                                        
+                                                    }  else if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
+                                                        methods = ogs_msprintf("%s, %s, %s, %s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS); 
+                                                        response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_contenthostingprovisioning_api, app_meta);
+                                                        nf_server_populate_response(response, 0, NULL, 204);
+                                                        ogs_assert(response);
+                                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                                                                    
+                                                    } else {
+                                                        char *err = NULL;
+                                                        asprintf(&err,"Method [%s]: Target [%s] not yet supported.", message.h.method, message.h.resource.component[2]);
+                                                        ogs_error("Method [%s]: Target [%s] not yet supported.", message.h.method, message.h.resource.component[2]);                                            
+                                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Target not yet supported.", err, NULL, NULL, app_meta));
+                                                    }
+                                                } else {
+                                                    methods = ogs_msprintf("%s, %s, %s", OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                                    response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_provisioningsession_api, app_meta);
+                                                    nf_server_populate_response(response, 0, NULL, 204);
+                                                    ogs_assert(response);
+                                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                                                                    
+                                                }
+                                                /*
+                                                nf_server_populate_response(response, 0, NULL, 204);
+                                                ogs_assert(response);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                
+                                                if(methods) ogs_free(methods);
+                                                */
+                                            } else {
+                                                char *err = NULL;
+                                                int number_of_components;
+                                                const nf_server_interface_metadata_t *interface;
+                                                if (message.h.resource.component[2]){
+                                                    if (!strcmp(message.h.resource.component[2],"certificates")) {
+                                                        number_of_components = 2;
+                                                        if (message.h.resource.component[3]) {
+                                                            number_of_components = 3;
+                                                        }
+                                                        interface = m1_servercertificatesprovisioning_api;
+                                                    } else if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
+                                                        number_of_components = 2;
+                                                        interface = m1_contenthostingprovisioning_api;
+
+                                                    } 
+                                                } else if (message.h.resource.component[0]){
+                                                    if (!strcmp(message.h.resource.component[0],"provisioning-sessions")){
+                                                        number_of_components = 0;
+                                                        if (message.h.resource.component[1]) {
+                                                            number_of_components = 1;
+                                                        }
+                                                        interface = m1_provisioningsession_api;
+
+                                                    }
+                                                }
+                                                asprintf(&err,"Method [%s]: [%s] - Provisioning Session [%s] does not exist.", message.h.method, message.h.resource.component[2], message.h.resource.component[1]);
+                                                ogs_error("Method [%s]: [%s] - Provisioning Session [%s] does not exist.", message.h.method, message.h.resource.component[2], message.h.resource.component[1]);                                            
+                                                ogs_assert(true == nf_server_send_error(stream, 404, number_of_components, &message, "Provisioning Session does not exists.", err, NULL, interface, app_meta));     
+        
+                                            }
+
+                                        } else {
+                                            methods = ogs_msprintf("%s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_provisioningsession_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                           
-
-                                        } else {
-                                            char *err = NULL;
-                                            asprintf(&err,"Method [%s] - [%s]:[%s] - Provisioning Session [%s] does not exist.", message.h.method, message.h.resource.component[2], message.h.resource.component[3], message.h.resource.component[1]);
-                                            ogs_error("Provisioning session  [%s] does not exist.", message.h.resource.component[1]);
-                                            
-                                            ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));     
-        
 
                                         }
-                                    }
+                                        if(methods) ogs_free(methods);
+                                    } else {
+                                        char *err = NULL; 
+                                        asprintf(&err,"Method [%s]: Target [%s] not yet supported.", message.h.method, message.h.resource.component[0]);
+                                        ogs_error("Method [%s]: Target [%s] not yet supported.", message.h.method, message.h.resource.component[0]);                                            
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 0, &message, "Target not yet supported.", err, NULL, m1_provisioningsession_api, app_meta)); 
+
+                                    }                                   
                                     break;
 
                                 DEFAULT
@@ -985,7 +1096,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             ogs_sbi_response_t *response;
                                             char *text;
                                             text = cJSON_Print(service_access_information);
-                                            response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->serviceAccessInformationCreated, msaf_provisioning_session->serviceAccessInformationHash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, m5_serviceaccessinformation_api, app_meta);
+                                            response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->serviceAccessInformationCreated, msaf_provisioning_session->serviceAccessInformationHash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
                                             nf_server_populate_response(response, strlen(text), text, 201);                                         
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -1135,21 +1246,21 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     if(!purge_node->m1_purge_info->refs){    
       								                    //  send M1 response with total from purge_node->m1_purge_info->purged_entries_total
                                                         //  ogs_free(purge_node->m1_purge_info);
-							                        ogs_sbi_response_t *response;							                       
-							                        cJSON *purged_entries_total_json = cJSON_CreateNumber(purge_node->m1_purge_info->purged_entries_total);
-							                        char *purged_entries_total = cJSON_Print(purged_entries_total_json);                                                   
-						                            response = ogs_sbi_response_new();                                            		
-							                        response->http.content_length = strlen(purged_entries_total);
-                                            		response->http.content = purged_entries_total;
-                                                    response->status = 200;							
-							                        ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
-                                                    ogs_assert(response);
-                                                    ogs_assert(true == ogs_sbi_server_send_response(purge_node->m1_purge_info->m1_stream, response));
-                                                    
-                                                    if(content_hosting_cache->m1_purge_info) ogs_free(content_hosting_cache->m1_purge_info);
-                                                    if (content_hosting_cache->provisioning_session_id) ogs_free(content_hosting_cache->provisioning_session_id);
-                                                    if(content_hosting_cache->purge_regex) ogs_free(content_hosting_cache->purge_regex);
-                                                    ogs_free(content_hosting_cache);                                               
+                                                        ogs_sbi_response_t *response;							                       
+                                                        cJSON *purged_entries_total_json = cJSON_CreateNumber(purge_node->m1_purge_info->purged_entries_total);
+                                                        char *purged_entries_total = cJSON_Print(purged_entries_total_json);                                                   
+                                                        response = ogs_sbi_response_new();                                            		
+                                                        response->http.content_length = strlen(purged_entries_total);
+                                                        response->http.content = purged_entries_total;
+                                                        response->status = 200;							
+                                                        ogs_sbi_header_set(response->http.headers, "Content-Type", "application/json");
+                                                        ogs_assert(response);
+                                                        ogs_assert(true == ogs_sbi_server_send_response(purge_node->m1_purge_info->m1_stream, response));
+                                                        
+                                                        if(content_hosting_cache->m1_purge_info) ogs_free(content_hosting_cache->m1_purge_info);
+                                                        if (content_hosting_cache->provisioning_session_id) ogs_free(content_hosting_cache->provisioning_session_id);
+                                                        if(content_hosting_cache->purge_regex) ogs_free(content_hosting_cache->purge_regex);
+                                                        ogs_free(content_hosting_cache);                                               
 							                        } 
                                                     msaf_application_server_state_log(&as_state->purge_content_hosting_cache, "Purge Content Hosting Cache list");
                                                     

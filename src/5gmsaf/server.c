@@ -24,7 +24,7 @@ static bool nf_build_content(
 
 static char *nf_build_json(ogs_sbi_message_t *message);
 
-ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, time_t last_modified, char *etag, int cache_control, const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app) 
+ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, time_t last_modified, char *etag, int cache_control, char *allow_methods, const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app) 
 {
     ogs_sbi_response_t *response = NULL;
     char *server_api_info = ((char*)"");
@@ -62,6 +62,13 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
         ogs_sbi_header_set(response->http.headers, "Cache-Control", response_cache_control);    	    
 	    ogs_free(response_cache_control);
     }
+
+    if(allow_methods)
+    {
+    
+        ogs_sbi_header_set(response->http.headers, "Allow", allow_methods);
+    }
+
      
     if (interface) {
         server_api_info = ogs_msprintf(" (info.title=%s; info.version=%s)", interface->api_title, interface->api_version);
@@ -169,7 +176,7 @@ ogs_sbi_response_t *nf_build_response(
 
     ogs_assert(message);
 
-    response = nf_server_new_response(NULL, NULL, 0, NULL, 0, interface, app);
+    response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, interface, app);
 
     //response = ogs_sbi_response_new();
     ogs_expect_or_return_val(response, NULL);
