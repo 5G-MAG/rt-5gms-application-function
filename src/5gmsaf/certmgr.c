@@ -17,6 +17,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 static ogs_proc_t process[MAX_CHILD_PROCESS];
 static int process_num = 0;
 
+static msaf_certificate_t *msaf_certificate_populate(char *certid, char *cert, int out_return_code);
 
 int server_cert_delete(char *certid)
 {
@@ -67,13 +68,8 @@ msaf_certificate_t *server_cert_retrieve(char *certid)
     char *command;
     char *rv = NULL;
     size_t cert_size = 0;
-    size_t cert_reserved = 0;
-    char *ts = NULL;
-    char *etag_cert = NULL;
-    char *etag=NULL;
-    char *buff = NULL;
-    char *certificate = NULL;
-
+    size_t cert_reserved = 0;   
+     
     command = ogs_msprintf("-c publiccert %s", certid);
 
     commandLine[0] =  msaf_self()->config.certificateManager;
@@ -99,24 +95,16 @@ msaf_certificate_t *server_cert_retrieve(char *certid)
             cert = ogs_realloc(cert,cert_reserved);
 	}
 	strcat(cert,buf);
-
-    }
-
-    buff = ogs_strdup(cert);
-    ts = strtok_r(buff,":",&etag_cert);
-    etag = strtok_r(etag_cert,":",&certificate);
+    }      
     ret = ogs_proc_join(current, &out_return_code);
     ogs_assert(ret == 0);
     ret = ogs_proc_destroy(current);
     ogs_assert(ret == 0);
     ogs_free(command);
-    msaf_certificate = ogs_calloc(1, sizeof(msaf_certificate_t));
-    ogs_assert(msaf_certificate);
-
-    msaf_certificate->id = certid;
-    msaf_certificate->certificate = cert;
-    msaf_certificate->return_code = out_return_code;
-
+    if(!out_return_code){
+        msaf_certificate = msaf_certificate_populate(certid, cert, out_return_code);
+        ogs_assert(msaf_certificate);
+    }
     return msaf_certificate;
 }
 
@@ -171,8 +159,7 @@ msaf_certificate_t *server_cert_new(char *operation, char *operation_params)
     char *certificate;
     msaf_certificate_t *msaf_certificate = NULL;
     size_t cert_size = 0;
-    size_t cert_reserved = 0;
-
+    size_t cert_reserved = 0;    
     msaf_application_server_node_t *msaf_as = NULL;
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
     canonical_domain_name = msaf_as->canonicalHostname;
@@ -216,13 +203,8 @@ msaf_certificate_t *server_cert_new(char *operation, char *operation_params)
     ret = ogs_proc_destroy(current);
     ogs_assert(ret == 0);
     ogs_free(command);
-    msaf_certificate = ogs_calloc(1, sizeof(msaf_certificate_t));
-    ogs_assert(msaf_certificate);
-
-    msaf_certificate->id = id;
-    msaf_certificate->certificate = cert;
-    msaf_certificate->return_code = out_return_code;
-
+    msaf_certificate = msaf_certificate_populate(id, cert, out_return_code);    
+    ogs_assert(msaf_certificate); 
     return msaf_certificate;
 }
 
@@ -267,4 +249,49 @@ char *check_in_cert_list(char *canonical_domain_name)
     ogs_assert(ret == 0);
     ogs_free(operation);
     return certificate;
+}
+
+static msaf_certificate_t *msaf_certificate_populate(char *certid, char *cert, int out_return_code)
+{
+	msaf_certificate_t *msaf_certificate = NULL;    
+	char *token; 
+	char *string;
+	char *key;
+	char *value;
+	char *ptr;
+  	msaf_certificate = ogs_calloc(1, sizeof(msaf_certificate_t));
+  	ogs_assert(msaf_certificate);
+  	msaf_certificate->id = certid;
+  	msaf_certificate->return_code = out_return_code;
+    ptr = string = ogs_strdup(cert);
+    while ((token = strsep(&string, "&")) != NULL)
+    {
+		if(strcmp(token,"")){
+			key = strtok_r(token,"=",&value);
+	           ogs_info("key: %s, value: %s", key, value);			   
+		   	if (!strcmp(key,"timestamp")){
+	            ogs_debug("key: %s, value: %s", key, value);			   
+                msaf_certificate->last_modified = str_to_time(value);
+		   	} else if (!strcmp(key,"max-age")){
+	            ogs_debug("key: %s, value: %s", key, value);
+		        if(!strcmp(value,"")){
+			    	msaf_certificate->cache_control_max_age = 0;
+				} else { 
+			    	msaf_certificate->cache_control_max_age =  ascii_to_long(value);
+				}
+		   	} else if (!strcmp(key,"hash")){
+	            ogs_debug("key: %s, value: %s", key, value);			   
+                msaf_certificate->server_certificate_hash = value;
+		   	} else if (!strcmp(key,"certificate")){
+	            ogs_debug("key: %s, value: %s", key, value);			   
+                msaf_certificate->certificate = ogs_strdup(value);
+		   	} else {
+	            ogs_debug("Unrecognised key: %s, value: %s", key, value);			   
+		   	}
+
+        }
+
+    } 
+	ogs_free(ptr);
+	return msaf_certificate;
 }

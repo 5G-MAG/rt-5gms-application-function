@@ -21,6 +21,9 @@ extern "C" {
 typedef struct msaf_certificate_s {
     char *id;
     char *certificate;
+    time_t last_modified;
+    char *server_certificate_hash;
+    int cache_control_max_age;
     int return_code;
 } msaf_certificate_t;
 
