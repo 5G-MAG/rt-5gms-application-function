@@ -244,3 +244,22 @@ foreach conf_file : msaf_config_source
     gen = configure_file(input : conf_file, copy : true, output : conf_file)
     meson.add_install_script(python3_exe, '-c', install_conf.format(gen, open5gs_sysconfdir))
 endforeach
+
+cert_path = join_paths(meson.current_build_dir(), 'certificate')
+mkdir_cert_result = run_command(['mkdir', '-p', cert_path], check: true, capture: false)
+
+
+tools_path = join_paths(meson.current_build_dir(), 'tools')
+mkdir_tools_result = run_command(['mkdir', '-p', tools_path], check: true, capture: false)
+
+cert_conf_data = configuration_data()
+cert_conf_data.set('path', cert_path)
+cert_mgr = configure_file(input : 'certmgr',
+               output : 'certmgr',
+               configuration : cert_conf_data)
+meson.add_install_script(python3_exe, '-c', install_conf.format(cert_mgr, open5gs_sysconfdir))
+
+cert_mgr_file = join_paths(meson.current_build_dir(), 'certmgr')
+
+mkdir_cert_mgr_result = run_command(['mv', cert_mgr_file, tools_path], check: true, capture: false)
+

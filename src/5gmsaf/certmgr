@@ -20,7 +20,7 @@ scriptdir=`cd "$scriptdir"; pwd`
 # Variables
 default_cert_op=
 cert_operation=
-cert_store="/home/ubuntu/certificate"
+cert_store="@path@"
 common_name=
 server_certificate_resource_id=
 cert_status=
