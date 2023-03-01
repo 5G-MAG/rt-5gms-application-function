@@ -17,6 +17,15 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include <ctype.h>
 #include "utilities.h"
 
+time_t str_to_time(char *str_time)
+{
+    static time_t time;
+    struct tm tm = {0};
+    strptime(str_time, "%a, %d %b %Y %H:%M:%S %Z", &tm);
+    time = mktime(&tm);      
+    return time;
+}	
+
 char *get_time(time_t time_epoch)
 {
     struct tm *ts;
@@ -107,6 +116,18 @@ long int ascii_to_long(const char *str)
     ret = strtol(str, &endp, 10);
     if (endp == NULL || *endp != 0) {
         ogs_error("Failed to convert '%s' to an integer", str);
+        ret = 0;
+    }
+    return ret;
+}
+
+uint16_t ascii_to_uint16(const char *str) 
+{
+    long int ret;
+    ret = ascii_to_long(str);
+    if (ret > UINT16_MAX)
+    {
+        ogs_error("[%s] cannot be greater than [%d]", str, UINT16_MAX);
         ret = 0;
     }
     return ret;
