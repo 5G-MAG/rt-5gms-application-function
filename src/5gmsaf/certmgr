@@ -20,11 +20,12 @@ scriptdir=`cd "$scriptdir"; pwd`
 # Variables
 default_cert_op=
 cert_operation=
-cert_store="@path@"
+cert_store=""@path@""
 common_name=
 server_certificate_resource_id=
 cert_status=
 cert_subject=
+cache_control_max_age=70
 
 # Parse command line arguments
 ARGS=`getopt -n "$scriptname" -o 'c:h' -l 'cert-operation:,help' -s sh -- "$@"`
@@ -134,7 +135,14 @@ new_csr() {
     cert_store_check >&2
 
     openssl req -new -newkey rsa:2048 -batch -nodes -keyout "$cert_store/private/$server_certificate_resource_id.pem" -out "$cert_store/csrs/$server_certificate_resource_id.pem" -subj "/C=GB/L=London/CN=$common_name" -addext "subjectAltName=DNS:$common_name" > /dev/null 2>&1
-    cat "$cert_store/csrs/$server_certificate_resource_id.pem"
+    #cat "$cert_store/csrs/$server_certificate_resource_id.pem"
+    ts=`stat -c '%Y' "$cert_store/csrs/$server_certificate_resource_id.pem"`
+    timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
+    hashsum=($(sha256sum "$cert_store/csrs/$server_certificate_resource_id.pem"))
+    cert=`cat $cert_store/csrs/$server_certificate_resource_id.pem`
+
+    echo -e "timestamp=$timestamp&hash=$hashsum&max-age=$cache_control_max_age&certificate=$cert"
+
     exit 0
 
 }
@@ -149,7 +157,14 @@ new_cert() {
 
     openssl x509 -req -CA "$cert_store/public/ca.crt" -CAkey "$cert_store/private/ca.key" -CAcreateserial -in "$cert_store/csrs/$server_certificate_resource_id.pem" -out "$cert_store/public/$server_certificate_resource_id.pem" -days 90 > /dev/null 2>&1
   
-    cat "$cert_store/public/$server_certificate_resource_id.pem"
+    ts=`stat -c '%Y' "$cert_store/public/$server_certificate_resource_id.pem"`
+    timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
+    hashsum=($(sha256sum "$cert_store/public/$server_certificate_resource_id.pem"))
+    
+    cert=`cat "$cert_store/public/$server_certificate_resource_id.pem"`
+    
+    echo -e "timestamp=$timestamp&hash=$hashsum&max-age=$cache_control_max_age&certificate=$cert"
+
     exit 0
 }
 
@@ -167,14 +182,14 @@ public_cert_get() {
 
     # cat $cert_store/public/$server_certificate_resource_id.pem $cert_store/public/ca.crt
 
-    ts=`stat -c '%Y' /etc/hosts`; TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z' > /dev/null 2>&1
-    etag=`sha256sum "$cert_store/public/$server_certificate_resource_id.pem"`
-
+    ts=`stat -c '%Y' "$cert_store/public/$server_certificate_resource_id.pem"`
+    timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
+    hashsum=($(sha256sum "$cert_store/public/$server_certificate_resource_id.pem"))
+    cert=`cat $cert_store/public/$server_certificate_resource_id.pem`
     #printf '%s\t%s\t%s\n' \
     #       "$ts" "$etag" `cat "$cert_store/public/$server_certificate_resource_id.pem"`
 
-
-    echo -e "$ts:$etag:`cat $cert_store/public/$server_certificate_resource_id.pem`"
+    echo -e "timestamp=$timestamp&hash=$hashsum&max-age=$cache_control_max_age&certificate=$cert"
 
     exit 0
 }
@@ -186,7 +201,14 @@ server_cert_get() {
         exit 8
     fi
 
-    cat $cert_store/public/$server_certificate_resource_id.pem $cert_store/private/$server_certificate_resource_id.pem
+   
+    ts=`stat -c '%Y' "$cert_store/public/$server_certificate_resource_id.pem"`
+    timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
+    hashsum=($(sha256sum "$cert_store/public/$server_certificate_resource_id.pem"))
+    cert=`cat $cert_store/public/$server_certificate_resource_id.pem $cert_store/private/$server_certificate_resource_id.pem`
+
+    echo -e "timestamp=$timestamp&hash=$hashsum&max-age=$cache_control_max_age&certificate=$cert"
+    
     exit 0
 }
 
