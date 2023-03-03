@@ -257,41 +257,55 @@ static msaf_certificate_t *msaf_certificate_populate(char *certid, char *cert, i
 	char *token; 
 	char *string;
 	char *key;
+    char *val;
 	char *value;
 	char *ptr;
+    char *populated_certificate;
   	msaf_certificate = ogs_calloc(1, sizeof(msaf_certificate_t));
   	ogs_assert(msaf_certificate);
   	msaf_certificate->id = certid;
   	msaf_certificate->return_code = out_return_code;
+    populated_certificate = ogs_calloc(1, strlen(cert));
     ptr = string = ogs_strdup(cert);
-    while ((token = strsep(&string, "&")) != NULL)
+    while ((token = strsep(&string, "\n")) != NULL)
     {
-		if(strcmp(token,"")){
-			key = strtok_r(token,"=",&value);
-	           ogs_info("key: %s, value: %s", key, value);			   
-		   	if (!strcmp(key,"timestamp")){
+		if(strstr(token, "Last-Modified:") || strstr(token, "ETag:") || strstr(token, "Cache-Control: max-age=")){
+			key = strtok_r(token,":",&val);
+	           ogs_info("key: %s, value: %s", key, val);
+            value = ogs_calloc(1, strlen(val));
+            without_spaces(value, val);
+            ogs_assert(value);   			   
+		   	if (!strcmp(key,"Last-Modified")){
 	            ogs_debug("key: %s, value: %s", key, value);			   
                 msaf_certificate->last_modified = str_to_time(value);
-		   	} else if (!strcmp(key,"max-age")){
+                ogs_free(value);
+		   	} else if (!strcmp(key,"Cache-Control")){
+                char *max_age_key;
+                char *max_age_value;
+                char *max_age = ogs_strdup(value);
+                max_age_key = strtok_r(max_age,"=",&max_age_value);
+                without_spaces(value, max_age_value);                
 	            ogs_debug("key: %s, value: %s", key, value);
 		        if(!strcmp(value,"")){
 			    	msaf_certificate->cache_control_max_age = 0;
 				} else { 
 			    	msaf_certificate->cache_control_max_age =  ascii_to_long(value);
 				}
-		   	} else if (!strcmp(key,"hash")){
+                ogs_free(max_age);
+                ogs_free(value);
+		   	} else if (!strcmp(key,"ETag")){
 	            ogs_debug("key: %s, value: %s", key, value);			   
                 msaf_certificate->server_certificate_hash = value;
-		   	} else if (!strcmp(key,"certificate")){
-	            ogs_debug("key: %s, value: %s", key, value);			   
-                msaf_certificate->certificate = ogs_strdup(value);
 		   	} else {
 	            ogs_debug("Unrecognised key: %s, value: %s", key, value);			   
 		   	}
 
+        } else {        
+            strcat(populated_certificate,token);
+            strcat(populated_certificate,"\n");
         }
-
-    } 
+    }
+    msaf_certificate->certificate = populated_certificate; 
 	ogs_free(ptr);
 	return msaf_certificate;
 }

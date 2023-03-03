@@ -20,7 +20,7 @@ scriptdir=`cd "$scriptdir"; pwd`
 # Variables
 default_cert_op=
 cert_operation=
-cert_store=""@path@""
+cert_store="@cert_path@"
 common_name=
 server_certificate_resource_id=
 cert_status=
@@ -140,9 +140,7 @@ new_csr() {
     timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
     hashsum=($(sha256sum "$cert_store/csrs/$server_certificate_resource_id.pem"))
     cert=`cat $cert_store/csrs/$server_certificate_resource_id.pem`
-
-    echo -e "timestamp=$timestamp&hash=$hashsum&max-age=$cache_control_max_age&certificate=$cert"
-
+    echo -e "Last-Modified: $timestamp\nETag: $hashsum\nCache-Control: max-age= $cache_control_max_age\n$cert"   
     exit 0
 
 }
@@ -162,9 +160,7 @@ new_cert() {
     hashsum=($(sha256sum "$cert_store/public/$server_certificate_resource_id.pem"))
     
     cert=`cat "$cert_store/public/$server_certificate_resource_id.pem"`
-    
-    echo -e "timestamp=$timestamp&hash=$hashsum&max-age=$cache_control_max_age&certificate=$cert"
-
+    echo -e "Last-Modified: $timestamp\nETag: $hashsum\nCache-Control: max-age= $cache_control_max_age\n$cert"    
     exit 0
 }
 
@@ -185,11 +181,8 @@ public_cert_get() {
     ts=`stat -c '%Y' "$cert_store/public/$server_certificate_resource_id.pem"`
     timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
     hashsum=($(sha256sum "$cert_store/public/$server_certificate_resource_id.pem"))
-    cert=`cat $cert_store/public/$server_certificate_resource_id.pem`
-    #printf '%s\t%s\t%s\n' \
-    #       "$ts" "$etag" `cat "$cert_store/public/$server_certificate_resource_id.pem"`
-
-    echo -e "timestamp=$timestamp&hash=$hashsum&max-age=$cache_control_max_age&certificate=$cert"
+    cert=`cat $cert_store/public/$server_certificate_resource_id.pem`  
+    echo -e "Last-Modified: $timestamp\nETag: $hashsum\nCache-Control: max-age= $cache_control_max_age\n$cert"
 
     exit 0
 }
@@ -206,9 +199,7 @@ server_cert_get() {
     timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
     hashsum=($(sha256sum "$cert_store/public/$server_certificate_resource_id.pem"))
     cert=`cat $cert_store/public/$server_certificate_resource_id.pem $cert_store/private/$server_certificate_resource_id.pem`
-
-    echo -e "timestamp=$timestamp&hash=$hashsum&max-age=$cache_control_max_age&certificate=$cert"
-    
+    echo -e "Last-Modified: $timestamp\nEtag: $hashsum\nMax-age: $cache_control_max_age\n$cert"    
     exit 0
 }
 

@@ -17,6 +17,21 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include <ctype.h>
 #include "utilities.h"
 
+void without_spaces(char *return_str, const char *in_str)
+{
+  while (*in_str != '\0')
+  {
+    if(!isspace(*in_str))
+    {
+      *return_str = *in_str;
+      return_str++;
+    }
+    in_str++;
+  }
+  *return_str = '\0';
+}
+
+
 time_t str_to_time(char *str_time)
 {
     static time_t time;

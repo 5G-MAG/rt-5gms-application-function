@@ -33,6 +33,7 @@ extern uint16_t ascii_to_uint16(const char *str);
 extern int str_match(const char *line, const char *word_to_find);
 extern char *get_time(time_t time_epoch);
 extern time_t str_to_time(char *str_time);
+extern void without_spaces(char *return_str, const char *in_str);
 
 #ifdef __cplusplus
 }

@@ -410,9 +410,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_assert(response);
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 						                            ogs_free(location);
-						                            ogs_free(csr_cert->certificate);
-						                            ogs_free(csr_cert);
-						   
+                                                    if(csr_cert->server_certificate_hash) ogs_free(csr_cert->server_certificate_hash);
+                                                    if(csr_cert->certificate) ogs_free(csr_cert->certificate);
+						                            ogs_free(csr_cert);						   
 					                                return;
 					                            }
                                                 if (ogs_list_first(&msaf_provisioning_session->msaf_application_servers) == NULL) {
@@ -450,6 +450,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_assert(response);
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                                     ogs_free(location);
+                                                    if(new_cert->server_certificate_hash) ogs_free(new_cert->server_certificate_hash);
+                                                    if (new_cert->certificate) ogs_free(new_cert->certificate);
+
 						                            ogs_free(new_cert);
 
 
