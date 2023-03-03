@@ -30,6 +30,8 @@ libmsaf_dist_sources = files('''
     certmgr.h
     hash.h
     hash.c
+    headers.c
+    headers.h
     response-cache-control.h
     response-cache-control.c
     provisioning-session.h
@@ -200,13 +202,13 @@ content_hosting_discovery_protocols_conf = configuration_data()
 content_hosting_discovery_protocols_conf.set_quoted('CONTENT_PROTOCOLS_DISCOVERY_JSON', file_content)
 content_hosting_discovery_protocols_conf.set_quoted('CONTENT_PROTOCOLS_DISCOVERY_JSON_HASH', file_hash)
 content_hosting_discovery_protocols_conf.set('CONTENT_PROTOCOLS_DISCOVERY_JSON_TIME', file_time)
-configure_file(output : 'ContentProtocolsDiscovery_body.h', configuration : content_hosting_discovery_protocols_conf)
+libmsaf_gen_sources += [configure_file(output : 'ContentProtocolsDiscovery_body.h', configuration : content_hosting_discovery_protocols_conf)]
 
 version_conf = configuration_data()
 version_conf.set_quoted('MSAF_NAME', meson.project_name())
 version_conf.set_quoted('MSAF_VERSION', meson.project_version())
 version_conf.set_quoted('FIVEG_API_RELEASE', fiveg_api_release)
-configure_file(output : 'msaf-version.h', configuration : version_conf)
+libmsaf_gen_sources += [configure_file(output : 'msaf-version.h', configuration : version_conf)]
 
 libmsaf_sources = libmsaf_dist_sources + libmsaf_gen_sources
 
@@ -240,26 +242,9 @@ executable('open5gs-msafd',
     install : true)
 
 meson.add_install_script(python3_exe, '-c', mkdir_p.format(open5gs_sysconfdir))
+conf_configuration = configuration_data()
+conf_configuration.set('default-certmgr', get_option('prefix') / self_signed_certmgr_runtime)
 foreach conf_file : msaf_config_source
-    gen = configure_file(input : conf_file, copy : true, output : conf_file)
+    gen = configure_file(input : conf_file + '.in', configuration : conf_configuration, output : conf_file)
     meson.add_install_script(python3_exe, '-c', install_conf.format(gen, open5gs_sysconfdir))
 endforeach
-
-cert_path = join_paths(meson.current_build_dir(), 'certificate')
-mkdir_cert_result = run_command(['mkdir', '-p', cert_path], check: true, capture: false)
-
-
-tools_path = join_paths(meson.current_build_dir(), 'tools')
-mkdir_tools_result = run_command(['mkdir', '-p', tools_path], check: true, capture: false)
-
-cert_conf_data = configuration_data()
-cert_conf_data.set('path', cert_path)
-cert_mgr = configure_file(input : 'certmgr',
-               output : 'certmgr',
-               configuration : cert_conf_data)
-meson.add_install_script(python3_exe, '-c', install_conf.format(cert_mgr, open5gs_sysconfdir))
-
-cert_mgr_file = join_paths(meson.current_build_dir(), 'certmgr')
-
-mkdir_cert_mgr_result = run_command(['mv', cert_mgr_file, tools_path], check: true, capture: false)
-

@@ -139,18 +139,14 @@ msaf:
       - canonicalHostname: localhost
         urlPathPrefixFormat: /m4d/provisioning-session-{provisioningSessionId}/
         m3Port: 7777
-    certificateManager: ./certmgr
+    certificateManager: @default-certmgr@
     serverResponseCacheControl:
-      - maxAge: 61
-        m1ProvisioningSessions: 62
-        m1ContentHostingConfigurations: 63
-        m1ServerCertificates: 65
+      - maxAge: 60
+        m1ProvisioningSessions: 60
+        m1ContentHostingConfigurations: 60
+        m1ServerCertificates: 60
         m1ContentProtocols: 86400
-        m5ServiceAccessInformation: 64
-    # The following parameters are only needed for MVP#2 and will be automated
-    # in future.
-    certificate: ../../examples/Certificates.json    
-    contentHostingConfiguration: ../../examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest_http_and_https.json
+        m5ServiceAccessInformation: 60
 #
 # nrf:
 #

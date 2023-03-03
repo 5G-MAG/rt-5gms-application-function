@@ -11,6 +11,11 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #ifndef MSAF_CONTEXT_H
 #define MSAF_CONTEXT_H
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <features.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -43,8 +48,6 @@ typedef struct msaf_configuration_s {
     int open5gsIntegration_flag;
     ogs_list_t applicationServers_list;
     ogs_list_t server_addr_list; // Nodes for this list are of type msaf_sbi_addr_t *
-    char *contentHostingConfiguration;
-    char *certificate;
     char *certificateManager;
     msaf_server_response_cache_control_t *server_response_cache_control;
     int  number_of_application_servers;

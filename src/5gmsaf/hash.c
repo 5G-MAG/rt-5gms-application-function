@@ -10,12 +10,14 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "hash.h"
 
-char *calculate_hash(char *buf) {
-    const unsigned char *result = NULL;
-    size_t result_len = gnutls_hash_get_len(GNUTLS_DIG_SHA256);
+const char *calculate_hash(const char *buf) {
+    unsigned char *result = NULL;
+    size_t result_len;
     gnutls_datum_t data;
     static char hash[1024];
     size_t i;
+
+    result_len = gnutls_hash_get_len(GNUTLS_DIG_SHA256);
     data.data = (unsigned char *)buf;
     data.size = strlen(buf);
     result = ogs_calloc(1, result_len);

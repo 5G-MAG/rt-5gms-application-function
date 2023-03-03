@@ -8,6 +8,10 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -15,24 +19,11 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include <string.h>
 #include <ctype.h>
 #include <ctype.h>
+#include <time.h>
+
 #include "utilities.h"
 
-void without_spaces(char *return_str, const char *in_str)
-{
-  while (*in_str != '\0')
-  {
-    if(!isspace(*in_str))
-    {
-      *return_str = *in_str;
-      return_str++;
-    }
-    in_str++;
-  }
-  *return_str = '\0';
-}
-
-
-time_t str_to_time(char *str_time)
+time_t str_to_time(const char *str_time)
 {
     static time_t time;
     struct tm tm = {0};
@@ -41,7 +32,7 @@ time_t str_to_time(char *str_time)
     return time;
 }	
 
-char *get_time(time_t time_epoch)
+const char *get_time(time_t time_epoch)
 {
     struct tm *ts;
     static char buf[80];
@@ -146,17 +137,6 @@ uint16_t ascii_to_uint16(const char *str)
         ret = 0;
     }
     return ret;
-}
-
-cJSON *create_cjson_number_object(char *name, int value)
-{
-    cJSON *item = NULL;
-    item = cJSON_CreateObject();
-    if (cJSON_AddNumberToObject(item, name, value) == NULL) 
-    {
-        ogs_error("Failed to create JSON object [%s] for integer value [%d]", name, value);
-    }
-    return item;
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

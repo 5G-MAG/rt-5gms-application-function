@@ -20,7 +20,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 extern "C" {
 #endif
 
-extern char *calculate_hash(char *buf);
+extern const char *calculate_hash(const char *buf);
 
 #ifdef __cplusplus
 }

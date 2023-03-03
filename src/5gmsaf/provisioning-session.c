@@ -27,8 +27,8 @@ static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const vo
 static int free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const void *value);
 static char* url_path_create(const char* macro, const char* session_id, const msaf_application_server_node_t *msaf_as);
 static void tidy_relative_path_re(void);
-static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
-static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
+static const char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
+static const char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
 
 /***** Public functions *****/
 
@@ -289,28 +289,7 @@ msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioning
 ogs_hash_t *
 msaf_certificate_map(void)
 {
-    cJSON *entry;
     ogs_hash_t *certificate_map = ogs_hash_make();
-    char *certificate = read_file(msaf_self()->config.certificate);
-     if(!certificate){
-        ogs_error("The certificates JSON file [%s] cannot be opened or read.", msaf_self()->config.certificate);
-    }
-    cJSON *cert = cJSON_Parse(certificate);
-    if (!cert) {
-        ogs_error("The certificates JSON file [%s] does not parse as JSON.", msaf_self()->config.certificate);
-    }
-    cJSON_ArrayForEach(entry, cert) {
-        char *abs_path;
-        if (!entry->valuestring) {
-            ogs_error("Certificates JSON file configuration parameter has not been set");
-	    continue;
-        }
-	abs_path = rebase_path(msaf_self()->config.certificate, entry->valuestring);
-        ogs_hash_set(certificate_map, ogs_strdup(entry->string), OGS_HASH_KEY_STRING, abs_path);
-    }
-    cJSON_Delete(entry);
-    cJSON_Delete(cert);
-    free(certificate);
     return certificate_map;
 }
 
@@ -353,14 +332,15 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
                     certificate->state = provisioning_session_id_plus_cert_id;
                     ogs_list_add(certs, certificate);
                 } else {
-                    ogs_error("Certificate id [%s] not found for Content Hosting Configuration [%s]", dist_config->certificate_id, provisioning_session->provisioningSessionId);
+                    ogs_warn("Certificate id [%s] not found for Content Hosting Configuration [%s]", dist_config->certificate_id, provisioning_session->provisioningSessionId);
                     resource_id_node_t *next;
                     ogs_list_for_each_safe(certs, next, certificate) {
                         ogs_list_remove(certs, certificate);
                         if (certificate->state) ogs_free(certificate->state);
                         ogs_free(certificate);
                     }
-                    certs = NULL;
+		    ogs_free(certs);
+		    certs = NULL;
                     break;
                 }
             }
@@ -467,92 +447,6 @@ cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(char *p
     return content_hosting_configuration_json;
 }
 
-
-OpenAPI_content_hosting_configuration_t *
-msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session)
-{
-    OpenAPI_lnode_t *dist_config_node = NULL;
-    OpenAPI_distribution_configuration_t *dist_config = NULL;
-    char *url_path;
-    static const char macro[] = "{provisioningSessionId}";
-    msaf_application_server_state_node_t *as_state;
-    char *domain_name;
-
-    if(!msaf_self()->config.contentHostingConfiguration) {
-        ogs_error("contentHostingConfiguration not present in the MSAF configuration file");
-    }
-
-    ogs_assert(msaf_self()->config.contentHostingConfiguration);
-
-    as_state = ogs_list_first(&msaf_self()->application_server_states);
-
-    url_path = url_path_create(macro, provisioning_session->provisioningSessionId, as_state->application_server);
-
-    char *content_host_config_data = read_file(msaf_self()->config.contentHostingConfiguration);
-    if (content_host_config_data == NULL){
-        ogs_error("Reading contentHostingConfiguration failed");
-    }
-
-    ogs_assert(content_host_config_data);
-
-    cJSON *content_host_config_json = cJSON_Parse(content_host_config_data);
-
-     if (content_host_config_json == NULL){
-        ogs_error("Parsing contentHostingConfiguration to JSON structure failed");
-    }
-
-    ogs_assert(content_host_config_json);
-
-    OpenAPI_content_hosting_configuration_t *content_hosting_configuration
-        = OpenAPI_content_hosting_configuration_parseFromJSON(content_host_config_json);
-    if (!uri_relative_check(content_hosting_configuration->entry_point_path)) {
-        cJSON_Delete(content_host_config_json);
-        ogs_free(url_path);
-        ogs_debug("Check for relative URI for entryPointPath fails");
-        if (content_hosting_configuration)
-            OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
-        ogs_free(content_host_config_data);
-        return NULL;
-    }
-
-    if (content_hosting_configuration->distribution_configurations) {
-        OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
-            char *protocol = "http";
-            dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
-            if (dist_config->canonical_domain_name)
-                ogs_free(dist_config->canonical_domain_name);
-            dist_config->canonical_domain_name = ogs_strdup(as_state->application_server->canonicalHostname);
-            if (dist_config->certificate_id) {
-                protocol = "https";
-            }
-
-             if(dist_config->domain_name_alias){
-                    domain_name = dist_config->domain_name_alias;
-            } else {
-                    domain_name = dist_config->canonical_domain_name;
-            }      
-
-            if (dist_config->base_url)
-                ogs_free(dist_config->base_url);
-            dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, domain_name, url_path);
-            ogs_debug("Distribution URL: %s",dist_config->base_url);
-        }
-    } else {
-        ogs_error("The Content Hosting Configuration has no Distribution Configuration");
-        if (content_hosting_configuration)
-            OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
-        ogs_free(content_host_config_data);
-        return NULL;
-    }
-
-    cJSON_Delete(content_host_config_json);
-    ogs_free(url_path);
-    free (content_host_config_data);
-    provisioning_session->contentHostingConfiguration = content_hosting_configuration;
-    msaf_application_server_state_set(as_state, provisioning_session);
-    return content_hosting_configuration;
-}
-
 void
 msaf_provisioning_session_hash_remove(char *provisioning_session_id)
 {
@@ -608,11 +502,11 @@ int uri_relative_check(char *entry_point_path)
 
 /***** Private functions *****/
 
-static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
+static const char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
 {
     cJSON *provisioning_sess = NULL;
     char *provisioning_session_to_hash;
-    char *provisioning_session_hashed = NULL;
+    const char *provisioning_session_hashed = NULL;
     provisioning_sess = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
     provisioning_session_to_hash = cJSON_Print(provisioning_sess);
     cJSON_Delete(provisioning_sess);
@@ -621,15 +515,15 @@ static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t 
     return provisioning_session_hashed;
 }
 
-static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information)
+static const char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information)
 {
     cJSON *service_access_info = NULL;
     char *service_access_information_to_hash;
-    char *service_access_information_hashed = NULL;
+    const char *service_access_information_hashed = NULL;
     service_access_info = OpenAPI_service_access_information_resource_convertToJSON(service_access_information);
     service_access_information_to_hash = cJSON_Print(service_access_info);
     cJSON_Delete(service_access_info);
-    service_access_information_hashed =  calculate_hash(service_access_information_to_hash);
+    service_access_information_hashed = calculate_hash(service_access_information_to_hash);
     ogs_free(service_access_information_to_hash);
     return service_access_information_hashed;
 }
