@@ -39,8 +39,7 @@ static void msaf_context_application_server_state_assigned_provisioning_sessions
 static void msaf_context_application_server_state_remove_all(void);
 static void msaf_context_server_addr_remove_all(void);
 static void msaf_context_server_addr_remove(msaf_context_server_addr_t *msaf_server_addr);
-
-/***** Public functions *****/
+static void msaf_context_server_sockaddr_remove(void);
 
 void msaf_context_init(void)
 {
@@ -63,6 +62,11 @@ void msaf_context_init(void)
 
     self->content_hosting_configuration_file_map = ogs_hash_make();
     ogs_assert(self->content_hosting_configuration_file_map);
+
+    self->config.app_server_sockaddr = NULL;
+    self->config.mgmt_server_sockaddr = NULL;
+    self->config.app_server_sockaddr_v6 = NULL;
+    self->config.mgmt_server_sockaddr_v6 = NULL;
 
     msaf_server_response_cache_control_set();
 
@@ -97,7 +101,7 @@ void msaf_context_final(void)
  
     if (self->config.certificateManager)
         ogs_free(self->config.certificateManager);
-    
+ 
     msaf_context_server_addr_remove_all();
 
     msaf_application_server_remove_all();
@@ -109,6 +113,8 @@ void msaf_context_final(void)
     msaf_context_application_server_state_assigned_provisioning_sessions_remove_all();
 
     msaf_context_application_server_state_remove_all();
+
+    msaf_context_server_sockaddr_remove();
 
     ogs_free(self);
     self = NULL;
@@ -212,7 +218,7 @@ int msaf_context_parse_config(void)
                     }
 		            msaf_server_response_cache_control_set_from_config(m1_provisioning_session_response_max_age,  m1_content_hosting_configurations_response_max_age, m1_server_certificates_response_max_age, m1_content_protocols_response_max_age, m5_service_access_information_response_max_age);
 
-                }  else if (!strcmp(msaf_key, "sbi")) {
+                }  else if (!strcmp(msaf_key, "sbi") || !strcmp(msaf_key, "m1ManagementInterface")) {
                     if(!self->config.open5gsIntegration_flag) {
                         ogs_list_t list, list6;
                         ogs_socknode_t *node = NULL, *node6 = NULL;
@@ -318,6 +324,10 @@ int msaf_context_parse_config(void)
                                 } else
                                     ogs_warn("unknown key `%s`", sbi_key);
                             }
+                            
+                            if (!strcmp(msaf_key, "m1ManagementInterface") && (port == 0)){
+                                ogs_warn("Specify the [%s] port, otherwise a random port will be used", msaf_key);
+                            } 
 
                             addr = NULL;
                             for (i = 0; i < num; i++) {
@@ -357,13 +367,23 @@ int msaf_context_parse_config(void)
                                 ogs_sbi_server_t *server = ogs_sbi_server_add(
                                         node->addr, is_option ? &option : NULL);
                                 ogs_assert(server);
-
+                                
                                 if (addr && ogs_app()->parameter.no_ipv4 == 0)
                                     ogs_sbi_server_set_advertise(
                                             server, AF_INET, addr);
 
                                 if (key) server->tls.key = key;
                                 if (pem) server->tls.pem = pem;
+
+                                if (!strcmp(msaf_key, "sbi")) {
+
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.app_server_sockaddr, server->node.addr));
+
+                                }
+                                if (!strcmp(msaf_key, "m1ManagementInterface")) {
+
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.mgmt_server_sockaddr, server->node.addr));
+                                }
                             }
                             node6 = ogs_list_first(&list6);
                             if (node6) {
@@ -377,6 +397,13 @@ int msaf_context_parse_config(void)
 
                                 if (key) server->tls.key = key;
                                 if (pem) server->tls.pem = pem;
+                                if (!strcmp(msaf_key, "sbi")) {
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.app_server_sockaddr_v6, server->node.addr));
+                                }
+                                if (!strcmp(msaf_key, "m1ManagementInterface")) {
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.mgmt_server_sockaddr_v6, server->node.addr));
+                                }
+
                             }
 
                             if (addr)
@@ -539,6 +566,13 @@ static void msaf_context_application_server_state_remove_all(void) {
             ogs_free(as_state->current_content_hosting_configurations);
         ogs_free (as_state);
     }
+}
+
+static void msaf_context_server_sockaddr_remove(void){
+    if(self->config.app_server_sockaddr) ogs_freeaddrinfo(self->config.app_server_sockaddr);
+    if(self->config.mgmt_server_sockaddr) ogs_freeaddrinfo(self->config.mgmt_server_sockaddr);
+    if(self->config.app_server_sockaddr_v6) ogs_freeaddrinfo(self->config.app_server_sockaddr_v6);
+    if(self->config.mgmt_server_sockaddr_v6) ogs_freeaddrinfo(self->config.app_server_sockaddr_v6);
 }
 
 static int msaf_context_prepare(void)

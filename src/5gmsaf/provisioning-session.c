@@ -21,10 +21,16 @@ typedef struct free_ogs_hash_provisioning_session_s {
     ogs_hash_t *hash;
 } free_ogs_hash_provisioning_session_t;
 
+typedef struct free_ogs_hash_provisioning_session_certificate_s {
+    char *certificate;
+    ogs_hash_t *hash;
+} free_ogs_hash_provisioning_session_certificate_t;
+
 static regex_t *relative_path_re = NULL;
 
 static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value);
 static int free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const void *value);
+static int free_ogs_hash_provisioning_session_certificate(void *rec, const void *key, int klen, const void *value);
 static char* url_path_create(const char* macro, const char* session_id, const msaf_application_server_node_t *msaf_as);
 static void tidy_relative_path_re(void);
 static const char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
@@ -457,6 +463,19 @@ msaf_provisioning_session_hash_remove(char *provisioning_session_id)
     ogs_hash_do(free_ogs_hash_provisioning_session, &fohps, msaf_self()->provisioningSessions_map);
 }
 
+void
+msaf_provisioning_session_certificate_hash_remove(char *provisioning_session_id, char *certificate_id)
+{
+    msaf_provisioning_session_t *provisioning_session = NULL;
+    provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
+
+    free_ogs_hash_provisioning_session_certificate_t fohpsc = {
+        certificate_id,
+        provisioning_session->certificate_map
+    };
+    ogs_hash_do(free_ogs_hash_provisioning_session_certificate, &fohpsc, provisioning_session->certificate_map);
+}
+
 int uri_relative_check(char *entry_point_path)
 {
     int result;
@@ -499,8 +518,35 @@ int uri_relative_check(char *entry_point_path)
     }
 }
 
+char *enumerate_provisioning_sessions(void)
+{
+    ogs_hash_index_t *hi, *next_hi;
+    char *provisioning_sessions = "[]";
+    int number_of_provisioning_sessions = ogs_hash_count(msaf_self()->provisioningSessions_map);   
+    if (number_of_provisioning_sessions)
+    {
+        provisioning_sessions = ogs_calloc(1, (4 + (sizeof(char)*(OGS_UUID_FORMATTED_LENGTH + 1) *number_of_provisioning_sessions) +1));
+        provisioning_sessions[0] = '[';
 
-/***** Private functions *****/
+        for (hi = ogs_hash_first(msaf_self()->provisioningSessions_map); hi; hi = ogs_hash_next(hi)) {
+            const char *key = NULL;
+            const char *val = NULL;
+	        char *provisioning_session = NULL;
+            key = ogs_hash_this_key(hi);
+            ogs_assert(key);
+            val = ogs_hash_this_val(hi);
+            ogs_assert(val);
+		    provisioning_session = ogs_msprintf("\"%s\", ", key);
+	        strcat(provisioning_sessions, provisioning_session);
+	        ogs_free(provisioning_session);
+	
+        }
+        provisioning_sessions[strlen(provisioning_sessions) - 2] = ']';
+        provisioning_sessions[strlen(provisioning_sessions) - 1] = '\0';
+    }
+    return provisioning_sessions;
+
+}
 
 static const char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
 {
@@ -542,6 +588,19 @@ free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const v
     if (!strcmp(fohps->provisioning_session, (char *)key)) {
 
         ogs_hash_set(fohps->hash, key, klen, NULL);
+        ogs_free((void*)key);
+
+    }
+    return 1;
+}
+
+static int
+free_ogs_hash_provisioning_session_certificate(void *rec, const void *key, int klen, const void *value)
+{
+    free_ogs_hash_provisioning_session_certificate_t *fohpsc = (free_ogs_hash_provisioning_session_certificate_t *)rec;
+    if (!strcmp(fohpsc->certificate, (char *)key)) {
+
+        ogs_hash_set(fohpsc->hash, key, klen, NULL);
         ogs_free((void*)key);
 
     }

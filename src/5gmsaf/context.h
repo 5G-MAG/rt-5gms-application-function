@@ -49,6 +49,10 @@ typedef struct msaf_configuration_s {
     ogs_list_t applicationServers_list;
     ogs_list_t server_addr_list; // Nodes for this list are of type msaf_sbi_addr_t *
     char *certificateManager;
+    ogs_sockaddr_t *app_server_sockaddr;
+    ogs_sockaddr_t *mgmt_server_sockaddr;
+    ogs_sockaddr_t *app_server_sockaddr_v6;
+    ogs_sockaddr_t *mgmt_server_sockaddr_v6;
     msaf_server_response_cache_control_t *server_response_cache_control;
     int  number_of_application_servers;
 } msaf_configuration_t;

@@ -394,6 +394,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         char *location;
                                         int m1_server_certificates_response_max_age;
                                         csr_cert = server_cert_new("newcsr", canonical_domain_name);
+                                        ogs_hash_set(msaf_provisioning_session->certificate_map, ogs_strdup(csr_cert->id), OGS_HASH_KEY_STRING, ogs_strdup(csr_cert->id));
                                         ogs_sbi_response_t *response;
                                         location = ogs_msprintf("%s/%s", request->h.uri, csr_cert->id);
                                         if(csr_cert->cache_control_max_age){
@@ -431,9 +432,11 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     } else {
                                         msaf_certificate_t *new_cert;
                                         int m1_server_certificates_response_max_age;
-                                        new_cert = server_cert_new("newcert", canonical_domain_name);
                                         ogs_sbi_response_t *response;
                                         char *location;
+                                        new_cert = server_cert_new("newcert", canonical_domain_name);
+                                        ogs_hash_set(msaf_provisioning_session->certificate_map, ogs_strdup(new_cert->id), OGS_HASH_KEY_STRING, ogs_strdup(new_cert->id));
+                                     
                                         location = ogs_msprintf("%s/%s", request->h.uri, new_cert->id);
                                         if(new_cert->cache_control_max_age){
                                             m1_server_certificates_response_max_age = new_cert->cache_control_max_age;
@@ -511,10 +514,10 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 if (msaf_provisioning_session) {
                                     msaf_certificate_t *cert;
                                     ogs_sbi_response_t *response;
-
+                                    const char *provisioning_session_cert;
+                                    provisioning_session_cert = ogs_hash_get(msaf_provisioning_session->certificate_map, message.h.resource.component[3], OGS_HASH_KEY_STRING);
                                     cert = server_cert_retrieve(message.h.resource.component[3]);
-
-                                    if(!cert) {
+                                    if(!cert || !provisioning_session_cert) {
                                         ogs_error("unable to retrieve certificate [%s]", message.h.resource.component[3]);
                                         char *err = NULL;
                                         asprintf(&err,"Unable to retrieve Certificate not yet available");
@@ -737,24 +740,26 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
 
                                     if(msaf_provisioning_session) {
+                                        const char *provisioning_session_cert;
+                                        provisioning_session_cert = ogs_hash_get(msaf_provisioning_session->certificate_map, message.h.resource.component[3], OGS_HASH_KEY_STRING);
                                         cert_id = message.h.resource.component[3];
                                         cert = ogs_strdup(request->http.content);
                                         rv = server_cert_set(cert_id, cert);
                                         // response = ogs_sbi_response_new();
 
-                                        if (rv == 0){
+                                        if (rv == 0 &&  provisioning_session_cert){
                                             response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                        } else if (rv == 3 ) {
+                                        } else if (rv == 3 &&  provisioning_session_cert ) {
 
                                             char *err = NULL;
                                             ogs_error("A server certificate with id [%s] already exist", cert_id);
                                             asprintf(&err,"A server certificate with id [%s] already exist", cert_id);
                                             ogs_assert(true == nf_server_send_error(stream, 403, 3, &message, "A server certificate already exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
 
-                                        } else if(rv == 4) {
+                                        } else if(rv == 4 || ! provisioning_session_cert) {
                                             char *err = NULL;
                                             ogs_error("Server certificate with id [%s] does not exist", cert_id);
                                             asprintf(&err,"Server certificate with id [%s] does not exist", cert_id);
@@ -810,6 +815,8 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     nf_server_populate_response(response, 0, NULL, 204);
                                     ogs_assert(response);
                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    msaf_provisioning_session_certificate_hash_remove(message.h.resource.component[1], message.h.resource.component[3]);
+
                                 } else if (rv == 4 ) {
                                     char *err = NULL;
                                     asprintf(&err,"Certificate [%s] does not exist.", message.h.resource.component[3]);
@@ -1024,6 +1031,66 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 END
                 ogs_sbi_message_free(&message);
                 break;
+            
+            CASE("5gmag-rt-management")
+                if (strcmp(message.h.api.version, "v1") != 0) {
+                    char *error;
+                    ogs_error("Not supported version [%s]", message.h.api.version);
+
+                    error = ogs_msprintf("Version [%s] not supported", message.h.api.version);
+
+                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, NULL, "Not supported version", error, NULL, NULL, app_meta));    
+                                
+                    ogs_sbi_message_free(&message);
+                    ogs_free(error);
+                    break;
+                }
+                if(msaf_self()->config.mgmt_server_sockaddr || msaf_self()->config.mgmt_server_sockaddr_v6) {
+                    char *error;                        
+                    ogs_error("Cannot access the resource through this network, use the management network instead.");
+                    error = ogs_msprintf("Cannot access the resource through this network, use the management network instead.");
+                    ogs_assert(true == nf_server_send_error(stream, 403, 1, NULL, "Forbidden resource", error, NULL, NULL, app_meta)); 
+                    ogs_sbi_message_free(&message);
+                    ogs_free(error);
+                    break;
+
+                }
+                SWITCH(message.h.resource.component[0])
+
+                    CASE("provisioning-sessions")
+                        SWITCH(message.h.method)
+                            CASE(OGS_SBI_HTTP_METHOD_GET)
+                                char *provisioning_sessions = NULL;
+                                ogs_sbi_response_t *response;
+                                provisioning_sessions = enumerate_provisioning_sessions();
+                                if(provisioning_sessions) {
+                                    response = nf_server_new_response(NULL, "application/json",  NULL, NULL, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, NULL, app_meta);
+        
+                                    nf_server_populate_response(response, strlen(provisioning_sessions), ogs_strdup(provisioning_sessions), 200);
+                                    ogs_assert(response);
+                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    if (strcmp(provisioning_sessions,"[]"))  ogs_free(provisioning_sessions);
+                                    break;
+                                } else {
+                                    ogs_error("Internal Server Error.");                                          
+                                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0, &message, "Internal Server Error.", message.h.method, NULL, NULL, app_meta)); 
+                                }
+                            DEFAULT
+                                ogs_error("Invalid HTTP method [%s]", message.h.method);                                          
+                                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 0, &message, "Invalid HTTP method.", message.h.method, NULL, NULL, app_meta));     
+    
+                        END
+                        break;
+
+                    DEFAULT
+                        char *err;
+                        ogs_error("Invalid resource name [%s]", message.h.resource.component[0]);
+                        asprintf(&err,"Invalid resource name [%s]", message.h.resource.component[0]);                            
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Invalid resource name", err, NULL, NULL, app_meta));  
+    
+                END	
+                ogs_sbi_message_free(&message);		    
+                break;   
 
             CASE("3gpp-m5")
                 if (strcmp(message.h.api.version, "v2") != 0) {

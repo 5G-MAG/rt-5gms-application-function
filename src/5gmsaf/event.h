@@ -15,6 +15,8 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "ogs-sbi.h"
 #include "context.h"
 
+#define MSAF_APP_SERVER  0
+#define MSAF_MGMT_SERVER 1
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,6 +58,8 @@ typedef struct msaf_event_s {
 OGS_STATIC_ASSERT(OGS_EVENT_SIZE >= sizeof(msaf_event_t));
 
 extern const char *msaf_event_get_name(msaf_event_t *e);
+extern int get_server_type_from_event(msaf_event_t *e);
+
 
 #ifdef __cplusplus
 }
