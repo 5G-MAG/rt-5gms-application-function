@@ -30,37 +30,38 @@ const char *msaf_event_get_name(msaf_event_t *e)
 
 int get_server_type_from_event(msaf_event_t *e)
 {
-    ogs_sbi_stream_t *stream = NULL;
-    ogs_sbi_server_t *server = NULL;
+    ogs_sbi_stream_t *stream = e->h.sbi.data;
 
-    stream = e->h.sbi.data;
-    ogs_assert(stream);
+    if (stream) {
+        ogs_sbi_server_t *server;
 
-    server = ogs_sbi_server_from_stream(stream);
-    ogs_assert(server);
+        server = ogs_sbi_server_from_stream(stream);
+        ogs_assert(server);
 
-    if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.app_server_sockaddr) == true) {
-        ogs_info("returns MSAF_APP_SERVER");
-        return MSAF_APP_SERVER;
+        if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.app_server_sockaddr) == true) {
+            ogs_info("returns MSAF_APP_SERVER");
+            return MSAF_APP_SERVER;
+        }
+
+        if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.mgmt_server_sockaddr) == true) {
+            ogs_info("returns MSAF_MGMT_SERVER");
+            return MSAF_MGMT_SERVER;
+        }
+
+        if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.app_server_sockaddr_v6) == true) {
+            ogs_info("returns MSAF_APP_SERVER");
+            return MSAF_APP_SERVER;
+        }
+
+        if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.mgmt_server_sockaddr_v6) == true) {
+            ogs_info("returns MSAF_MGMT_SERVER");
+            return MSAF_MGMT_SERVER;
+
+        }
     }
-
-    if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.mgmt_server_sockaddr) == true) {
-        ogs_info("returns MSAF_MGMT_SERVER");
-        return MSAF_MGMT_SERVER;
-    }
-    
-    if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.app_server_sockaddr_v6) == true) {
-        ogs_info("returns MSAF_APP_SERVER");
-        return MSAF_APP_SERVER;
-    }
-
-    if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.mgmt_server_sockaddr_v6) == true) {
-        ogs_info("returns MSAF_MGMT_SERVER");
-        return MSAF_MGMT_SERVER;
-
-    }
-
     return MSAF_APP_SERVER;
 
 }
 
+/* vim:ts=8:sts=4:sw=4:expandtab:
+*/

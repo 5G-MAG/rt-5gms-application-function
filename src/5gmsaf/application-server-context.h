@@ -70,13 +70,13 @@ typedef struct purge_resource_id_node_s {
  * @param as_state The application server state to add this CHC to.
  * @param provisioning_session The provisioning session of the CHC.
  */
-extern void msaf_application_server_state_set(msaf_application_server_state_node_t *as_state, msaf_provisioning_session_t *provisioning_session);
+extern int msaf_application_server_state_set(msaf_application_server_state_node_t *as_state, msaf_provisioning_session_t *provisioning_session);
 extern void msaf_application_server_state_log(ogs_list_t *list, const char* list_name);
 extern msaf_application_server_node_t *msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_format, int m3_port);
 extern void msaf_application_server_remove_all(void);
 extern void msaf_application_server_print_all(void);
 extern void next_action_for_application_server(msaf_application_server_state_node_t *as_state);
-extern void msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisioning_session);
+extern int msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisioning_session);
 extern void msaf_application_server_state_update( msaf_provisioning_session_t *provisioning_session);
 
 

@@ -99,9 +99,7 @@ static void msaf_main(void *data)
     int rv;
 
     ogs_fsm_init(&msaf_sm, msaf_state_initial, msaf_state_final, 0);
-    if(msaf_self()->config.mgmt_server_sockaddr || msaf_self()->config.mgmt_server_sockaddr_v6) {
-        ogs_fsm_init(&msaf_mgmt_sm, msaf_mgmt_state_initial, msaf_mgmt_state_final, 0);
-    }
+    ogs_fsm_init(&msaf_mgmt_sm, msaf_mgmt_state_initial, msaf_mgmt_state_final, 0);
 
     for ( ;; ) {
         ogs_pollset_poll(ogs_app()->pollset,

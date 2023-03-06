@@ -8,9 +8,11 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
-#include "application-server-context.h"
+#include "certmgr.h"
 #include "context.h"
 #include "utilities.h"
+
+#include "application-server-context.h"
 
 typedef struct client_request_info {
     msaf_application_server_state_node_t *as_state;
@@ -28,7 +30,7 @@ static void msaf_application_server_remove(msaf_application_server_node_t *msaf_
 
 /***** Public functions *****/
 
-void
+int
 msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisioning_session)
 {
     msaf_application_server_node_t *msaf_as;
@@ -49,7 +51,10 @@ msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisio
                     ogs_list_add(&as_state->upload_certificates, node);
                 }
                 ogs_free(certs);
+            } else {
+                return 0;
             }
+
             chc = ogs_calloc(1, sizeof(resource_id_node_t));
             ogs_assert(chc);
             chc->state = ogs_strdup(provisioning_session->provisioningSessionId);
@@ -66,6 +71,7 @@ msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisio
             next_action_for_application_server(as_state);
         }
     }
+    return 1;
 }
 
 void
@@ -91,7 +97,7 @@ msaf_application_server_state_update( msaf_provisioning_session_t *provisioning_
     }
 }
 
-void
+int
 msaf_application_server_state_set(msaf_application_server_state_node_t *as_state, msaf_provisioning_session_t *provisioning_session)
 {
     resource_id_node_t *chc;
@@ -105,6 +111,8 @@ msaf_application_server_state_set(msaf_application_server_state_node_t *as_state
             ogs_list_add(&as_state->upload_certificates, node);
         }
         ogs_free(certs);
+    } else {
+        return 0;
     }
 
     chc = ogs_calloc(1, sizeof(resource_id_node_t));
@@ -118,6 +126,8 @@ msaf_application_server_state_set(msaf_application_server_state_node_t *as_state
     ogs_list_add(&as_state->assigned_provisioning_sessions, assigned_provisioning_sessions);
 
     next_action_for_application_server(as_state);
+
+    return 1;
 }
 
 msaf_application_server_node_t *
@@ -160,13 +170,12 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
     } else if (as_state->current_content_hosting_configurations == NULL) {
         m3_client_as_state_requests(as_state, NULL, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_GET, "content-hosting-configurations");
     } else if (ogs_list_first(&as_state->upload_certificates) != NULL) {
-        const char *upload_cert_filename;
         char *upload_cert_id;
         char *provisioning_session;
         char *cert_id;
-        char *data;
         char *component;
         resource_id_node_t *cert_id_node;
+        msaf_certificate_t *certificate;
 
         resource_id_node_t *upload_cert = ogs_list_first(&as_state->upload_certificates);
         ogs_list_for_each(as_state->current_certificates, cert_id_node) {
@@ -176,19 +185,17 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
         }
         upload_cert_id = ogs_strdup(upload_cert->state);
         provisioning_session = strtok_r(upload_cert_id,":",&cert_id);
-        upload_cert_filename = msaf_get_certificate_filename(provisioning_session, cert_id);
-        data = read_file(upload_cert_filename);
+        certificate = server_cert_get_servercert(cert_id);
         component = ogs_msprintf("certificates/%s:%s", provisioning_session, cert_id);
 
         if (cert_id_node) {
             ogs_debug("M3 client: Sending PUT method to Application Server [%s] for Certificate: [%s]", as_state->application_server->canonicalHostname, upload_cert->state);
-            m3_client_as_state_requests(as_state, NULL, "application/x-pem-file", data, (char *)OGS_SBI_HTTP_METHOD_PUT, component);
-            free(data);
+            m3_client_as_state_requests(as_state, NULL, "application/x-pem-file", certificate->certificate, (char *)OGS_SBI_HTTP_METHOD_PUT, component);
         } else {
             ogs_debug("M3 client: Sending POST method to Application Server [%s]for Certificate: [%s]", as_state->application_server->canonicalHostname, upload_cert->state);
-            m3_client_as_state_requests(as_state, NULL, "application/x-pem-file", data, (char *)OGS_SBI_HTTP_METHOD_POST, component);
-            free(data);
+            m3_client_as_state_requests(as_state, NULL, "application/x-pem-file", certificate->certificate, (char *)OGS_SBI_HTTP_METHOD_POST, component);
         }
+        msaf_certificate_free(certificate);
         ogs_free(component);
         ogs_free(upload_cert_id);
 

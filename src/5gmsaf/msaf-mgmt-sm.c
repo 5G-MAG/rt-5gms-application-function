@@ -57,7 +57,6 @@ void msaf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     msaf_context_server_name_set();
     char *nf_name = ogs_msprintf("5GMSdAF-%s", msaf_self()->server_name);
     const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
-    const nf_server_interface_metadata_t *m1_provisioningsession_api = &m1_mgmt_provisioningsession_api_metadata;    
     const nf_server_app_metadata_t *app_meta = &app_metadata;
 
     ogs_assert(s);
@@ -145,7 +144,7 @@ void msaf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_sbi_response_t *response;
                                 provisioning_sessions = enumerate_provisioning_sessions();
                                 if (provisioning_sessions) {
-                                    response = nf_server_new_response(NULL, "application/json",  NULL, NULL, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, NULL, app_meta);
+                                    response = nf_server_new_response(NULL, "application/json", 0, NULL, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, NULL, app_meta);
         
                                     nf_server_populate_response(response, strlen(provisioning_sessions), ogs_strdup(provisioning_sessions), 200);
                                     ogs_assert(response);

@@ -16,9 +16,6 @@
 
 #define MAX_CHILD_PROCESS               16
 
-static ogs_proc_t process[MAX_CHILD_PROCESS];
-static int process_num = 0;
-
 static msaf_certificate_t *msaf_certificate_populate(const char *certid, const char *cert, int out_return_code);
 
 int server_cert_delete(const char *certid)
@@ -35,7 +32,7 @@ int server_cert_delete(const char *certid)
     commandLine[3] = certid;
     commandLine[4] = NULL;
 
-    current = &process[process_num++];
+    current = (ogs_proc_t*)ogs_calloc(1, sizeof(*current));
     ret = ogs_proc_create(commandLine,
         ogs_proc_option_combined_stdout_stderr|
         ogs_proc_option_inherit_environment,
@@ -51,6 +48,8 @@ int server_cert_delete(const char *certid)
     ogs_assert(ret == 0);
     ret = ogs_proc_destroy(current);
     ogs_assert(ret == 0);
+
+    ogs_free(current);
 
     return out_return_code;
 }
@@ -73,7 +72,7 @@ msaf_certificate_t *server_cert_retrieve(const char *certid)
     commandLine[3] = certid;
     commandLine[4] = NULL;
 
-    current = &process[process_num++];
+    current = (ogs_proc_t*)ogs_calloc(1, sizeof(*current));
     ret = ogs_proc_create(commandLine,
         ogs_proc_option_combined_stdout_stderr|
         ogs_proc_option_inherit_environment,
@@ -97,10 +96,65 @@ msaf_certificate_t *server_cert_retrieve(const char *certid)
     ogs_assert(ret == 0);
     ret = ogs_proc_destroy(current);
     ogs_assert(ret == 0);
+    ogs_free(current);
+
     if(!out_return_code){
         msaf_certificate = msaf_certificate_populate(certid, cert, out_return_code);
         ogs_assert(msaf_certificate);
     }
+    ogs_free(cert);
+    return msaf_certificate;
+}
+
+msaf_certificate_t *server_cert_get_servercert(const char *certid)
+{
+    const char *commandLine[OGS_ARG_MAX];
+    ogs_proc_t *current = NULL;
+    FILE *out = NULL;
+    char buf[OGS_HUGE_LEN];
+    char *cert = NULL;
+    int ret = 0, out_return_code = 0;
+    msaf_certificate_t *msaf_certificate = NULL;
+    size_t cert_size = 0;
+    size_t cert_reserved = 0;
+
+    commandLine[0] =  msaf_self()->config.certificateManager;
+    commandLine[1] = "-c";
+    commandLine[2] = "servercert";
+    commandLine[3] = certid;
+    commandLine[4] = NULL;
+
+    current = (ogs_proc_t*)ogs_calloc(1, sizeof(*current));
+    ret = ogs_proc_create(commandLine,
+        ogs_proc_option_combined_stdout_stderr|
+        ogs_proc_option_inherit_environment,
+        current);
+    ogs_assert(ret == 0);
+    out = ogs_proc_stdout(current);
+    ogs_assert(out);
+
+    cert = ogs_calloc(1, 4096);
+    cert_reserved = 4096;
+
+    while(fgets(buf, OGS_HUGE_LEN, out)) {
+        cert_size += strlen (buf);
+        if(cert_size > cert_reserved - 1) {
+            cert_reserved +=4096;
+            cert = ogs_realloc(cert,cert_reserved);
+        }
+        strcat(cert,buf);
+    }
+    ret = ogs_proc_join(current, &out_return_code);
+    ogs_assert(ret == 0);
+    ret = ogs_proc_destroy(current);
+    ogs_assert(ret == 0);
+    ogs_free(current);
+
+    if(!out_return_code){
+        msaf_certificate = msaf_certificate_populate(certid, cert, out_return_code);
+        ogs_assert(msaf_certificate);
+    }
+    ogs_free(cert);
     return msaf_certificate;
 }
 
@@ -117,7 +171,7 @@ int server_cert_set(const char *cert_id, const char *cert)
     commandLine[3] = cert_id;
     commandLine[4] = NULL;
 
-    current = &process[process_num++];
+    current = (ogs_proc_t*)ogs_calloc(1, sizeof(*current));
     ret = ogs_proc_create(commandLine,
         ogs_proc_option_inherit_environment,
         current);
@@ -134,6 +188,8 @@ int server_cert_set(const char *cert_id, const char *cert)
     ogs_assert(ret == 0);
     ret = ogs_proc_destroy(current);
     ogs_assert(ret == 0);
+    ogs_free(current);
+
     return out_return_code;
 }
 
@@ -167,7 +223,7 @@ msaf_certificate_t *server_cert_new(const char *operation, const char *operation
     commandLine[4] = canonical_domain_name;
     commandLine[5] = NULL;
 
-    current = &process[process_num++];
+    current = (ogs_proc_t*)ogs_calloc(1, sizeof(*current));
     ret = ogs_proc_create(commandLine,
         ogs_proc_option_combined_stdout_stderr|
         ogs_proc_option_inherit_environment,
@@ -191,6 +247,7 @@ msaf_certificate_t *server_cert_new(const char *operation, const char *operation
     ogs_assert(ret == 0);
     ret = ogs_proc_destroy(current);
     ogs_assert(ret == 0);
+    ogs_free(current);
     msaf_certificate = msaf_certificate_populate(id, cert, out_return_code);
     ogs_assert(msaf_certificate);
     ogs_free(cert);
@@ -212,7 +269,7 @@ char *check_in_cert_list(const char *canonical_domain_name)
     commandLine[2] = "list";
     commandLine[3] = NULL;
 
-    current = &process[process_num++];
+    current = (ogs_proc_t*)ogs_calloc(1, sizeof(*current));
     ret = ogs_proc_create(commandLine,
         ogs_proc_option_combined_stdout_stderr|
         ogs_proc_option_inherit_environment,
@@ -235,6 +292,7 @@ char *check_in_cert_list(const char *canonical_domain_name)
     ogs_assert(ret == 0);
     ret = ogs_proc_destroy(current);
     ogs_assert(ret == 0);
+    ogs_free(current);
 
     if (!certificate) return NULL;
 

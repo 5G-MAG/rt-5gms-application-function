@@ -36,6 +36,7 @@ typedef struct msaf_assigned_certificate_s {
 extern msaf_certificate_t *server_cert_new(const char *operation, const char *operation_params);
 extern int server_cert_set(const char *cert_id, const char *cert);
 extern msaf_certificate_t *server_cert_retrieve(const char *certid);
+extern msaf_certificate_t *server_cert_get_servercert(const char *certid);
 extern char *check_in_cert_list(const char *canonical_domain_name);
 extern int server_cert_delete(const char *certid);
 extern void msaf_certificate_free(msaf_certificate_t *cert);

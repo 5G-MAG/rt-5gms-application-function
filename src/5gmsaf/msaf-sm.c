@@ -330,23 +330,29 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     if(rv){
 
                                         ogs_debug("Content Hosting Configuration created successfully");
-                                        msaf_application_server_state_set_on_post(msaf_provisioning_session);
-                                        chc = msaf_get_content_hosting_configuration_by_provisioning_session_id(message.h.resource.component[1]);
-                                        if (chc != NULL) {
-                                            char *text;
-                                            msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
-                                            response = nf_server_new_response(request->h.uri, "application/json",  msaf_provisioning_session->contentHostingConfigurationReceived, msaf_provisioning_session->contentHostingConfigurationHash, msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age, NULL, m1_contentprotocolsdiscovery_api, app_meta);
-                                            text = cJSON_Print(chc);
-                                            nf_server_populate_response(response, strlen(text), text, 201);
-                                            ogs_assert(response);
-                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                            cJSON_Delete(chc);
-                                            cJSON_Delete(content_hosting_config);
+                                        if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
+                                            chc = msaf_get_content_hosting_configuration_by_provisioning_session_id(message.h.resource.component[1]);
+                                            if (chc != NULL) {
+                                                char *text;
+                                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+                                                response = nf_server_new_response(request->h.uri, "application/json",  msaf_provisioning_session->contentHostingConfigurationReceived, msaf_provisioning_session->contentHostingConfigurationHash, msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age, NULL, m1_contentprotocolsdiscovery_api, app_meta);
+                                                text = cJSON_Print(chc);
+                                                nf_server_populate_response(response, strlen(text), text, 201);
+                                                ogs_assert(response);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                cJSON_Delete(chc);
+                                                cJSON_Delete(content_hosting_config);
+                                            } else {
+                                                char *err = NULL;
+                                                ogs_error("Unable to retrieve the Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
+                                                asprintf(&err,"Unable to retrieve the Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
+                                                ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Unable to retrieve the Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                            }
                                         } else {
                                             char *err = NULL;
-                                            ogs_error("Unable to retrieve the Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
-                                            asprintf(&err,"Unable to retrieve the Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
-                                            ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Unable to retrieve the Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                            ogs_error("Verification error on Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
+                                            asprintf(&err,"Verification error on Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
+                                            ogs_assert(true == nf_server_send_error(stream, 400, 2, &message, "Bad Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                         }
                                     } else {
                                         char *err = NULL;
@@ -423,6 +429,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     if (cert != NULL) {
                                         ogs_sbi_response_t *response;
                                         char *location;
+
+                                        ogs_hash_set(msaf_provisioning_session->certificate_map, ogs_strdup(cert), OGS_HASH_KEY_STRING, ogs_strdup(cert));
+                                        
                                         location = ogs_msprintf("%s/%s", request->h.uri, cert);
                                         response = nf_server_new_response(location, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
                                         nf_server_populate_response(response, 0, NULL, 200);
@@ -1064,7 +1073,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_sbi_response_t *response;
                                 provisioning_sessions = enumerate_provisioning_sessions();
                                 if(provisioning_sessions) {
-                                    response = nf_server_new_response(NULL, "application/json",  NULL, NULL, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, NULL, app_meta);
+                                    response = nf_server_new_response(NULL, "application/json", 0, NULL, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, NULL, app_meta);
         
                                     nf_server_populate_response(response, strlen(provisioning_sessions), ogs_strdup(provisioning_sessions), 200);
                                     ogs_assert(response);
