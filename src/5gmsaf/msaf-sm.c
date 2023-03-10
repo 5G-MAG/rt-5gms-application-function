@@ -473,19 +473,52 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             cJSON *provisioning_session;
                             char *provisioning_session_type, *external_app_id, *asp_id = NULL;
                             msaf_provisioning_session_t *msaf_provisioning_session;
+ 
+                            ogs_debug("createProvisioningSession: received=\"%s\"", request->http.content);
 
-                            cJSON_ArrayForEach(entry, prov_sess) {
-                                if(!strcmp(entry->string, "provisioningSessionType")){
-                                    provisioning_session_type = entry->valuestring;
-                                }
-                                if(!strcmp(entry->string, "aspId")){
-                                    asp_id = entry->valuestring;
-                                }
-                                if(!strcmp(entry->string, "externalApplicationId")){
-                                    external_app_id = entry->valuestring;
-                                }
+                            entry = cJSON_GetObjectItemCaseSensitive(prov_sess, "provisioningSessionType");
+                            if (!entry) {
+                                const char *err = "createProvisioningSession: \"provisioningSessionType\" is not present";
+                                ogs_error(err);
+                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                break;
                             }
+                            if (!cJSON_IsString(entry)) {
+                                const char *err = "createProvisioningSession: \"provisioningSessionType\" is not a string";
+                                ogs_error(err);
+                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                break;
+                            }
+                            provisioning_session_type = entry->valuestring;
+
+                            entry = cJSON_GetObjectItemCaseSensitive(prov_sess, "externalApplicationId");
+                            if (!entry) {
+                                const char *err = "createProvisioningSession: \"externalApplicationId\" is not present";
+                                ogs_error(err);
+                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                break;
+                            }
+                            if (!cJSON_IsString(entry)) {
+                                const char *err = "createProvisioningSession: \"externalApplicationId\" is not a string";
+                                ogs_error(err);
+                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                break;
+                            }
+                            external_app_id = entry->valuestring;
+
+                            entry = cJSON_GetObjectItemCaseSensitive(prov_sess, "aspId");
+                            if (entry) {
+                                if (!cJSON_IsString(entry)) {
+                                    const char *err = "createProvisioningSession: \"aspId\" is not a string";
+                                    ogs_error(err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                    break;
+                                }
+                                asp_id = entry->valuestring;
+                            }
+
                             msaf_provisioning_session = msaf_provisioning_session_create(provisioning_session_type, asp_id, external_app_id);
+
                             provisioning_session = msaf_provisioning_session_get_json(msaf_provisioning_session->provisioningSessionId);
                             if (provisioning_session != NULL) {
                                 ogs_sbi_response_t *response;

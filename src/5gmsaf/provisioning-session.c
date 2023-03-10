@@ -9,12 +9,14 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
 #include <time.h>
-#include "provisioning-session.h"
 #include "application-server-context.h"
 #include "media-player-entry.h"
+#include "certmgr.h"
 #include "context.h"
 #include "utilities.h"
 #include "hash.h"
+
+#include "provisioning-session.h"
 
 typedef struct free_ogs_hash_provisioning_session_s {
     char *provisioning_session;
@@ -65,15 +67,19 @@ msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_sess
 }
 
 msaf_provisioning_session_t *
-msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, char *external_app_id)
+msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id)
 {
     msaf_provisioning_session_t *msaf_provisioning_session;    
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
     OpenAPI_provisioning_session_t *provisioning_session;
+    char *prov_sess_type;
+
+    prov_sess_type = ogs_strdup(provisioning_session_type);
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
-    provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id), OpenAPI_provisioning_session_type_FromString(provisioning_session_type), (asp_id)?ogs_strdup(asp_id):NULL, ogs_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
+    provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id), OpenAPI_provisioning_session_type_FromString(prov_sess_type), (asp_id)?ogs_strdup(asp_id):NULL, ogs_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
+    ogs_free(prov_sess_type);
 
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
     ogs_assert(msaf_provisioning_session);
@@ -104,35 +110,35 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 {
 
     msaf_provisioning_session_t *msaf_provisioning_session;
-    cJSON *provisioning_session_json;
-
-    OpenAPI_provisioning_session_t *provisioning_session = NULL;
-    provisioning_session = ogs_malloc(sizeof(OpenAPI_provisioning_session_t));
-    ogs_assert(provisioning_session);
+    cJSON *provisioning_session_json = NULL;
 
     msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
 
     if (msaf_provisioning_session) {
+        OpenAPI_provisioning_session_t *provisioning_session;
+        ogs_hash_index_t *cert_node;
+
+        provisioning_session = ogs_calloc(1,sizeof(OpenAPI_provisioning_session_t));
+        ogs_assert(provisioning_session);
 
         provisioning_session->provisioning_session_id = msaf_provisioning_session->provisioningSessionId;
         provisioning_session->provisioning_session_type = msaf_provisioning_session->provisioningSessionType;
-        provisioning_session->asp_id = msaf_provisioning_session->aspId;
+	provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
 
-        provisioning_session->server_certificate_ids = NULL;
-        provisioning_session->content_preparation_template_ids = NULL;
-        provisioning_session->metrics_reporting_configuration_ids = NULL;
-        provisioning_session->policy_template_ids = NULL;
-        provisioning_session->edge_resources_configuration_ids = NULL;
-        provisioning_session->event_data_processing_configuration_ids = NULL;
+        provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
+        for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {
+            ogs_debug("msaf_provisioning_session_get_json: Add cert %s", ogs_hash_this_key(cert_node));
+            OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
+        }
 
         provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
+
+	OpenAPI_list_free(provisioning_session->server_certificate_ids);
+        ogs_free(provisioning_session);
     } else {
         ogs_error("Unable to retrieve Provisioning Session");
-        ogs_free(provisioning_session);
-        return NULL;
     }
-    ogs_free(provisioning_session);
     return provisioning_session_json;
 }
 
@@ -520,7 +526,7 @@ int uri_relative_check(char *entry_point_path)
 
 char *enumerate_provisioning_sessions(void)
 {
-    ogs_hash_index_t *hi, *next_hi;
+    ogs_hash_index_t *hi;
     char *provisioning_sessions = "[]";
     int number_of_provisioning_sessions = ogs_hash_count(msaf_self()->provisioningSessions_map);   
     if (number_of_provisioning_sessions)
@@ -655,3 +661,5 @@ tidy_relative_path_re(void)
     }
 }
 
+/* vim:ts=8:sts=4:sw=4:expandtab:
+ */

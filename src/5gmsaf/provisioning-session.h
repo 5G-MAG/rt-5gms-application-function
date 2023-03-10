@@ -34,14 +34,14 @@ typedef struct msaf_provisioning_session_s {
     char *contentHostingConfigurationHash;
     time_t serviceAccessInformationCreated;
     char *serviceAccessInformationHash;
-    ogs_list_t certificates;  //Nodes for this list are msaf_assigned_certificate_t *
+    /*ogs_list_t certificates;  //Nodes for this list are msaf_assigned_certificate_t * */
     ogs_hash_t  *certificate_map;
     ogs_list_t msaf_application_servers; // Nodes for this list are msaf_application_server_node_t *
     ogs_list_t msaf_application_server_state_nodes; //Nodes for this list are msaf_application_server_state_node_t *
     int marked_for_deletion;
 } msaf_provisioning_session_t;
 
-extern msaf_provisioning_session_t *msaf_provisioning_session_create(char *provisioning_session_type, char *asp_id, char *external_app_id);
+extern msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id);
 extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
 extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 

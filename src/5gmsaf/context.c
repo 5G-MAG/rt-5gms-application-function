@@ -651,10 +651,10 @@ int msaf_context_server_name_set(void) {
                           self->server_name, sizeof(self->server_name),
                           NULL, 0, NI_NAMEREQD);
     if (res) {
-        printf("error: %d\n", res);
+        ogs_error("error retrieving server name: %d\n", res);
+    } else {
+        ogs_debug("node=%s", self->server_name);
     }
-    else
-        printf("node=%s\n", self->server_name);
 
     return 0;
 }
