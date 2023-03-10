@@ -32,19 +32,22 @@ a key string. This data can then be retrieved later so that the application can 
 The JSONFileDataStore class is an implementation that stores the data being
 represented in JSON notation as a set of files.
 '''
+import aiofiles
 import json
 import logging
+import os
+import os.path
 from typing import Any
 
 class DataStore:
     '''DataStore base class
     '''
-    def get(self, key: str, default: Any = None) -> Any:
+    async def get(self, key: str, default: Any = None) -> Any:
         '''Get a persisted value by key name
         '''
         raise NotImplementedError('DataStore implementation should override this method')
 
-    def set(self, key: str, value: Any) -> bool:
+    async def set(self, key: str, value: Any) -> bool:
         '''Store a persisted value using the key name
         '''
         raise NotImplementedError('DataStore implementation should override this method')
@@ -58,22 +61,29 @@ class JSONFileDataStore(DataStore):
         self.__dir = data_store_dir
         if not os.path.exists(self.__dir):
             os.makedirs(self.__dir)
-        if not os.path.is_dir(self.__dir):
+        if not os.path.isdir(self.__dir):
             raise RuntimeError(f'{self.__dir} is not a directory')
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def __await__(self):
+        return self.__self().__await__()
+
+    async def __self(self):
+        return self
+
+    async def get(self, key: str, default: Any = None) -> Any:
         '''Get a persisted value by key name
         '''
         json_file = os.path.join(self.__dir, f'{key}.json')
-        if not os.path.exists(json_file) or not os.path.is_file(json_file):
+        if not os.path.exists(json_file) or not os.path.isfile(json_file):
             return default
-        val = json.load(json_file)
+        with open(json_file, 'r') as json_in:
+            val = json.load(json_in)
         return val
 
-    def set(self, key: str, value: Any) -> bool:
+    async def set(self, key: str, value: Any) -> bool:
         '''Store a persisted value using the key name
         '''
         json_file = os.path.join(self.__dir, f'{key}.json')
-        with open(json_file, 'w') as json_out:
-            json_out.write(json.dumps(value))
+        async with aiofiles.open(json_file, mode='w') as json_out:
+            await json_out.write(json.dumps(value))
         return True

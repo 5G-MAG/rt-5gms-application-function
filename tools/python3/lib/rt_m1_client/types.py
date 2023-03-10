@@ -51,9 +51,9 @@ class ProvisioningSession (ProvisioningSessionMandatory, total=False):
         ret: dict = json.loads(json_str)
         for mandatory_field in ProvisioningSessionMandatory.__required_keys__:
             if mandatory_field not in ret:
-                raise TypeError(f'ProvisioningSession must contain a {mandatory_field} field')
+                raise TypeError(f'ProvisioningSession must contain a {mandatory_field} field: {json_str}')
         if ret['provisioningSessionType'] not in ProvisioningSessionType.__args__:
-            raise TypeError(f'ProvisioningSession.provisioningSessionType must be one of: {", ".join(ProvisioningSessionType.__args__)}')
+            raise TypeError(f'ProvisioningSession.provisioningSessionType must be one of: {", ".join(ProvisioningSessionType.__args__)}: {json_str}')
             
         return ProvisioningSession(ret)
 
@@ -194,6 +194,26 @@ class ContentHostingConfiguration(ContentHostingConfigurationMandatory, total=Fa
         # Validate against ContentHostingConfiguration type
         return ContentHostingConfiguration(chc)
 
+    @classmethod
+    def format(cls, chc: "ContentHostingConfiguration") -> str:
+        return f'''Name: {chc['name']}
+Ingest:
+    Type: {chc['ingestConfiguration']['protocol']}
+    URL: {chc['ingestConfiguration']['baseURL']}
+Distributions:
+{cls.__formatDistributions(chc, indent=2)}
+'''
+
+    @classmethod
+    def __formatDistributions(cls, chc: "ContentHostingConfiguration", indent: int = 0) -> str:
+        prefix = ' '*indent
+        dists = []
+        for d in chc['distributionConfigurations']:
+            s = f"{prefix}- URL: {d['baseURL']}"
+            if 'certificateId' in d:
+                s += f"\n{prefix}  Certificate: {d['certificateId']}"
+            dists += [s]
+        return '\n'.join(dists)
 
 # TS 29.571 ProblemDetail
 class InvalidParamMandatory(TypedDict):

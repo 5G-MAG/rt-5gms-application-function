@@ -93,7 +93,7 @@ class M1Client:
         '''
         self.__host_address = host_address
         self.__connection = None
-        self.__log = logging.getLogger(__name__)
+        self.__log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
 
     # TS26512_M1_ProvisioningSession
 
@@ -588,7 +588,9 @@ class M1Client:
 
     @staticmethod
     def __tag_and_date(result: Dict[str,Any]) -> TagAndDateResponse:
+        # Get ETag
         ret = {'ETag': result['headers'].get('etag')}
+        # Get Last-Modified as a datetime.datetime
         lm_dt = result['headers'].get('last-modified')
         if lm_dt is not None:
             try:
@@ -605,6 +607,20 @@ class M1Client:
                     except ValueError:
                         lm_dt = None
         ret['Last-Modified'] = lm_dt
+        # Get Cache-Control as a cache expiry time
+        cc = result['headers'].get('cache-control')
+        if cc is not None:
+            age = result['headers'].get('age')
+            if age is None:
+                age = 0
+            else:
+                age = int(age)
+            max_age_values = [int(c[8:]) for c in [v.strip() for v in cc.split(',')] if c[:8] == 'max-age=']
+            if len(max_age_values) > 0:
+                cc = datetime.datetime.now(tz=datetime.timezone.utc)+datetime.timedelta(seconds=min(max_age_values)-age)
+            else:
+                cc = None
+        ret['Cache-Until'] = cc
         return ret
 
     def __debug(self, *args, **kwargs):
