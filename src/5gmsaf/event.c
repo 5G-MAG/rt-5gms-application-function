@@ -28,7 +28,8 @@ const char *msaf_event_get_name(msaf_event_t *e)
     return ogs_event_get_name(&e->h);
 }
 
-int get_server_type_from_event(msaf_event_t *e)
+
+int check_event_addresses(msaf_event_t *e, ogs_sockaddr_t *sockaddr_v4, ogs_sockaddr_t *sockaddr_v6)
 {
     ogs_sbi_stream_t *stream = e->h.sbi.data;
 
@@ -38,28 +39,13 @@ int get_server_type_from_event(msaf_event_t *e)
         server = ogs_sbi_server_from_stream(stream);
         ogs_assert(server);
 
-        if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.app_server_sockaddr) == true) {
-            ogs_info("returns MSAF_APP_SERVER");
-            return MSAF_APP_SERVER;
-        }
-
-        if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.mgmt_server_sockaddr) == true) {
-            ogs_info("returns MSAF_MGMT_SERVER");
-            return MSAF_MGMT_SERVER;
-        }
-
-        if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.app_server_sockaddr_v6) == true) {
-            ogs_info("returns MSAF_APP_SERVER");
-            return MSAF_APP_SERVER;
-        }
-
-        if (ogs_sockaddr_is_equal(server->node.addr, msaf_self()->config.mgmt_server_sockaddr_v6) == true) {
-            ogs_info("returns MSAF_MGMT_SERVER");
-            return MSAF_MGMT_SERVER;
-
-        }
+        if(sockaddr_v4 && (ogs_sockaddr_is_equal(server->node.addr, sockaddr_v4) || (sockaddr_v6 && ogs_sockaddr_is_equal(server->node.addr, sockaddr_v6)) )){
+      
+            return 1;
+        }     
+       
     }
-    return MSAF_APP_SERVER;
+    return 0;
 
 }
 

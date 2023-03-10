@@ -44,10 +44,13 @@ libmsaf_dist_sources = files('''
     sbi-path.h
     service-access-information.h
     service-access-information.c
-    msaf-mgmt-sm.c
-    msaf-mgmt-sm.h
-    msaf-sm.c
+    msaf-fsm.h
+    msaf-fsm.c
     msaf-sm.h
+    msaf-sm.c
+    msaf-mgmt-sm.c
+    msaf-m1-sm.c
+    msaf-m5-sm.c
     utilities.h
     utilities.c
     init.c

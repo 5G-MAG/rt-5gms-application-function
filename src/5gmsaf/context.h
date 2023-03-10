@@ -19,15 +19,13 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
-
-#include "ogs-sbi.h"
-#include "ogs-app.h"
-
-#include "event.h"
-#include "msaf-sm.h"
-
 #include <stdio.h>
 #include <stdlib.h>
+#include "ogs-sbi.h"
+#include "ogs-app.h"
+#include "event.h"
+#include "msaf-sm.h"
+#include "msaf-fsm.h"
 #include "openapi/model/content_hosting_configuration.h"
 #include "openapi/model/service_access_information_resource.h"
 #include "provisioning-session.h"
@@ -49,10 +47,15 @@ typedef struct msaf_configuration_s {
     ogs_list_t applicationServers_list;
     ogs_list_t server_addr_list; // Nodes for this list are of type msaf_sbi_addr_t *
     char *certificateManager;
-    ogs_sockaddr_t *app_server_sockaddr;
-    ogs_sockaddr_t *mgmt_server_sockaddr;
-    ogs_sockaddr_t *app_server_sockaddr_v6;
-    ogs_sockaddr_t *mgmt_server_sockaddr_v6;
+    
+    ogs_sockaddr_t *m1_server_sockaddr;
+    ogs_sockaddr_t *m5_server_sockaddr;
+    ogs_sockaddr_t *maf_mgmt_server_sockaddr;
+    ogs_sockaddr_t *sbi_server_sockaddr;
+    ogs_sockaddr_t *sbi_server_sockaddr_v6;
+    ogs_sockaddr_t *m1_server_sockaddr_v6;
+    ogs_sockaddr_t *m5_server_sockaddr_v6;
+    ogs_sockaddr_t *maf_mgmt_server_sockaddr_v6;
     msaf_server_response_cache_control_t *server_response_cache_control;
     int  number_of_application_servers;
 } msaf_configuration_t;
@@ -62,6 +65,7 @@ typedef struct msaf_context_s {
     ogs_hash_t  *provisioningSessions_map;
     ogs_list_t   application_server_states;
     ogs_hash_t *content_hosting_configuration_file_map;
+    msaf_fsm_t   msaf_fsm;
     char server_name[NI_MAXHOST];
 } msaf_context_t;
 

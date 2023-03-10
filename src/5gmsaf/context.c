@@ -63,11 +63,6 @@ void msaf_context_init(void)
     self->content_hosting_configuration_file_map = ogs_hash_make();
     ogs_assert(self->content_hosting_configuration_file_map);
 
-    self->config.app_server_sockaddr = NULL;
-    self->config.mgmt_server_sockaddr = NULL;
-    self->config.app_server_sockaddr_v6 = NULL;
-    self->config.mgmt_server_sockaddr_v6 = NULL;
-
     msaf_server_response_cache_control_set();
 
 }
@@ -217,8 +212,8 @@ int msaf_context_parse_config(void)
                         }
                     }
 		            msaf_server_response_cache_control_set_from_config(m1_provisioning_session_response_max_age,  m1_content_hosting_configurations_response_max_age, m1_server_certificates_response_max_age, m1_content_protocols_response_max_age, m5_service_access_information_response_max_age);
-
-                }  else if (!strcmp(msaf_key, "sbi") || !strcmp(msaf_key, "m1ManagementInterface")) {
+ 
+                }  else if (!strcmp(msaf_key, "sbi") || !strcmp(msaf_key, "m1") || !strcmp(msaf_key, "m5") || !strcmp(msaf_key, "maf")) {
                     if(!self->config.open5gsIntegration_flag) {
                         ogs_list_t list, list6;
                         ogs_socknode_t *node = NULL, *node6 = NULL;
@@ -325,7 +320,7 @@ int msaf_context_parse_config(void)
                                     ogs_warn("unknown key `%s`", sbi_key);
                             }
                             
-                            if (!strcmp(msaf_key, "m1ManagementInterface") && (port == 0)){
+                            if (port == 0){
                                 ogs_warn("Specify the [%s] port, otherwise a random port will be used", msaf_key);
                             } 
 
@@ -364,44 +359,125 @@ int msaf_context_parse_config(void)
 
                             node = ogs_list_first(&list);
                             if (node) {
-                                ogs_sbi_server_t *server = ogs_sbi_server_add(
-                                        node->addr, is_option ? &option : NULL);
-                                ogs_assert(server);
+                                int i;
+                                int matches = 0;
+                                ogs_sbi_server_t *server;
+                                ogs_sockaddr_t *check_addrs[] = {
+                                    self->config.sbi_server_sockaddr,
+                                    self->config.m1_server_sockaddr,
+                                    self->config.m5_server_sockaddr,
+                                    self->config.maf_mgmt_server_sockaddr
+                                };
+                                for (i=0; i<(sizeof(check_addrs)/sizeof(*check_addrs)); i++) {
+                                    if (check_addrs[i] && ogs_sockaddr_is_equal(node->addr, check_addrs[i])) {
+                                        matches = 1;
+                                        break;
+                                    }
+                                }
+                                if(!matches) {
+                                    server = ogs_sbi_server_add(
+                                            node->addr, is_option ? &option : NULL);
+                                    ogs_assert(server);
                                 
-                                if (addr && ogs_app()->parameter.no_ipv4 == 0)
-                                    ogs_sbi_server_set_advertise(
-                                            server, AF_INET, addr);
-
-                                if (key) server->tls.key = key;
-                                if (pem) server->tls.pem = pem;
+                                
+                                    if (addr && ogs_app()->parameter.no_ipv4 == 0)
+                                        ogs_sbi_server_set_advertise(
+                                                server, AF_INET, addr);
+                                
+                                    if (key) server->tls.key = key;
+                                    if (pem) server->tls.pem = pem;
+                                }
 
                                 if (!strcmp(msaf_key, "sbi")) {
 
-                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.app_server_sockaddr, server->node.addr));
-
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.sbi_server_sockaddr, server->node.addr));
+                                    if(!self->config.m1_server_sockaddr){
+                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m1_server_sockaddr, server->node.addr));
+                                    }
+                                    if(!self->config.m5_server_sockaddr){
+                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m5_server_sockaddr, server->node.addr));
+                                    }
+                                    if(!self->config.maf_mgmt_server_sockaddr){
+                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.maf_mgmt_server_sockaddr, server->node.addr));
+                                    }
                                 }
-                                if (!strcmp(msaf_key, "m1ManagementInterface")) {
-
-                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.mgmt_server_sockaddr, server->node.addr));
+                                if (!strcmp(msaf_key, "m1")) {
+                                    if(self->config.m1_server_sockaddr){
+                                        ogs_freeaddrinfo(self->config.m1_server_sockaddr);
+                                    }
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m1_server_sockaddr, server->node.addr));
+                                }
+                                if (!strcmp(msaf_key, "m5")) {
+                                    if(self->config.m5_server_sockaddr){
+                                        ogs_freeaddrinfo(self->config.m5_server_sockaddr);
+                                    }
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m5_server_sockaddr, server->node.addr));
+                                }
+                                if (!strcmp(msaf_key, "maf")) {
+                                    if(self->config.maf_mgmt_server_sockaddr){
+                                           ogs_freeaddrinfo(self->config.maf_mgmt_server_sockaddr);
+                                    }
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.maf_mgmt_server_sockaddr, server->node.addr));
                                 }
                             }
                             node6 = ogs_list_first(&list6);
                             if (node6) {
-                                ogs_sbi_server_t *server = ogs_sbi_server_add(
-                                        node6->addr, is_option ? &option : NULL);
-                                ogs_assert(server);
-
-                                if (addr && ogs_app()->parameter.no_ipv6 == 0)
-                                    ogs_sbi_server_set_advertise(
-                                            server, AF_INET6, addr);
-
-                                if (key) server->tls.key = key;
-                                if (pem) server->tls.pem = pem;
-                                if (!strcmp(msaf_key, "sbi")) {
-                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.app_server_sockaddr_v6, server->node.addr));
+                                int i;
+                                int matches = 0;
+                                ogs_sbi_server_t *server;
+                                ogs_sockaddr_t *check_addrs[] = {
+                                    self->config.sbi_server_sockaddr_v6,
+                                    self->config.m1_server_sockaddr_v6,
+                                    self->config.m5_server_sockaddr_v6,
+                                    self->config.maf_mgmt_server_sockaddr_v6
+                                };
+                                for (i=0; i<(sizeof(check_addrs)/sizeof(*check_addrs)); i++) {
+                                    if (check_addrs[i] && ogs_sockaddr_is_equal(node->addr, check_addrs[i])) {
+                                        matches = 1;
+                                        break;
+                                    }
                                 }
-                                if (!strcmp(msaf_key, "m1ManagementInterface")) {
-                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.mgmt_server_sockaddr_v6, server->node.addr));
+                                if(!matches) {
+                                    ogs_sbi_server_t *server = ogs_sbi_server_add(
+                                            node6->addr, is_option ? &option : NULL);
+                                    ogs_assert(server);
+
+                                    if (addr && ogs_app()->parameter.no_ipv6 == 0)
+                                        ogs_sbi_server_set_advertise(
+                                                server, AF_INET6, addr);
+
+                                    if (key) server->tls.key = key;
+                                    if (pem) server->tls.pem = pem;
+                                }
+                                if (!strcmp(msaf_key, "sbi")) {
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.sbi_server_sockaddr_v6, server->node.addr));
+                                    if(!self->config.m1_server_sockaddr_v6){
+                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m1_server_sockaddr_v6, server->node.addr));
+                                    }
+                                    if(!self->config.m5_server_sockaddr_v6){
+                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m5_server_sockaddr_v6, server->node.addr));
+                                    }
+                                    if(!self->config.maf_mgmt_server_sockaddr_v6){
+                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.maf_mgmt_server_sockaddr_v6, server->node.addr));
+                                    }
+                                }
+                                if (!strcmp(msaf_key, "m1")) {
+                                    if(self->config.m1_server_sockaddr_v6){
+                                        ogs_freeaddrinfo(self->config.m1_server_sockaddr_v6);
+                                    }
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m1_server_sockaddr_v6, server->node.addr));
+                                }
+                                if (!strcmp(msaf_key, "m5")) {
+                                    if(self->config.m5_server_sockaddr_v6){
+                                        ogs_freeaddrinfo(self->config.m5_server_sockaddr_v6);
+                                    }
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m5_server_sockaddr_v6, server->node.addr));
+                                }
+                                if (!strcmp(msaf_key, "maf")) {
+                                    if(self->config.maf_mgmt_server_sockaddr_v6){
+                                        ogs_freeaddrinfo(self->config.maf_mgmt_server_sockaddr_v6);
+                                    }
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.maf_mgmt_server_sockaddr_v6, server->node.addr));
                                 }
 
                             }
@@ -569,10 +645,14 @@ static void msaf_context_application_server_state_remove_all(void) {
 }
 
 static void msaf_context_server_sockaddr_remove(void){
-    if(self->config.app_server_sockaddr) ogs_freeaddrinfo(self->config.app_server_sockaddr);
-    if(self->config.mgmt_server_sockaddr) ogs_freeaddrinfo(self->config.mgmt_server_sockaddr);
-    if(self->config.app_server_sockaddr_v6) ogs_freeaddrinfo(self->config.app_server_sockaddr_v6);
-    if(self->config.mgmt_server_sockaddr_v6) ogs_freeaddrinfo(self->config.app_server_sockaddr_v6);
+    if(self->config.sbi_server_sockaddr) ogs_freeaddrinfo(self->config.sbi_server_sockaddr);
+    if(self->config.m1_server_sockaddr) ogs_freeaddrinfo(self->config.m1_server_sockaddr);
+    if(self->config.m5_server_sockaddr) ogs_freeaddrinfo(self->config.m5_server_sockaddr);
+    if(self->config.maf_mgmt_server_sockaddr) ogs_freeaddrinfo(self->config.maf_mgmt_server_sockaddr);
+    if(self->config.sbi_server_sockaddr_v6) ogs_freeaddrinfo(self->config.sbi_server_sockaddr_v6);
+    if(self->config.m1_server_sockaddr_v6) ogs_freeaddrinfo(self->config.m1_server_sockaddr_v6);
+    if(self->config.m5_server_sockaddr_v6) ogs_freeaddrinfo(self->config.m5_server_sockaddr_v6);
+    if(self->config.maf_mgmt_server_sockaddr_v6) ogs_freeaddrinfo(self->config.maf_mgmt_server_sockaddr_v6);
 }
 
 static int msaf_context_prepare(void)

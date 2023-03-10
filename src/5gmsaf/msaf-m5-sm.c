@@ -1,11 +1,13 @@
 /*
  * License: 5G-MAG Public License (v1.0)
+ * Author: Dev Audsin
  * Copyright: (C) 2022 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
  * program. If this file is missing then the license can be retrieved from
  * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
  */
+
 
 #include "ogs-sbi.h"
 #include "sbi-path.h"
@@ -15,31 +17,31 @@
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
-#include "openapi/api/Maf_ManagementAPI-info.h"
-  
+#include "openapi/api/TS26512_M5_ServiceAccessInformationAPI-info.h"
+
 const nf_server_interface_metadata_t
-maf_mgmt_api_metadata = {
-    MAF_MANAGEMENT_API_NAME,
-    MAF_MANAGEMENT_API_VERSION
+m5_serviceaccessinformation_api_metadata = {
+    M5_SERVICEACCESSINFORMATION_API_NAME,
+    M5_SERVICEACCESSINFORMATION_API_VERSION
 };
 
-void msaf_maf_mgmt_state_initial(ogs_fsm_t *s, msaf_event_t *e)
+void msaf_m5_state_initial(ogs_fsm_t *s, msaf_event_t *e)
 {
     msaf_sm_debug(e);
 
     ogs_assert(s);
 
-    OGS_FSM_TRAN(s, &msaf_maf_mgmt_state_functional);
+    OGS_FSM_TRAN(s, &msaf_m5_state_functional);
 }
 
-void msaf_maf_mgmt_state_final(ogs_fsm_t *s, msaf_event_t *e)
+void msaf_m5_state_final(ogs_fsm_t *s, msaf_event_t *e)
 {
     msaf_sm_debug(e);
 
     ogs_assert(s);
 }
 
-void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
+void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 {
     int rv;
 
@@ -54,17 +56,17 @@ void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     msaf_sm_debug(e);
 
-    if (!msaf_self()->server_name) msaf_context_server_name_set();
     char *nf_name = ogs_msprintf("5GMSdAF-%s", msaf_self()->server_name);
     const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
-    const nf_server_interface_metadata_t *maf_management_api = &maf_mgmt_api_metadata;
+    const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
     const nf_server_app_metadata_t *app_meta = &app_metadata;
 
     ogs_assert(s);
 
     switch (e->h.id) {
         case OGS_FSM_ENTRY_SIG:
-            ogs_info("[%s] MSAF Management Interface Running", ogs_sbi_self()->nf_instance->id);
+            ogs_info("[%s] MSAF M5 Running", ogs_sbi_self()->nf_instance->id);
+
             break;
 
         case OGS_FSM_EXIT_SIG:
@@ -77,14 +79,82 @@ void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             ogs_assert(stream);
             message = *(e->message);
 
-            SWITCH(message.h.service.name)
-            CASE("5gmag-rt-management")
-                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
+            SWITCH(message.h.service.name)         
+            CASE("3gpp-m5")
+                if (strcmp(message.h.api.version, "v2") != 0) {
+                    char *error;
+                    ogs_error("Not supported version [%s]", message.h.api.version);
+
+                    error = ogs_msprintf("Version [%s] not supported", message.h.api.version);
+
+                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, NULL, "Not supported version", error, NULL, NULL, app_meta));
+
+                    ogs_sbi_message_free(&message);
+                    ogs_free(error);
+
+                    break;
+                }
+                SWITCH(message.h.resource.component[0])
+                CASE("service-access-information")
+                    SWITCH(message.h.method)
+                    CASE(OGS_SBI_HTTP_METHOD_GET)
+                        cJSON *service_access_information;
+                        msaf_provisioning_session_t *msaf_provisioning_session = NULL;
+                        msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
+
+                        if(msaf_provisioning_session == NULL) {
+                            char *err = NULL;
+                            asprintf(&err,"Provisioning Session [%s] not found.", message.h.resource.component[1]);
+                            ogs_error("Client requested invalid Provisioning Session [%s]", message.h.resource.component[1]);
+                            ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Provisioning Session not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
+
+                        } else if (msaf_provisioning_session->serviceAccessInformation) {
+                            service_access_information = msaf_context_retrieve_service_access_information(message.h.resource.component[1]);
+                            if (service_access_information != NULL) {
+                                ogs_sbi_response_t *response;
+                                char *text;
+                                text = cJSON_Print(service_access_information);
+                                response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->serviceAccessInformationCreated, msaf_provisioning_session->serviceAccessInformationHash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
+                                nf_server_populate_response(response, strlen(text), text, 201);
+                                ogs_assert(response);
+                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                cJSON_Delete(service_access_information);
+                            } else {
+                                char *err = NULL;
+                                asprintf(&err,"Service Access Information for the Provisioning Session [%s] not found.", message.h.resource.component[1]);
+                                ogs_error("Client requested invalid Service Access Information for the Provisioning Session [%s]", message.h.resource.component[1]);
+
+                                ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Service Access Information not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
+
+
+                            }
+                        } else {
+                            char *err = NULL;
+                            asprintf(&err,"Provisioning Session [%s] has no Service Access Information associated with it.", message.h.resource.component[1]);
+                            ogs_error("Provisioning Session [%s] has no Service Access Information associated with it", message.h.resource.component[1]);
+
+                            ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Service Access Information not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
+
+                        }
+                        break;
+                    DEFAULT
+                        ogs_error("Invalid HTTP method [%s]", message.h.method);
+
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, &message, "Invalid HTTP method.", message.h.method, NULL, NULL, app_meta));
+
+                    END
+                    break;
+                DEFAULT
+                    ogs_error("Invalid resource name [%s]",
+                            message.h.resource.component[0]);
+                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, &message, "Invalid resource name.", message.h.resource.component[0], NULL, NULL, app_meta));
+
+                END
+                ogs_sbi_message_free(&message);
                 break;
-         
             DEFAULT
-                ogs_error("Resource [%s] not found.", message.h.service.name);
-                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, &message, "Not Found.",  message.h.service.name, NULL, maf_management_api, app_meta));
+                ogs_error("Invalid API name [%s]", message.h.service.name);
+                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, &message, "Invalid API name.",  message.h.service.name, NULL, NULL, app_meta));
 
             END
             break;
@@ -116,7 +186,6 @@ void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             message.res_status = response->status;
 
             SWITCH(message.h.service.name)
-            
             CASE(OGS_SBI_SERVICE_NAME_NNRF_NFM)
 
                 SWITCH(message.h.resource.component[0])

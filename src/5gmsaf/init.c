@@ -10,14 +10,12 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "context.h"
 #include "sbi-path.h"
-#include "msaf-mgmt-sm.h"
 #include "init.h"
 
 static ogs_thread_t *thread;
+
 static void msaf_main(void *data);
-
 static int msaf_set_time(void);
-
 
 static int initialized = 0;
 
@@ -45,8 +43,7 @@ int msaf_initialize()
 	return OGS_ERROR;
     }
 
-    rv = ogs_log_config_domain(
-            ogs_app()->logger.domain, ogs_app()->logger.level);
+    rv = ogs_log_config_domain(ogs_app()->logger.domain, ogs_app()->logger.level);
     if (rv != OGS_OK) return rv;
 
     rv = msaf_sbi_open();
@@ -95,11 +92,20 @@ void msaf_terminate(void)
 static void msaf_main(void *data)
 {
     ogs_fsm_t msaf_sm;
-    ogs_fsm_t msaf_mgmt_sm;
     int rv;
 
     ogs_fsm_init(&msaf_sm, msaf_state_initial, msaf_state_final, 0);
-    ogs_fsm_init(&msaf_mgmt_sm, msaf_mgmt_state_initial, msaf_mgmt_state_final, 0);
+    
+    /*
+    ogs_fsm_init(&msaf_self()->msaf_fsm.msaf_m1_sm, msaf_m1_state_initial, msaf_m1_state_final, 0);
+    ogs_fsm_init(&msaf_self()->msaf_fsm.msaf_m5_sm, msaf_m5_state_initial, msaf_m5_state_final, 0);
+    if(msaf_self()->config.sbi_server_sockaddr || msaf_self()->config.sbi_server_sockaddr_v6) {
+        ogs_fsm_init(&msaf_self()->msaf_fsm.msaf_sbi_sm, msaf_sbi_state_initial, msaf_sbi_state_final, 0);
+    }
+    if(msaf_self()->config.maf_mgmt_server_sockaddr || msaf_self()->config.maf_mgmt_server_sockaddr_v6) {
+        ogs_fsm_init(&msaf_self()->msaf_fsm.msaf_maf_mgmt_sm, msaf_maf_mgmt_state_initial, msaf_maf_mgmt_state_final, 0);
+    }
+    */
 
     for ( ;; ) {
         ogs_pollset_poll(ogs_app()->pollset,
@@ -120,22 +126,30 @@ static void msaf_main(void *data)
                 break;
 
             ogs_assert(e);
+
+            ogs_fsm_dispatch(&msaf_sm, e);
+            /*
             rv = get_server_type_from_event(e);
-            if (rv == MSAF_APP_SERVER) {
-                ogs_fsm_dispatch(&msaf_sm, e);
-            } 
-            if(rv == MSAF_MGMT_SERVER) {
-                ogs_fsm_dispatch(&msaf_mgmt_sm, e);
+            if (rv == MSAF_M1_SERVER) {
+                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
             }
+            if (rv == MSAF_M5_SERVER) {
+                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
+            } 
+            if(rv == MSAF_MAF_MGMT_SERVER) {
+                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_maf_mgmt_sm, e);
+            }            
+            if (rv == MSAF_SBI_SERVER) {
+                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_sbi_sm, e);
+            }
+            */
             ogs_event_free(e);
         }
     }
 done:
-
+    
     ogs_fsm_fini(&msaf_sm, 0);
-    if(msaf_self()->config.mgmt_server_sockaddr || msaf_self()->config.mgmt_server_sockaddr_v6) {
-        ogs_fsm_fini(&msaf_mgmt_sm, 0);
-    }
+  
 }
 
 static int msaf_set_time(void)

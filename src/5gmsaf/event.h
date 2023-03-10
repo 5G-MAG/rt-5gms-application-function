@@ -15,9 +15,6 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "ogs-sbi.h"
 #include "context.h"
 
-#define MSAF_APP_SERVER  0
-#define MSAF_MGMT_SERVER 1
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +30,14 @@ typedef enum {
 
 } msaf_event_e;
 
+typedef enum {
+    MSAF_SBI_SERVER ,
+    MSAF_M1_SERVER,
+    MSAF_M5_SERVER,
+    MSAF_MAF_MGMT_SERVER,
+
+} msaf_server_type_e;
+
 typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;
 
 typedef struct purge_resource_id_node_s purge_resource_id_node_t;
@@ -42,6 +47,7 @@ typedef struct msaf_event_s {
     int local_id;
     msaf_application_server_state_node_t *application_server_state;
     purge_resource_id_node_t *purge_node;
+    ogs_sbi_message_t *message;
 
 
     ogs_pkbuf_t *pkbuf;
@@ -58,7 +64,7 @@ typedef struct msaf_event_s {
 OGS_STATIC_ASSERT(OGS_EVENT_SIZE >= sizeof(msaf_event_t));
 
 extern const char *msaf_event_get_name(msaf_event_t *e);
-extern int get_server_type_from_event(msaf_event_t *e);
+extern int check_event_addresses(msaf_event_t *e, ogs_sockaddr_t *sockaddr_v4, ogs_sockaddr_t *sockaddr_v6);
 
 
 #ifdef __cplusplus
