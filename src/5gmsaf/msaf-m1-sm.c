@@ -488,10 +488,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     provisioning_session_cert = ogs_hash_get(msaf_provisioning_session->certificate_map, message.h.resource.component[3], OGS_HASH_KEY_STRING);
                                     cert = server_cert_retrieve(message.h.resource.component[3]);
                                     if(!cert || !provisioning_session_cert) {
-                                        ogs_error("unable to retrieve certificate [%s]", message.h.resource.component[3]);
+                                        ogs_error("Certificate [%s] management problem", message.h.resource.component[3]);
                                         char *err = NULL;
-                                        asprintf(&err,"Unable to retrieve Certificate not yet available");
-                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Certificate not yet available.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        asprintf(&err,"Certificate [%s] management problem", message.h.resource.component[3]);
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                         return;
                                     }
 
@@ -513,10 +513,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Certificate does not exists.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
 
                                     } else if(cert->return_code == 8){
-                                        char *err = NULL;
-                                        asprintf(&err,"Certificate [%s] not yet available.", cert->id);
-                                        ogs_error("Certificate [%s] not yet available.", cert->id);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Certificate not yet available.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        ogs_sbi_response_t *response;
+                                        response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
+                                        nf_server_populate_response(response, 0, NULL, 204);
+                                        ogs_assert(response);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                     } else {
                                         char *err = NULL;
                                         asprintf(&err,"Certificate [%s] management problem.", cert->id);
@@ -897,11 +898,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                                     msaf_certificate_free(cert);
                                                 } else {
+                                                    ogs_error("Certificate [%s] management problem", message.h.resource.component[3]);
                                                     char *err = NULL;
-                                                    ogs_error("Method [%s]: Unable to retrieve certificate [%s]", message.h.method, message.h.resource.component[3]);
-                                                    asprintf(&err,"Method [%s]: Unable to retrieve certificate [%s]", message.h.method, message.h.resource.component[3]);
-                                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Unable to retrieve certificate.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-
+                                                    asprintf(&err,"Certificate [%s] management problem", message.h.resource.component[3]);
+                                                    ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                                    return;
                                                 }
                                             } else {
                                                 methods = ogs_msprintf("%s",OGS_SBI_HTTP_METHOD_POST);
