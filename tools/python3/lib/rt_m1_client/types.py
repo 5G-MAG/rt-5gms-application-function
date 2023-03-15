@@ -197,7 +197,7 @@ class ContentHostingConfiguration(ContentHostingConfigurationMandatory, total=Fa
     @classmethod
     def format(cls, chc: "ContentHostingConfiguration") -> str:
         return f'''Name: {chc['name']}
-Ingest:
+{cls.__formatEntryPoint(chc)}Ingest:
     Type: {chc['ingestConfiguration']['protocol']}
     URL: {chc['ingestConfiguration']['baseURL']}
 Distributions:
@@ -212,8 +212,17 @@ Distributions:
             s = f"{prefix}- URL: {d['baseURL']}"
             if 'certificateId' in d:
                 s += f"\n{prefix}  Certificate: {d['certificateId']}"
+            if 'domainNameAlias' in d:
+                s += f"\n{prefix}  Domain Name Alias: {d['domainNameAlias']}"
             dists += [s]
         return '\n'.join(dists)
+
+    @classmethod
+    def __formatEntryPoint(cls, chc: "ContentHostingConfiguration", indent: int = 0) -> str:
+        if 'entryPointPath' not in chc:
+            return ''
+        prefix = ' '*indent
+        return f"{prefix}Entry Point Path: {chc['entryPointPath']}\n"
 
 # TS 29.571 ProblemDetail
 class InvalidParamMandatory(TypedDict):

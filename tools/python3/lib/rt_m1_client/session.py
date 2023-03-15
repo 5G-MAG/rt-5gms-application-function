@@ -34,8 +34,11 @@ This class uses the M1Client class to communicate with the 5GMS Application
 Function via the interface at reference point M1.
 '''
 import datetime
+import importlib
 import logging
 from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List
+
+import OpenSSL
 
 from .exceptions import (M1ClientError, M1ServerError, M1Error)
 from .types import (ApplicationId, ContentHostingConfiguration, ContentProtocols, ProvisioningSessionType, ProvisioningSession,
@@ -43,6 +46,7 @@ from .types import (ApplicationId, ContentHostingConfiguration, ContentProtocols
 from .client import (M1Client, ProvisioningSessionResponse, ContentHostingConfigurationResponse, ServerCertificateResponse,
                      ServerCertificateSigningRequestResponse, ContentProtocolsResponse)
 from .data_store import DataStore
+from .certificates import CertificateSigner, DefaultCertificateSigner
 
 class M1Session:
     '''M1 Session management class
@@ -51,11 +55,14 @@ class M1Session:
     This class is used as the top level class to manage a communication session
     with the 5GMS Application Function.
     '''
-    def __init__(self, host_address: Tuple[str,int], persistent_data_store: Optional[DataStore] = None):
+    def __init__(self, host_address: Tuple[str,int], persistent_data_store: Optional[DataStore] = None, certificate_signer: Optional[Union[CertificateSigner,type,str]] = None):
         self.__m1_host = host_address
         self.__data_store_dir = persistent_data_store
+        self.__cert_signer = certificate_signer
         self.__m1_client = None
         self.__provisioning_sessions = {}
+        self.__ca_key = None
+        self.__ca = None
         self.__log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
 
     def __await__(self):
@@ -152,10 +159,33 @@ class M1Session:
         ps = await self.__getProvisioningSessionCache(provisioning_session_id)
         if ps is not None:
             if 'certificates' not in ps or ps['certificates'] is None:
-                ps['certificates'] = [cert_id]
-            elif cert_id not in ps['certificates']:
-                ps['certificates'] += [cert_id]
+                # create certificates cache
+                ps['certificates'] = {cert_id: {k.lower(): v for k,v in cert_resp.items()}}
+            elif cert_id not in ps['certificates'] or ps['certificates'][cert_id] is None:
+                # Store new certificate info
+                ps['certificates'][cert_id] = {k.lower(): v for k,v in cert_resp.items()}
+            else:
+                # Update the certificate info
+                if cert_resp['ServerCertificate'] is None:
+                    cert_resp['ServerCertificate'] = ps['certificates'][cert_id]['servercertificate']
+                ps['certificates'][cert_id] = {k.lower(): v for k,v in cert_resp.items()}
+
         return cert_id
+
+    async def certificateGet(self, provisioning_session_id: ResourceId, certificate_id: ResourceId) -> Optional[str]:
+        ret_err = None
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return None
+        try:
+            await self.__cacheCertificates(provisioning_session_id)
+        except M1Error as err:
+            ret_err = err
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        if 'certificates' not in ps or ps['certificates'] is None or certificate_id not in ps['certificates']:
+            return None
+        if ret_err is not None and ps['certificates'][certificate_id]['servercertificate'] is None:
+            raise ret_err
+        return ps['certificates'][certificate_id]['servercertificate']
 
     async def certificateNewSigningRequest(self, provisioning_session_id: ResourceId) -> Optional[Tuple[ResourceId,str]]:
         if provisioning_session_id not in self.__provisioning_sessions:
@@ -173,6 +203,12 @@ class M1Session:
             elif cert_id not in ps['certificates']:
                 ps['certificates'] += [cert_id]
         return (cert_id,cert_resp['CertificateSigningRequestPEM'])
+
+    async def certificateSet(self, provisioning_session_id: ResourceId, certificate_id: ResourceId, pem: str) -> Optional[bool]:
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return None
+        await self.__connect()
+        return await self.__m1_client.uploadServerCertificate(provisioning_session_id, certificate_id, pem)
 
     # ContentHostingConfiguration methods
 
@@ -194,20 +230,41 @@ class M1Session:
             return None
         await self.__cacheContentHostingConfiguration(provisioning_session)
         ps = await self.__getProvisioningSessionCache(provisioning_session)
-        if ps is None:
+        if ps is None or ps['content-hosting-configuration'] is None:
             return None
         return ContentHostingConfiguration(ps['content-hosting-configuration']['contenthostingconfiguration'])
 
     # Convenience methods
 
-    async def createNewDownlinkPullStream(self, ingesturl, entrypoint, app_id, name=None, asp_id=None, ssl=False, insecure=True):
+    async def createDownlinkPullProvisioningSession(self, app_id, asp_id=None) -> Optional[ResourceId]:
+        return await self.provisioningSessionCreate(PROVISIONING_SESSION_TYPE_DOWNLINK, app_id, asp_id)
+
+    async def createNewCertificate(self, provisioning_session: ResourceId, domain_name_alias: Optional[str] = None) -> Optional[ResourceId]:
+        # simple case just create the certificate
+        if domain_name_alias is None or len(domain_name_alias) == 0:
+            return await self.certificateCreate(provisioning_session)
+        # When domainNameAlias is used we need to use a CSR
+        csr: Optional[Tuple[ResourceId,str]] = await self.certificateNewSigningRequest(provisioning_session)
+        if csr is None:
+            return None
+        cert_id = csr[0]
+        csr_pem = csr[1]
+        cert_signer = await self.__getCertificateSigner()
+        cert: str = await cert_signer.signCertificate(csr_pem, domain_name_alias=domain_name_alias)
+        # Send new cert to the AF
+        if not await self.certificateSet(provisioning_session, cert_id, cert):
+            self.__log.error('Failed to upload certificate with domainNameAlias')
+            return None
+        return cert_id
+
+    async def createNewDownlinkPullStream(self, ingesturl, entrypoint, app_id, name=None, asp_id=None, ssl=False, insecure=True, domain_name_alias=None):
         # Create a new provisioning session
         provisioning_session: ResourceId = await self.provisioningSessionCreate(PROVISIONING_SESSION_TYPE_DOWNLINK, app_id, asp_id)
         if provisioning_session is None:
             raise RuntimeError('Failed to create a provisioning session')
         # Create an SSL certificate if requested
         if ssl:
-            cert: Optional[ResourceId] = await self.certificateCreate(provisioning_session)
+            cert: Optional[ResourceId] = await self.createNewCertificate(provisioning_session, domain_name_alias=domain_name_alias)
             if cert is None:
                 if insecure:
                     self.__log.warn('Failed to create hosting with HTTPS, continuing with just HTTP')
@@ -227,9 +284,15 @@ class M1Session:
                 'distributionConfigurations': []
                 }
         if ssl and cert is not None:
-            chc['distributionConfigurations'] += [{'certificateId': cert}]
+            dc = {'certificateId': cert}
+            if domain_name_alias is not None:
+                dc['domainNameAlias'] = domain_name_alias
+            chc['distributionConfigurations'] += [dc]
         if insecure:
-            chc['distributionConfigurations'] += [{}]
+            dc = {}
+            if domain_name_alias is not None:
+                dc['domainNameAlias'] = domain_name_alias
+            chc['distributionConfigurations'] += [dc]
         if entrypoint is not None:
             chc['entryPointPath'] = entrypoint
         if not await self.contentHostingConfigurationCreate(provisioning_session, chc):
@@ -289,7 +352,10 @@ class M1Session:
                 ps.update({
                     'protocols': None,
                     'content-hosting-configuration': None,
+                    'certificates': None,
                     })
+                if 'serverCertificateIds' in ps['provisioningsession']:
+                    ps['certificates'] = {k: None for k in ps['provisioningsession']['serverCertificateIds']}
 
     async def __cacheProtocols(self, provisioning_session_id: ResourceId):
         await self.__cacheProvisioningSession(provisioning_session_id)
@@ -300,6 +366,30 @@ class M1Session:
             result = await self.__m1_client.getContentProtocols(provisioning_session_id)
             if result is not None:
                 ps['protocols'].update({k.lower(): v for k,v in result.items()})
+
+    async def __cacheCertificates(self, provisioning_session_id: ResourceId):
+        await self.__cacheProvisioningSession(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if ps['certificates'] is None:
+            return
+        ret_err = None
+        for cert_id,cert in list(ps['certificates'].items()):
+            if cert is None:
+                cert = {'etag': None, 'last-modified': None, 'cache-until': None, 'servercertificateid': cert_id,
+                        'servercertificate': None}
+                ps['certificates'][cert_id] = cert
+            if cert['cache-until'] is None or cert['cache-until'] < now:
+                await self.__connect()
+                try:
+                    result = await self.__m1_client.retrieveServerCertificate(provisioning_session_id, cert_id)
+                    if result is not None:
+                        cert.update({k.lower(): v for k,v in result.items()})
+                except M1Error as err:
+                    if ret_err is None:
+                        ret_err = err
+        if ret_err is not None:
+            raise ret_err
 
     async def __cacheContentHostingConfiguration(self, provisioning_session_id: ResourceId):
         await self.__cacheProvisioningSession(provisioning_session_id)
@@ -316,6 +406,19 @@ class M1Session:
                 chc.update({k.lower(): v for k,v in result.items()})
             else:
                 ps['content-hosting-configuration'] = None
+
+    async def __getCertificateSigner(self):
+        if self.__cert_signer is None:
+            self.__cert_signer = 'rt_m1_client.certificates.DefaultCertificateSigner'
+        if isinstance(self.__cert_signer, str):
+            cert_sign_cls_mod, cert_sign_cls_name = self.__cert_signer.rsplit('.', 1)
+            cert_sign_cls_mod = importlib.import_module(cert_sign_cls_mod)
+            self.__cert_signer = getattr(cert_sign_cls_mod, cert_sign_cls_name)
+        if issubclass(self.__cert_signer, CertificateSigner):
+            self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir)
+        if not isinstance(self.__cert_signer, CertificateSigner):
+            raise RuntimeError('The certificate signer class given is not derived from CertificateSigner')
+        return self.__cert_signer
 
     async def __connect(self):
         if self.__m1_client is None:
