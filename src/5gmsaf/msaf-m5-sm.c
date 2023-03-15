@@ -158,7 +158,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
             END
             break;
-
+#if 0
         case OGS_EVENT_SBI_CLIENT:
             ogs_assert(e);
 
@@ -296,7 +296,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             ogs_timer_get_name(e->h.timer_id), e->h.timer_id);
             }
             break;
-
+#endif
         default:
             ogs_error("No handler for event %s", msaf_event_get_name(e));
             break;
