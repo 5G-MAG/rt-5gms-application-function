@@ -210,10 +210,46 @@ Distributions:
         dists = []
         for d in chc['distributionConfigurations']:
             s = f"{prefix}- URL: {d['baseURL']}"
+            if 'canonicalDomainName' in d:
+                s += f"\n{prefix}  Canonical Domain Name: {d['canonicalDomainName']}"
+            if 'contentPreparationTemplateId' in d:
+                s += f"\n{prefix}  Content Preparation Template: {d['contentPreparationTemplateId']}"
             if 'certificateId' in d:
                 s += f"\n{prefix}  Certificate: {d['certificateId']}"
             if 'domainNameAlias' in d:
                 s += f"\n{prefix}  Domain Name Alias: {d['domainNameAlias']}"
+            if 'pathRewriteRules' in d:
+                s += f"\n{prefix}  Path Rewrite Rules:"
+                for prr in d['pathRewriteRules']:
+                    s += f"\n{prefix}  - {prr['requestPathPattern']} => {prr['mappedPath']}"
+            if 'cachingConfigurations' in d:
+                s += f"\n{prefix}  Caching Configurations:"
+                for cc in d['cachingConfigurations']:
+                    s += f"\n{prefix}  - URL Pattern: {cc['urlPatternFilter']}"
+                    if 'cachingDirectives' in cc:
+                        cd = cc['cachingDirectives']
+                        s += f"\n{prefix}    Directive:"
+                        s += f"\n{prefix}      no-cache={repr(cd['noCache'])}"
+                        if 'maxAge' in cd:
+                            s += f"\n{prefix}      max-age={cd['maxAge']}"
+                        if 'statusCodeFilters' in cd:
+                            s += f"\n{prefix}      filters=[{', '.join([str(i) for i in cd['statusCodeFilters']])}]"
+            if 'geoFencing' in d:
+                gf = d['geoFencing']
+                s += f"\n{prefix}  Geo-fencing({gf['locatorType']}):"
+                for l in gf['locators']:
+                    s += f"\n{prefix}  - {l}"
+            if 'urlSignature' in d:
+                us = d['urlSignature']
+                s += f"\n{prefix}  URL Signature:"
+                s += f"\n{prefix}  - Pattern: {us['urlPattern']}"
+                s += f"\n{prefix}    Token: {us['tokenName']}"
+                s += f"\n{prefix}    Passphase name: {us['passphraseName']}"
+                s += f"\n{prefix}    Passphase: {us['passphrase']}"
+                s += f"\n{prefix}    Token Expiry name: {us['tokenExpiryName']}"
+                s += f"\n{prefix}    Use IP Address?: {repr(us['useIPAddress'])}"
+                if 'ipAddressName' in us:
+                    s += f"\n{prefix}    IP Address name: {us['ipAddressName']}"
             dists += [s]
         return '\n'.join(dists)
 
