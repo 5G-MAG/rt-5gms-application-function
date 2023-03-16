@@ -33,7 +33,7 @@
 This module defines some classes that can be used by the `M1Session` class to provide certificate signing services.
 
 '''
-from typing import Optional
+from typing import Optional, Tuple
 
 import OpenSSL
 
@@ -79,15 +79,29 @@ class LocalCACertificateSigner(CertificateSigner):
     '''
 
     def __init__(self, *args, data_store: Optional[DataStore] = None, local_ca_days: int = 365, temp_ca_days: int = 1, local_cert_days: int = 30, **kwargs):
+        '''Constructor
+
+        Create a CertificateSigner that uses a locally generated CA to sign certificates.
+
+        :param DataStore data_store: The DataStore to use to persist the CA key and certificate.
+        :param int local_ca_days: The number of days before expiry of the local CA in the data store.
+        :param int temp_ca_days: The number of days for the local CA if no DataStore is provided for persistence.
+        :param int local_cert_days: The number of days before expiry of signed certificates.
+        '''
         super().__init__(self, data_store=data_store)
-        self.__ca_key = None
-        self.__ca = None
-        self.__local_ca_days = local_ca_days
-        self.__temp_ca_days = temp_ca_days
-        self.__local_cert_days = local_cert_days
+        self.__ca_key: Optional[OpenSSL.crypto.PKey] = None
+        self.__ca: Optional[OpenSSL.crypto.X509] = None
+        self.__local_ca_days: int = local_ca_days
+        self.__temp_ca_days: int = temp_ca_days
+        self.__local_cert_days: int = local_cert_days
 
     async def signCertificate(self, csr: str, *args, domain_name_alias: Optional[str] = None, **kwargs) -> str:
         '''Sign a CSR in PEM format and return the public X509 Certificate in PEM format
+
+        This will generate a public certificate from the *csr*, which is signed by the locally generated CA.
+        The certificate will have subjectAltNames defined for the SANs in the *csr*, the commonName and optionally the
+        *domain_name_alias*. The certificate will expire in the number of days indicated by the *local_cert_days* parameter
+        when an instance of this class was created.
 
         :param str csr: A CSR in PEM format.
         :param str domain_name_alias: Optional domain name to add to the subjectAltNames in the final certificate.
@@ -126,7 +140,21 @@ class LocalCACertificateSigner(CertificateSigner):
         x509.sign(ca_key, "sha256")
         return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, x509).decode('utf-8')
 
-    async def __makeCACert(self, key: OpenSSL.crypto.PKey, cn: str, days: int = 365):
+    async def __makeCACert(self, key: OpenSSL.crypto.PKey, cn: str, days: int = 365) -> OpenSSL.crypto.X509:
+        '''Make a CA certificate
+
+        The CA certificate will use the provided *key* for its public key (if a private key is provided the pubilc key will be
+        extracted). The *cn* parameter defines the common name for the CA certificate. The *days* parameter is used to set the
+        expiry date on the CA certificate.
+
+        :meta private:
+        :param OpenSSL.crypto.PKey key: A public or private key to use for the public key of the CA certificate.
+        :param str cn: The commonName for the certificate subject and issuer.
+        :param int days: The number of days the CA certificate will be valid for.
+
+        :return: a self signed X509 CA certificate.
+        :rtype: OpenSSL.crypto.X509
+        '''
         ca = OpenSSL.crypto.X509()
         ca_name = ca.get_subject()
         # TODO: Get these values from configured values
@@ -146,7 +174,15 @@ class LocalCACertificateSigner(CertificateSigner):
         ca.sign(key, 'sha256')
         return ca
 
-    async def __getLocalCA(self):
+    async def __getLocalCA(self) -> Tuple[OpenSSL.crypto.PKey, OpenSSL.crypto.X509]:
+        '''Get the locally generated CA
+
+        This will create the locally generated CA if it doesn't already exist.
+
+        :meta private:
+        :return: the CA key and CA public certificate.
+        :rtype: Tuple[OpenSSL.crypto.PKey, OpenSSL.crypto.X509]
+        '''
         if self.__ca_key is None or self.__ca is None:
             if self.data_store:
                 ca_key_pem = await self.data_store.get('ca-private')
@@ -169,10 +205,10 @@ class LocalCACertificateSigner(CertificateSigner):
 
         return self.__ca_key, self.__ca
 
-DefaultCertificateSigner = LocalCACertificateSigner
+DefaultCertificateSigner = LocalCACertificateSigner #: The default CertificateSigner
 
 __all__ = [
-        "M1Error",
-        "M1ClientError",
-        "M1ServerError",
+        "CertificateSigner",
+        "LocalCACertificateSigner",
+        "DefaultCertificateSigner",
         ]

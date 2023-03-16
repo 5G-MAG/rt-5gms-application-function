@@ -33,6 +33,7 @@ The JSONFileDataStore class is an implementation that stores the data being
 represented in JSON notation as a set of files.
 '''
 import aiofiles
+import aiofiles.os
 import json
 import logging
 import os
@@ -42,13 +43,46 @@ from typing import Any
 class DataStore:
     '''DataStore base class
     '''
+    def __await__(self):
+        '''Implement ``await`` on object creation
+
+        This allows derived `DataStore` objects to perform asynchronous tasks on object instantiation.
+
+        For example::
+          data_store = await DataStore()
+
+        This will await the `asyncInit()` method of this object.
+        '''
+        return self.asyncInit().__await__()
+
+    async def asyncInit(self):
+        '''Asynchronous DataStore initialisation
+
+        Implementations should override this method to perform any object initialisation requiring asynchronous operations.
+
+        This must always return *self*.
+
+        :return: self
+        '''
+        return self
+
     async def get(self, key: str, default: Any = None) -> Any:
         '''Get a persisted value by key name
+
+        :param str key: The key name to retrieve the `DataStore` value for.
+        :param default: The default value to return if the key does not exist in the `DataStore`.
+
+        :return: The value of the retrieved key or the *default* value.
         '''
         raise NotImplementedError('DataStore implementation should override this method')
 
     async def set(self, key: str, value: Any) -> bool:
         '''Store a persisted value using the key name
+
+        :param str key: The key name to set a value for.
+        :param value: The value to set.
+
+        :return: ``True`` if the value was set in the `DataStore` or ``False`` if there was a failure.
         '''
         raise NotImplementedError('DataStore implementation should override this method')
 
@@ -59,25 +93,22 @@ class JSONFileDataStore(DataStore):
     '''
     def __init__(self, data_store_dir: str):
         self.__dir = data_store_dir
-        if not os.path.exists(self.__dir):
-            os.makedirs(self.__dir)
-        if not os.path.isdir(self.__dir):
+
+    async def asyncInit(self):
+        if not await aiofiles.os.path.exists(self.__dir):
+            await aiofiles.os.makedirs(self.__dir)
+        if not await aiofiles.os.path.isdir(self.__dir):
             raise RuntimeError(f'{self.__dir} is not a directory')
-
-    def __await__(self):
-        return self.__self().__await__()
-
-    async def __self(self):
         return self
 
     async def get(self, key: str, default: Any = None) -> Any:
         '''Get a persisted value by key name
         '''
         json_file = os.path.join(self.__dir, f'{key}.json')
-        if not os.path.exists(json_file) or not os.path.isfile(json_file):
+        if not await aiofiles.os.path.exists(json_file) or not await aiofiles.os.path.isfile(json_file):
             return default
-        with open(json_file, 'r') as json_in:
-            val = json.load(json_in)
+        async with aiofiles.open(json_file, mode='r') as json_in:
+            val = json.loads(await json_in.read())
         return val
 
     async def set(self, key: str, value: Any) -> bool:

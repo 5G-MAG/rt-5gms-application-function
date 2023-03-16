@@ -77,6 +77,8 @@ class ServerCertificateSigningRequestResponse(TagAndDateResponse, total=False):
     CertificateSigningRequestPEM: str
 
 class ContentProtocolsResponse(TagAndDateResponse, total=False):
+    '''Response containing a ContentProtocols object
+    '''
     ProvisioningSessionId: ResourceId
     ContentProtocols: ContentProtocols
 
@@ -88,8 +90,8 @@ class M1Client:
         '''
         Constructor
 
-        host_address (tuple(str,int)) - 5GMS Application Function to connect to as a tuple of
-                                        hostname/ip-addr and TCP port number.
+        :param Tuple[str,int] host_address: 5GMS Application Function to connect to as a tuple of hostname/ip-addr and TCP port
+                                            number.
         '''
         self.__host_address = host_address
         self.__connection = None
@@ -104,19 +106,15 @@ class M1Client:
         '''
         Create a provisioning session on the 5GMS Application Function
 
-        Parameters:
-        provisioning_session_type (ProvisioningSessionType)
-                The provisioning session type to create.
-        external_application_id (str)
-                The application ID of the external application requesting the new provisioning
-                session.
-        asp_id (optional str)
-                The Application Server Provider ID.
+        :param ProvisioningSessionType provisioning_session_type: The provisioning session type.
+        :param str external_application_id: The application ID of the external application requesting the new provisioning
+                                            session.
+        :param Optional[str] asp_id: The Application Server Provider ID.
 
-        Returns the ResourceId of the allocated provisioning session or None if there was an error.
+        :return: the ResourceId of the allocated provisioning session or None if there was an error.
 
-        Throws M1ClientError if there was a problem with the request and M1ServerError if there was
-        a server side issue preventing the creation of the provisioning session.
+        :raises M1ClientError: if there was a problem with the request
+        :raises M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         self.__debug('M1Client.createProvisioningSession(%r, %r, asp_id=%r)',
                      provisioning_session_type, external_application_id, asp_id)
@@ -143,14 +141,13 @@ class M1Client:
         '''
         Get a provisioning session from the 5GMS Application Function
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to find.
+        :param ResourceId provisioning_session_id: The provisioning session to find.
 
-        Returns a ProvisioningSession structure if the provisioning session was found, or None if
-        the provisioning session was not found.
+        :return: a ProvisioningSessionResponse structure if the provisioning session was found, or None if the provisioning
+                 session was not found.
 
-        Throws M1ClientError if there was a problem with the request and M1ServerError if there was
-        a server side issue preventing the creation of the provisioning session.
+        :raises M1ClientError: if there was a problem with the request
+        :raises M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('GET',
                                          '/provisioning-sessions/' + provisioning_session_id, '',
@@ -171,13 +168,12 @@ class M1Client:
         '''
         Destroy a provisioning session on the 5GMS Application Function
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to find.
+        :param ResourceId provisioning_session_id: The provisioning session to find.
 
-        Returns True if a provisioning session was deleted or False if there was no action.
+        :return: True if a provisioning session was deleted or False if there was no action.
 
-        Throws M1ClientError if there was a problem with the request and M1ServerError if there was
-        a server side issue preventing the creation of the provisioning session.
+        :raise M1ClientError: if there was a problem with the request
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('DELETE',
                                          '/provisioning-sessions/' + provisioning_session_id, '',
@@ -195,10 +191,14 @@ class M1Client:
         '''
         Create a content hosting configuration for a provisioning session
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to create the content hosting configuration in.
-        content_hosting_configuration (ContentHostingConfiguration)
-            The content hosting configuration template to use.
+        :param ResourceId provisioning_session_id: The provisioning session to create the content hosting configuration in.
+        :param ContentHostingConfiguration content_hosting_configuration: The content hosting configuration template to use.
+
+        :return: True if the ContentHostingConfiguration was accepted but the response was empty, False if the
+                 ContentHostingConfiguration was not accepted or a ContentHostingConfigurationResponse if the
+                 ContentHostingConfiguration was accepted and the AF updated version returned.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('POST',
                     f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
@@ -224,12 +224,15 @@ class M1Client:
         '''
         Fetch the content hosting configuration for a provisioning session
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to fetch the current content hosting configuration for.
+        :param ResourceId provisioning_session_id: The provisioning session to fetch the current content hosting configuration
+                                                   for.
 
-        Returns None if the provisioning session does not exist, also returns None if the
-                provisioning session exists but does not have a content hosting configuration,
-                otherwise returns the content hosting configuration and metadata.
+        :return: None if the provisioning session does not exist, also returns None if the
+                 provisioning session exists but does not have a content hosting configuration,
+                 otherwise returns a ContentHostingConfigurationResponse.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('GET',
                     f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
@@ -252,14 +255,16 @@ class M1Client:
         '''
         Update a content hosting configuration for a provisioning session
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to update the current content hosting configuration for.
-        content_hosting_configuration (ContentHostingConfiguration)
-            The new content hosting configuration to apply.
+        :param ResourceId provisioning_session_id: The provisioning session to update the current content hosting configuration
+                                                   for.
+        :param ContentHostingConfiguration content_hosting_configuration: The new content hosting configuration to apply.
 
-        Returns the content hosting configuration and metadata if the update succeeded and the new
-                content hosting configuration was returned, or True if the update succeeded but no
-                content hosting configuration was returned, or False if the update failed.
+        :return: a ContentHostingConfigurationResponse if the update succeeded and the new ContentHostingConfiguration was
+                 returned by the M1 Server, or True if the update succeeded but no ContentHostingConfiguration was returned,
+                 or False if the update failed.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('PUT',
                     f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
@@ -285,14 +290,16 @@ class M1Client:
         '''
         Patch a content hosting configuration for a provisioning session using a JSON patch
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to update the current content hosting configuration for.
-        patch (str)
-            The patch information in JSON patch format.
+        :param ResourceId provisioning_session_id: The provisioning session to update the current content hosting configuration
+                                                   for.
+        :param str patch: The patch information in JSON patch format.
 
-        Returns the content hosting configuration and metadata if the patch succeeded and the new
-                content hosting configuration was returned, or True if the patch succeeded but no
-                content hosting configuration was returned, or False if the patch failed.
+        :return: a `ContentHostingConfigurationResponse` if the patch succeeded and the new ContentHostingConfiguration was
+                 returned, or True if the patch succeeded but no ContentHostingConfiguration was returned, or False if the
+                 patch failed.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('PATCH',
                     f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
@@ -318,11 +325,12 @@ class M1Client:
         '''
         Delete a content hosting configuration for a provisioning session
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to remove the content hosting configuration for.
+        :param ResourceId provisioning_session_id: The provisioning session to remove the content hosting configuration for.
 
-        Return True if the content hosting configuration was deleted or False if the content hosting
-               configuration did not exist.
+        :return: True if the ContentHostingConfiguration was deleted or False if the ContentHostingConfiguration did not exist.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('DELETE',
                     f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
@@ -339,12 +347,12 @@ class M1Client:
         '''
         Purge cache entries for a provisioning session
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to purge cache entries for.
-        filter_regex (str)
-            Optional regular expression to match the cache entries origin URL path.
+        :param ResourceId provisioning_session_id: The provisioning session to purge cache entries for.
+        :param Optional[str] filter_regex: Optional regular expression to match the cache entries origin URL path.
 
-        Return the number of purged entries, or None if no purge took place.
+        :return: the number of purged entries, or None if no purge took place.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         body = ''
         if filter_regex is not None:
@@ -364,20 +372,18 @@ class M1Client:
     async def createOrReserveServerCertificate(self, provisioning_session_id: ResourceId, csr=False) -> Optional[ServerCertificateSigningRequestResponse]:
         '''Create or reserve a server certificate for a provisioing session
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to create the new certificate entry in.
-        csr (bool)
-            Whether to reserve a certificate and return the CSR PEM data.
+        :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
+        :param bool csr: Whether to reserve a certificate and return the CSR PEM data.
 
-        If csr is True then this will reserve the certificate and request the
-        CSR PEM data be returned along side the Id of the newly reserved
-        certificate.
+        If *csr* is ``True`` then this will reserve the certificate and request the CSR PEM data be returned along side the Id
+        of the newly reserved certificate.
 
-        If csr is False or not provided then create a new certificate and just
-        return the new certificate Id.
+        If *csr* is ``False`` or not provided then create a new certificate and just return the new certificate Id.
 
-        Return a tuple containing the new certificate Id and an optional CSR
-               PEM data string.
+        :return: a `ServerCertificateSigningRequestResponse` containing the certificate id and metadata optionally with CSR PEM
+                 data if *csr* was ``True``.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
 
         url = f'/provisioning-sessions/{provisioning_session_id}/certificates'
@@ -402,10 +408,11 @@ class M1Client:
     async def createServerCertificate(self, provisioning_session_id: ResourceId) -> ServerCertificateResponse:
         '''Create a new certificate for a provisioning session
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to create the new certificate entry in.
+        :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
 
-        Returns the certificate Id of the newly created certificate.
+        :return: a ServerCertificateResponse for the newly created certificate.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.createOrReserveServerCertificate(provisioning_session_id, csr=False)
         return result
@@ -413,10 +420,12 @@ class M1Client:
     async def reserveServerCertificate(self, provisioning_session_id: ResourceId) -> ServerCertificateSigningRequestResponse:
         '''Reserve a certificate for a provisioning session and get the CSR PEM
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to create the new certificate entry in.
+        :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
 
-        Returns a CSR as a PEM string plus metadata for the reserved certificate.
+        :return: a `ServerCertificateSigningRequestResponse` containing the CSR as a PEM string plus metadata for the reserved
+                 certificate.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.createOrReserveServerCertificate(provisioning_session_id, csr=True)
         if result is None or 'CertificateSigningRequestPEM' not in result:
@@ -426,16 +435,13 @@ class M1Client:
     async def uploadServerCertificate(self, provisioning_session_id: ResourceId, certificate_id: ResourceId, pem_data: str) -> bool:
         '''Upload the signed public certificate for a reserved certificate
 
-        provisioning_session_id (ResourceId)
-            The provisioning session the certificate was reserved for.
-        certificate_id (ResourceId)
-            The certificate Id of the reserved certificate.
-        pem_data (str)
-            A string containing the PEM data for the public certificate to
-            upload.
+        :param ResourceId provisioning_session_id: The provisioning session the certificate was reserved for.
+        :param ResourceId certificate_id: The certificate Id of the reserved certificate.
+        :param str pem_data: A string containing the PEM data for the public certificate to upload.
 
-        Returns True if successful or False if the certificate has already been
-                uploaded.
+        :return: ``True`` if successful or ``False`` if the certificate has already been uploaded.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('PUT',
               f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
@@ -448,15 +454,14 @@ class M1Client:
     async def retrieveServerCertificate(self, provisioning_session_id: ResourceId, certificate_id: ResourceId) -> Optional[ServerCertificateResponse]:
         '''Retrieve the public certificate for a given certificate Id
 
-        provisioning_session_id (ResourceId)
-            The provisioning session for the certificate.
-        certificate_id (ResourceId)
-            The certificate Id of the certificate.
+        :param ResourceId provisioning_session_id: The provisioning session for the certificate.
+        :param ResourceId certificate_id: The certificate Id of the certificate.
 
-        Returns the PEM data for the public certificate and its metadata or
-                None if the certificate is reserved and awaiting upload.
+        :return: a ServerCertificateResponse containing the PEM data for the public certificate and its metadata or ``None``
+                 if the certificate is reserved and awaiting upload.
 
-        Raises M1ClientError with status_code 404 if the certificate is not found.
+        :raise M1ClientError: if there was a problem with the request or the certificate was not found.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('GET',
               f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
@@ -477,12 +482,12 @@ class M1Client:
     async def destroyServerCertificate(self, provisioning_session_id: ResourceId, certificate_id: ResourceId) -> bool:
         '''Delete a certificate.
 
-        provisioning_session_id (ResourceId)
-            The provisioning session for the certificate.
-        certificate_id (ResourceId)
-            The certificate Id of the certificate.
+        :param ResourceId provisioning_session_id: The provisioning session for the certificate.
+        :param ResourceId certificate_id: The certificate Id of the certificate.
 
-        Returns True if the certificate has been deleted.
+        :return: ``True`` if the certificate has been deleted.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('DELETE',
               f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
@@ -496,10 +501,12 @@ class M1Client:
     async def retrieveContentProtocols(self, provisioning_session_id: ResourceId) -> Optional[ContentProtocolsResponse]:
         '''Get the ContentProtocols information for the provisioning session
 
-        provisioning_session_id (ResourceId)
-            The provisioning session to get the ContentProtocols for.
+        :param ResourceId provisioning_session_id: The provisioning session to get the ContentProtocols for.
 
-        Returns a ContentProtocols structure and metadata.
+        :return: a `ContentProtocolsResponse` containing the ContentProtocols structure and metadata or None if the
+                 provisioning session was not found.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('GET',
                 f'/provisioning-sessions/{provisioning_session_id}/protocols',
@@ -558,6 +565,16 @@ class M1Client:
     async def __do_request(self, method: str, url_suffix: str, body: Union[str,bytes],
                            content_type: str, headers: Optional[dict] = None) -> Dict[str,Any]:
         '''Send a request to the 5GMS Application Function
+
+        :meta private:
+        :param str method: The HTTP method for the request.
+        :param str url_suffix: The URL path suffix for the request after the protocol and version identifiers.
+        :param Union[str,bytes] body: The body of the request as a `str` or `bytes`.
+        :param str content_type: The content type to use in the ``Content-Type`` header of the request.
+        :param Optional[dict] headers: Extra headers to go along with the request.
+        :return: a `dict` with 3 entries ``status_code``, ``body`` and ``headers`` representing the HTTP response status code,
+                 the response message body and the response headers.
+        :raise M1ServerError: if communication with the AF failed.
         '''
         # pylint: disable=too-many-arguments
         if isinstance(body, str):
@@ -578,6 +595,14 @@ class M1Client:
 
     def __default_response(self, result: Dict[str,Any]) -> None:
         '''Handle default actions for all responses from the 5GMS Application Function
+
+        This will raise exceptions for 4XX and 5XX response codes.
+
+        :meta private:
+        :param Dict[str,Any] result: The result as returned by `__do_request`.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         if result['status_code'] >= 400 and result['status_code'] < 500:
             raise M1ClientError(reason='M1 operation failed: '+str(result['body']),
@@ -588,6 +613,14 @@ class M1Client:
 
     @staticmethod
     def __tag_and_date(result: Dict[str,Any]) -> TagAndDateResponse:
+        '''Get the response message standard metadata
+
+        This will extract metadata from ``ETag``, ``Last-Modified`` and ``Cache-Control`` headers.
+
+        :param Dict[str,Any] result: The result as returned by `__do_request`.
+
+        :return: the base TagAndDateResponse structure for all response messages.
+        '''
         # Get ETag
         ret = {'ETag': result['headers'].get('etag')}
         # Get Last-Modified as a datetime.datetime
@@ -623,7 +656,13 @@ class M1Client:
         ret['Cache-Until'] = cc
         return ret
 
-    def __debug(self, *args, **kwargs):
+    def __debug(self, *args, **kwargs) -> None:
+        '''Output a debug message
+
+        :meta private:
+        :param args: Positional arguments to pass to `logger.debug()`.
+        :param kwargs: Keyword arguments to pass to `logger.debug()`.
+        '''
         self.__log.debug(*args, **kwargs)
 
 __all__ = [
