@@ -43,16 +43,9 @@ void msaf_m5_state_final(ogs_fsm_t *s, msaf_event_t *e)
 
 void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 {
-    int rv;
-
     ogs_sbi_stream_t *stream = NULL;
     ogs_sbi_request_t *request = NULL;
-
-    ogs_sbi_nf_instance_t *nf_instance = NULL;
-    ogs_sbi_subscription_data_t *subscription_data = NULL;
-    ogs_sbi_response_t *response = NULL;
     ogs_sbi_message_t message;
-    ogs_sbi_xact_t *sbi_xact = NULL;
 
     msaf_sm_debug(e);
 
@@ -83,15 +76,11 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             CASE("3gpp-m5")
                 if (strcmp(message.h.api.version, "v2") != 0) {
                     char *error;
-                    ogs_error("Not supported version [%s]", message.h.api.version);
-
                     error = ogs_msprintf("Version [%s] not supported", message.h.api.version);
-
+                    ogs_error("%s", error);
                     ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, NULL, "Not supported version", error, NULL, NULL, app_meta));
 
                     ogs_sbi_message_free(&message);
-                    ogs_free(error);
-
                     break;
                 }
                 SWITCH(message.h.resource.component[0])
@@ -105,9 +94,8 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         if(msaf_provisioning_session == NULL) {
                             char *err = NULL;
                             asprintf(&err,"Provisioning Session [%s] not found.", message.h.resource.component[1]);
-                            ogs_error("Client requested invalid Provisioning Session [%s]", message.h.resource.component[1]);
+                            ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Provisioning Session not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
-
                         } else if (msaf_provisioning_session->serviceAccessInformation) {
                             service_access_information = msaf_context_retrieve_service_access_information(message.h.resource.component[1]);
                             if (service_access_information != NULL) {
@@ -122,39 +110,36 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             } else {
                                 char *err = NULL;
                                 asprintf(&err,"Service Access Information for the Provisioning Session [%s] not found.", message.h.resource.component[1]);
-                                ogs_error("Client requested invalid Service Access Information for the Provisioning Session [%s]", message.h.resource.component[1]);
+                                ogs_error("%s", err);
 
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Service Access Information not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
-
-
                             }
                         } else {
                             char *err = NULL;
                             asprintf(&err,"Provisioning Session [%s] has no Service Access Information associated with it.", message.h.resource.component[1]);
-                            ogs_error("Provisioning Session [%s] has no Service Access Information associated with it", message.h.resource.component[1]);
+                            ogs_error("%s", err);
 
                             ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Service Access Information not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
-
                         }
                         break;
                     DEFAULT
                         ogs_error("Invalid HTTP method [%s]", message.h.method);
 
-                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, &message, "Invalid HTTP method.", message.h.method, NULL, NULL, app_meta));
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, &message, "Invalid HTTP method.", ogs_strdup(message.h.method), NULL, NULL, app_meta));
 
                     END
                     break;
                 DEFAULT
                     ogs_error("Invalid resource name [%s]",
                             message.h.resource.component[0]);
-                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, &message, "Invalid resource name.", message.h.resource.component[0], NULL, NULL, app_meta));
+                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, &message, "Invalid resource name.", ogs_strdup(message.h.resource.component[0]), NULL, NULL, app_meta));
 
                 END
                 ogs_sbi_message_free(&message);
                 break;
             DEFAULT
                 ogs_error("Invalid API name [%s]", message.h.service.name);
-                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, &message, "Invalid API name.",  message.h.service.name, NULL, NULL, app_meta));
+                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, &message, "Invalid API name.", ogs_strdup(message.h.service.name), NULL, NULL, app_meta));
 
             END
             break;

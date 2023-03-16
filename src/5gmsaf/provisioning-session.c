@@ -128,7 +128,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 
         provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
         for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {
-            ogs_debug("msaf_provisioning_session_get_json: Add cert %s", ogs_hash_this_key(cert_node));
+            ogs_debug("msaf_provisioning_session_get_json: Add cert %s", (const char *)ogs_hash_this_key(cert_node));
             OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
         }
 

@@ -41,20 +41,13 @@ void msaf_maf_mgmt_state_final(ogs_fsm_t *s, msaf_event_t *e)
 
 void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 {
-    int rv;
-
     ogs_sbi_stream_t *stream = NULL;
     ogs_sbi_request_t *request = NULL;
-
-    ogs_sbi_nf_instance_t *nf_instance = NULL;
-    ogs_sbi_subscription_data_t *subscription_data = NULL;
-    ogs_sbi_response_t *response = NULL;
     ogs_sbi_message_t message;
-    ogs_sbi_xact_t *sbi_xact = NULL;
 
     msaf_sm_debug(e);
 
-    if (!msaf_self()->server_name) msaf_context_server_name_set();
+    if (!msaf_self()->server_name[0]) msaf_context_server_name_set();
     char *nf_name = ogs_msprintf("5GMSdAF-%s", msaf_self()->server_name);
     const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
     const nf_server_interface_metadata_t *maf_management_api = &maf_mgmt_api_metadata;
@@ -84,7 +77,7 @@ void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
          
             DEFAULT
                 ogs_error("Resource [%s] not found.", message.h.service.name);
-                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, &message, "Not Found.",  message.h.service.name, NULL, maf_management_api, app_meta));
+                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, &message, "Not Found.", ogs_strdup(message.h.service.name), NULL, maf_management_api, app_meta));
 
             END
             break;

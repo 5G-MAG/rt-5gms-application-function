@@ -84,12 +84,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     ogs_sbi_stream_t *stream = NULL;
     ogs_sbi_request_t *request = NULL;
-
-    ogs_sbi_nf_instance_t *nf_instance = NULL;
-    ogs_sbi_subscription_data_t *subscription_data = NULL;
     ogs_sbi_response_t *response = NULL;
     ogs_sbi_message_t message;
-    ogs_sbi_xact_t *sbi_xact = NULL;
 
     msaf_sm_debug(e);
 
@@ -125,14 +121,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             CASE("3gpp-m1")
                 if (strcmp(message.h.api.version, "v2") != 0) {
                     char *error;
-                    ogs_error("Not supported version [%s]", message.h.api.version);
-
                     error = ogs_msprintf("Version [%s] not supported", message.h.api.version);
-
+                    ogs_error("%s", error);
                     ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, NULL, "Not supported version", error, NULL, NULL, app_meta));
 
                     ogs_sbi_message_free(&message);
-                    ogs_free(error);
                     break;
                 }
                 SWITCH(message.h.resource.component[0])
@@ -151,10 +144,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_CONTENT_TYPE)) {
                                         if (ogs_strcasecmp(ogs_hash_this_val(hi), "application/x-www-form-urlencoded")) {
                                             char *err = NULL;
-                                            char *type = NULL;
-                                            type = (char *)ogs_hash_this_val(hi);
-                                            ogs_error("Unsupported Media Type: received type: %s, should have been application/x-www-form-urlencoded", type);
+                                            const char *type;
+                                            type = (const char *)ogs_hash_this_val(hi);
                                             asprintf(&err, "Unsupported Media Type: received type: %s, should have been application/x-www-form-urlencoded", type);
+                                            ogs_error("%s", err);
 
                                             ogs_assert(true == nf_server_send_error(stream, 415, 3, &message, "Unsupported Media Type.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                             ogs_sbi_message_free(&message);
@@ -194,16 +187,16 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                                     ogs_list_add(&as_state->purge_content_hosting_cache, purge_cache);
                                                 } else {
-                                                    ogs_error("Provisioning Session [%s] is not assigned to an Application Server", message.h.resource.component[1]);
                                                     char *err = NULL;
                                                     asprintf(&err,"Provisioning Session [%s] is not assigned to an Application Server", message.h.resource.component[1]);
+                                                    ogs_error("%s", err);
                                                     ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Provisioning session is not assigned to an Application Server.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                                 }
                                             }
                                         } else {
-                                            ogs_error("Provisioning Session [%s]: Unable to get information about Application Server", message.h.resource.component[1]);
                                             char *err = NULL;
                                             asprintf(&err,"Provisioning Session [%s] : Unable to get information about Application Server", message.h.resource.component[1]);
+                                            ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Unable to get information about Application Server", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                         }
 
@@ -219,12 +212,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                     }
                                 } else {
-                                    ogs_error("Unable to retrieve the Provisioning Session [%s]", message.h.resource.component[1]);
                                     char *err = NULL;
                                     asprintf(&err,"Provisioning session [%s] does not exist.", message.h.resource.component[1]);
-                                    ogs_error("Provisioning session [%s] does not exist.", message.h.resource.component[1]);
+                                    ogs_error("%s", err);
                                     ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-
                                 }
 
                             }
@@ -248,10 +239,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             if(!uri_relative_check(entry->valuestring)) {
                                                 char *err = NULL;
                                                 asprintf(&err,"While creating the Content Hosting Configuration for the Provisioning Session [%s], entryPointPath does not match the regular expression [%s].",message.h.resource.component[1], entry->valuestring );
-                                                ogs_error("While creating the Content Hosting Configuration for the Provisioning Session [%s], entryPointPath does not match the regular expression [%s].",message.h.resource.component[1], entry->valuestring);
-
+                                                ogs_error("%s", err);
                                                 ogs_assert(true == nf_server_send_error(stream, 422, 2, &message, "Entry Point Path does not match the regular expression.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-
                                                 cJSON_Delete(content_hosting_config);
                                                 break;
                                             }
@@ -288,32 +277,28 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 cJSON_Delete(content_hosting_config);
                                             } else {
                                                 char *err = NULL;
-                                                ogs_error("Unable to retrieve the Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
                                                 asprintf(&err,"Unable to retrieve the Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
+                                                ogs_error("%s", err);
                                                 ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Unable to retrieve the Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                             }
                                         } else {
                                             char *err = NULL;
-                                            ogs_error("Verification error on Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
                                             asprintf(&err,"Verification error on Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
+                                            ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 400, 2, &message, "Bad Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                         }
                                     } else {
                                         char *err = NULL;
-
-                                        ogs_error("Failed to populate Content Hosting Configuration for the Provisioning Session [%s].", message.h.resource.component[1]);
                                         asprintf(&err,"Creation of the Content Hosting Configuration failed for the Provisioning Session [%s]", message.h.resource.component[1]);
+                                        ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 500, 2, &message, "Creation of the Content Hosting Configuration failed.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     }
 
                                 } else {
                                     char *err = NULL;
                                     asprintf(&err,"Provisioning session [%s]does not exist.", message.h.resource.component[1]);
-                                    ogs_error("Provisioning session [%s] does not exist.", message.h.resource.component[1]);
-
+                                    ogs_error("%s",err);
                                     ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-
-
                                 }
 
                             }
@@ -406,8 +391,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 } else {
                                     char *err = NULL;
                                     asprintf(&err,"Provisioning session [%s] does not exists.", message.h.resource.component[1]);
-                                    ogs_error("Provisioning session [%s] does not exists.", message.h.resource.component[1]);
-
+                                    ogs_error("%s", err);
                                     ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Provisioning session does not exists.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                 }
                             }
@@ -416,15 +400,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
                             if(msaf_provisioning_session) {
-                                ogs_error("Method [%s] not allowed for [%s]", message.h.method, message.h.resource.component[1]);
                                 char *err = NULL;
                                 asprintf(&err,"Method [%s] not allowed for [%s].", message.h.method, message.h.resource.component[1]);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 405, 1, &message, "Method not allowed.", err, NULL, m1_provisioningsession_api, app_meta));
 
                             } else {
                                 char *err = NULL;
                                 asprintf(&err,"Provisioning session [%s] does not exist.", message.h.resource.component[1]);
-                                ogs_error("Provisioning session [%s] does not exist.", message.h.resource.component[1]);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Provisioning session does not exist.", err, NULL, m1_provisioningsession_api, app_meta));
                             }    
 
@@ -441,13 +425,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             if (!entry) {
                                 const char *err = "createProvisioningSession: \"provisioningSessionType\" is not present";
                                 ogs_error(err);
-                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", ogs_strdup(err), NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
                             if (!cJSON_IsString(entry)) {
                                 const char *err = "createProvisioningSession: \"provisioningSessionType\" is not a string";
                                 ogs_error(err);
-                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", ogs_strdup(err), NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
                             provisioning_session_type = entry->valuestring;
@@ -456,13 +440,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             if (!entry) {
                                 const char *err = "createProvisioningSession: \"externalApplicationId\" is not present";
                                 ogs_error(err);
-                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", ogs_strdup(err), NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
                             if (!cJSON_IsString(entry)) {
                                 const char *err = "createProvisioningSession: \"externalApplicationId\" is not a string";
                                 ogs_error(err);
-                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", ogs_strdup(err), NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
                             external_app_id = entry->valuestring;
@@ -472,7 +456,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 if (!cJSON_IsString(entry)) {
                                     const char *err = "createProvisioningSession: \"aspId\" is not a string";
                                     ogs_error(err);
-                                    ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 1, &message, "Creation of the Provisioning session failed.", ogs_strdup(err), NULL, m1_provisioningsession_api, app_meta));
                                     break;
                                 }
                                 asp_id = entry->valuestring;
@@ -499,10 +483,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 cJSON_Delete(provisioning_session);
                                 cJSON_Delete(prov_sess);
                             } else {
-                                char *err = NULL;
-                                asprintf(&err,"Creation of the Provisioning session failed.");
-                                ogs_error("Creation of the Provisioning session failed.");
-                                ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
+                                const char *err = "Creation of the Provisioning session failed.";
+                                ogs_error(err);
+                                ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Creation of the Provisioning session failed.", ogs_strdup(err), NULL, m1_provisioningsession_api, app_meta));
                             }
                         }
 
@@ -520,11 +503,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     provisioning_session_cert = ogs_hash_get(msaf_provisioning_session->certificate_map, message.h.resource.component[3], OGS_HASH_KEY_STRING);
                                     cert = server_cert_retrieve(message.h.resource.component[3]);
                                     if(!cert || !provisioning_session_cert) {
-                                        ogs_error("Certificate [%s] management problem", message.h.resource.component[3]);
                                         char *err = NULL;
                                         asprintf(&err,"Certificate [%s] management problem", message.h.resource.component[3]);
+                                        ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-                                        return;
+                                        break;
                                     }
 
                                     if(!cert->return_code) {
@@ -541,7 +524,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     } else if(cert->return_code == 4){
                                         char *err = NULL;
                                         asprintf(&err,"Certificate [%s] does not exists.", cert->id);
-                                        ogs_error("Certificate [%s] does not exists.", cert->id);
+                                        ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Certificate does not exists.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
 
                                     } else if(cert->return_code == 8){
@@ -553,7 +536,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     } else {
                                         char *err = NULL;
                                         asprintf(&err,"Certificate [%s] management problem.", cert->id);
-                                        ogs_error("Certificate [%s] management problem.", cert->id);
+                                        ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                     }
                                     msaf_certificate_free(cert);
@@ -561,7 +544,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 } else {
                                     char *err = NULL;
                                     asprintf(&err,"Provisioning session [%s] is not available.", message.h.resource.component[1]);
-                                    ogs_error("Provisioning session [%s] is not available.", message.h.resource.component[1]);
+                                    ogs_error("%s", err);
                                     ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exists.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                 }
                             }
@@ -585,19 +568,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         cJSON_Delete(chc);
                                     } else {
                                         char *err = NULL;
-                                        ogs_error("Provisioning Session [%s]: Unable to retrieve the Content Hosting Configuration", message.h.resource.component[1]);
                                         asprintf(&err,"Provisioning Session [%s]: Unable to retrieve the Content Hosting Configuration", message.h.resource.component[1]);
-
+                                        ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Unable to retrieve the Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     }
 
                                 } else {
                                     char *err = NULL;
                                     asprintf(&err,"Provisioning Session [%s] does not exist.", message.h.resource.component[1]);
-                                    ogs_error("Provisioning Session [%s] does not exist.", message.h.resource.component[1]);
+                                    ogs_error("%s", err);
 
                                     ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-
                                 }
 
                             } else if (!strcmp(message.h.resource.component[2],"protocols")) {
@@ -611,7 +592,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 } else {
                                     char *err = NULL;
                                     asprintf(&err,"Provisioning Session [%s] does not exist.", message.h.resource.component[1]);
-                                    ogs_error("Provisioning Session [%s] does not exist.", message.h.resource.component[1]);
+                                    ogs_error("%s", err);
                                     ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Provisioning session does not exist.", err, NULL, m1_contentprotocolsdiscovery_api, app_meta));
                                 }
                             }
@@ -638,7 +619,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             } else {
                                 char *err = NULL;
                                 asprintf(&err,"Provisioning Session [%s] is not available.", message.h.resource.component[1]);
-                                ogs_error("Provisioning Session [%s] is not available.", message.h.resource.component[1]);
+                                ogs_error("%s", err);
 
                                 ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Provisioning session does not exists.", err, NULL, m1_provisioningsession_api, app_meta));
                             }
@@ -667,10 +648,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             if(!uri_relative_check(entry->valuestring)) {
                                                 char *err = NULL;
                                                 asprintf(&err,"While updating the Content Hosting Configuration for the Provisioning Session [%s], Entry Point Path does not match the regular expression [%s].",message.h.resource.component[1], entry->valuestring );
-                                                ogs_error("While updating the Content Hosting Configuration for the provisioning Session [%s], Entry Point Path does not match the regular expression [%s].",message.h.resource.component[1], entry->valuestring);
+                                                ogs_error("%s", err);
 
                                                 ogs_assert(true == nf_server_send_error(stream, 422, 2, &message, "Entry Point Path does not match the regular expression.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-
                                                 cJSON_Delete(content_hosting_config);
                                                 break;
                                             }
@@ -704,12 +684,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                     } else {
                                         char *err = NULL;
-                                        ogs_error("Provisioning Session [%s]: Failed to update the Content Hosting Configuration.", message.h.resource.component[1]);
                                         asprintf(&err,"Provisioning Session [%s]: Update to Content Hosting Configuration failed.", message.h.resource.component[1]);
-                                        ogs_error("Update of the Content Hosting Configuration failed.");
-
+                                        ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Failed to update the contentHostingConfiguration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-
                                     }
                                 }
                                 if (message.h.resource.component[1] && !strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3]) {
@@ -726,10 +703,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_CONTENT_TYPE)) {
                                                 if (ogs_strcasecmp(ogs_hash_this_val(hi), "application/x-pem-file")) {
                                                     char *err = NULL;
-                                                    char *type = NULL;
-                                                    type = (char *)ogs_hash_this_val(hi);
-                                                    ogs_error("Unsupported Media Type: received type: %s, should have been application/x-pem-file", type);
+                                                    const char *type;
+                                                    type = ogs_hash_this_val(hi);
                                                     asprintf(&err, "Unsupported Media Type: received type: %s, should have been application/x-pem-file", type);
+                                                    ogs_error("%s", err);
 
                                                     ogs_assert(true == nf_server_send_error(stream, 415, 3, &message, "Unsupported Media Type.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                                     ogs_sbi_message_free(&message);
@@ -758,34 +735,32 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         } else if (rv == 3 &&  provisioning_session_cert ) {
 
                                             char *err = NULL;
-                                            ogs_error("A server certificate with id [%s] already exist", cert_id);
                                             asprintf(&err,"A server certificate with id [%s] already exist", cert_id);
+                                            ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 403, 3, &message, "A server certificate already exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
 
                                         } else if(rv == 4 || ! provisioning_session_cert) {
                                             char *err = NULL;
-                                            ogs_error("Server certificate with id [%s] does not exist", cert_id);
                                             asprintf(&err,"Server certificate with id [%s] does not exist", cert_id);
+                                            ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Server certificate does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
 
                                         } else if(rv == 5) {
                                             char *err = NULL;
-                                            ogs_error("CSR was never generated for this certificate Id [%s]", cert_id);
                                             asprintf(&err,"CSR was never generated for this certificate Id [%s]", cert_id);
+                                            ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 400, 3, &message, "CSR was never generated for the certificate.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                         } else if(rv == 6) {
                                             char *err = NULL;
-                                            ogs_error("The public certificate [%s] provided does not match the key", cert_id);
                                             asprintf(&err,"The public certificate [%s] provided does not match the key", cert_id);
+                                            ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 400, 3, &message, "The public certificate provided does not match the key.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                         } else {
                                             char *err = NULL;
-                                            ogs_error("There was a certificate management problem for the certificate id [%s]", cert_id);
                                             asprintf(&err,"There was a certificate management problem for the certificate id [%s].", cert_id);
+                                            ogs_error("%s", err);
 
                                             ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "There was a certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-
-
                                         }
                                         ogs_free(cert);
                                     }
@@ -795,16 +770,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             } else {
                                 char *err = NULL;
                                 asprintf(&err,"Provisioning Session [%s] does not exist.", message.h.resource.component[1]);
-                                ogs_error("Provisioning Session [%s] does not exist.", message.h.resource.component[1]);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-
                             }
 
 
                         } else {
                             char *err = NULL;
                             asprintf(&err,"[%s]: Resource not found.", message.h.method);
-                            ogs_error("[%s]: Resource not found.", message.h.method);
+                            ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Resource not found.", err, NULL, m1_provisioningsession_api, app_meta));
                         }
                         break;
@@ -828,14 +802,14 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 } else if (rv == 4 ) {
                                     char *err = NULL;
                                     asprintf(&err,"Certificate [%s] does not exist.", message.h.resource.component[3]);
-                                    ogs_error("Certificate [%s] does not exist.", message.h.resource.component[3]);
+                                    ogs_error("%s", err);
 
                                     ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Certificate does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
 
                                 } else {
                                     char *err = NULL;
                                     asprintf(&err,"Certificate management problem for certificate [%s].", message.h.resource.component[3]);
-                                    ogs_error("Certificate management problem.");
+                                    ogs_error("%s", err);
 
                                     ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                 }
@@ -843,11 +817,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             } else {
                                 char *err = NULL;
                                 asprintf(&err,"Provisioning Session [%s] does not exist.", message.h.resource.component[1]);
-                                ogs_error("Provisioning session  [%s] does not exist.", message.h.resource.component[1]);
+                                ogs_error("%s", err);
 
                                 ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-
-
                             }
                         } else if (message.h.resource.component[1] && message.h.resource.component[2]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
@@ -867,13 +839,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     } else {
                                         char *err = NULL;
                                         asprintf(&err,"Provisioning Session [%s] has no Content Hosting Configuration.", message.h.resource.component[1]);
-                                        ogs_error("Provisioning Session [%s] has no Content Hosting Configuration.", message.h.resource.component[1] );
+                                        ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Content Hosting Configuration does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     }
                                 } else {
                                     char *err = NULL;
                                     asprintf(&err,"Provisioning Session [%s] does not exists.", message.h.resource.component[1]);
-                                    ogs_error("Provisioning Session [%s] does not exists.", message.h.resource.component[1]);
+                                    ogs_error("%s", err);
                                     ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                 }
 
@@ -887,10 +859,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 char *err = NULL;
                                 asprintf(&err,"Provisioning session [%s] either not found or already marked for deletion.", message.h.resource.component[1]);
 
-                                ogs_error("Provisioning session [%s] either not found or already marked for deletion.",message.h.resource.component[1]);
+                                ogs_error("%s", err);
 
                                 ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Provisioning session either not found or already marked for deletion.", err, NULL, m1_provisioningsession_api, app_meta));
-
                             } else {
                                 provisioning_session->marked_for_deletion = 1;
                                 response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_provisioningsession_api, app_meta);
@@ -930,11 +901,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                                     msaf_certificate_free(cert);
                                                 } else {
-                                                    ogs_error("Certificate [%s] management problem", message.h.resource.component[3]);
                                                     char *err = NULL;
                                                     asprintf(&err,"Certificate [%s] management problem", message.h.resource.component[3]);
+                                                    ogs_error("%s", err);
                                                     ogs_assert(true == nf_server_send_error(stream, 500, 3, &message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-                                                    return;
+                                                    break;
                                                 }
                                             } else {
                                                 methods = ogs_msprintf("%s",OGS_SBI_HTTP_METHOD_POST);
@@ -954,7 +925,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         } else {
                                             char *err = NULL;
                                             asprintf(&err,"Method [%s]: Target [%s] not yet supported.", message.h.method, message.h.resource.component[2]);
-                                            ogs_error("Method [%s]: Target [%s] not yet supported.", message.h.method, message.h.resource.component[2]);
+                                            ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Target not yet supported.", err, NULL, NULL, app_meta));
                                         }
                                     } else {
@@ -999,9 +970,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         }
                                     }
                                     asprintf(&err,"Method [%s]: [%s] - Provisioning Session [%s] does not exist.", message.h.method, message.h.resource.component[2], message.h.resource.component[1]);
-                                    ogs_error("Method [%s]: [%s] - Provisioning Session [%s] does not exist.", message.h.method, message.h.resource.component[2], message.h.resource.component[1]);
+                                    ogs_error("%s", err);
                                     ogs_assert(true == nf_server_send_error(stream, 404, number_of_components, &message, "Provisioning Session does not exists.", err, NULL, interface, app_meta));
-
                                 }
 
                             } else {
@@ -1016,26 +986,22 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         } else {
                             char *err = NULL;
                             asprintf(&err,"Method [%s]: Target [%s] not yet supported.", message.h.method, message.h.resource.component[0]);
-                            ogs_error("Method [%s]: Target [%s] not yet supported.", message.h.method, message.h.resource.component[0]);
+                            ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, 404, 0, &message, "Target not yet supported.", err, NULL, m1_provisioningsession_api, app_meta));
-
                         }
                         break;
 
                     DEFAULT
                         ogs_error("Invalid HTTP method [%s]", message.h.method);
-                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 0, &message, "Invalid HTTP method.", message.h.method, NULL, NULL, app_meta));
-
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 0, &message, "Invalid HTTP method.", ogs_strdup(message.h.method), NULL, NULL, app_meta));
                     END
                     break;
 
                 DEFAULT
-                    char *err;
-                    ogs_error("Invalid resource name [%s]",
-                            message.h.resource.component[0]);
+                    char *err = NULL;
                     asprintf(&err,"Invalid resource name [%s]", message.h.resource.component[0]);
+                    ogs_error("%s", err);
                     ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Invalid resource name", err, NULL, NULL, app_meta));
-
                 END
                 ogs_sbi_message_free(&message);
                 break;
@@ -1043,14 +1009,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             CASE("5gmag-rt-management")
                 if (strcmp(message.h.api.version, "v1") != 0) {
                     char *error;
-                    ogs_error("Not supported version [%s]", message.h.api.version);
-
                     error = ogs_msprintf("Version [%s] not supported", message.h.api.version);
-
+                    ogs_error("%s", error);
                     ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, NULL, "Not supported version", error, NULL, maf_management_api, app_meta));    
                                 
                     ogs_sbi_message_free(&message);
-                    ogs_free(error);
                     break;
                 }              
                 SWITCH(message.h.resource.component[0])
@@ -1071,28 +1034,25 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     break;
                                 } else {
                                     ogs_error("Internal Server Error.");                                          
-                                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0, &message, "Internal Server Error.", message.h.method, NULL, maf_management_api, app_meta)); 
+                                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 0, &message, "Internal Server Error.", ogs_strdup(message.h.method), NULL, maf_management_api, app_meta)); 
                                 }
                             DEFAULT
                                 ogs_error("Invalid HTTP method [%s]", message.h.method);                                          
-                                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 0, &message, "Invalid HTTP method.", message.h.method, NULL, maf_management_api, app_meta));     
-    
+                                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 0, &message, "Invalid HTTP method.", ogs_strdup(message.h.method), NULL, maf_management_api, app_meta));
                         END
                         break;
 
                     DEFAULT
-                        char *err;
-                        ogs_error("Invalid resource name [%s]", message.h.resource.component[0]);
-                        asprintf(&err,"Invalid resource name [%s]", message.h.resource.component[0]);                            
-                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Invalid resource name", err, NULL, NULL, app_meta));  
-    
+                        char *err = NULL;
+                        asprintf(&err,"Invalid resource name [%s]", message.h.resource.component[0]);
+                        ogs_error("%s", err);
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Invalid resource name", err, NULL, NULL, app_meta));
                 END	
                 ogs_sbi_message_free(&message);		    
-                break;   
-           
+                break;
             DEFAULT
                 ogs_error("Invalid API name [%s]", message.h.service.name);
-                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, &message, "Invalid API name.",  message.h.service.name, NULL, NULL, app_meta));
+                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, &message, "Invalid API name.", ogs_strdup(message.h.service.name), NULL, NULL, app_meta));
 
             END
             break;
@@ -1154,10 +1114,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_CONTENT_TYPE)) {
                                                     if (ogs_strcasecmp(ogs_hash_this_val(hi), "application/json")) {
                                                         char *err = NULL;
-                                                        char *type = NULL;
-                                                        type = (char *)ogs_hash_this_val(hi);
-                                                        ogs_error("Unsupported Media Type: received type: %s, should have been application/x-www-form-urlencoded", type);
+                                                        const char *type;
+                                                        type = ogs_hash_this_val(hi);
                                                         asprintf(&err, "Unsupported Media Type: received type: %s, should have been application/x-www-form-urlencoded", type);
+                                                        ogs_error("%s", err);
 
                                                         ogs_assert(true == nf_server_send_error(stream, 415, 2, &message, "Provisioning session does not exist.", err, NULL, m3_contenthostingprovisioning_api, app_meta));
                                                         ogs_sbi_message_free(&message);
@@ -1282,7 +1242,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                         }
                                     }
-                                    ogs_free(error);
                                     cJSON_Delete(purge_cache_err);
 
                                 }
@@ -1440,7 +1399,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             break;
                         DEFAULT
                             ogs_error("Unknown M3 Content Hosting Configuration operation [%s]", message.h.resource.component[1]);
-                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Unknown M3 Content Hosting Configuration operation", message.h.resource.component[1], NULL, NULL, app_meta));
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Unknown M3 Content Hosting Configuration operation", ogs_strdup(message.h.resource.component[1]), NULL, NULL, app_meta));
                             break;
                         END
                         break;
@@ -1493,11 +1452,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             next_action_for_application_server(as_state);
                             break;
                         DEFAULT
-                            char *err;
-                            ogs_error("Unknown M3 Content Hosting Configuration operation [%s] with method [%s]", message.h.resource.component[1], message.h.method);
+                            char *err = NULL;
                             asprintf(&err, "Unknown M3 Content Hosting Configuration operation [%s] with method [%s]", message.h.resource.component[1], message.h.method);
+                            ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Unknown M3 Content Hosting Configuration operation", err, NULL, NULL, app_meta));
-
                             break;
                         END
                         break;
@@ -1668,7 +1626,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             break;
                         DEFAULT
                             ogs_error("Unknown M3 certificate operation [%s]", message.h.resource.component[1]);
-                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Unknown M3 certificate operation.", message.h.resource.component[1], NULL, NULL, app_meta));
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Unknown M3 certificate operation.", ogs_strdup(message.h.resource.component[1]), NULL, NULL, app_meta));
                             break;
                         END
                         break;
@@ -1724,11 +1682,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             next_action_for_application_server(as_state);
                             break;
                         DEFAULT
-                            char *err;
-                            ogs_error("Unknown M3 certificate operation [%s] with method [%s]", message.h.resource.component[1], message.h.method);
+                            char *err = NULL;
                             asprintf(&err, "Unsupported M3 Certificate operation [%s] with method [%s]", message.h.resource.component[1], message.h.method);
+                            ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Unknown M3 Certificate operation", err, NULL, NULL, app_meta));
-
                             break;
                         END
                         break;
@@ -1739,7 +1696,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                 DEFAULT
                     ogs_error("Unknown M3 operation [%s]", message.h.resource.component[0]);
-                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Unsupported M3 operation", message.h.resource.component[0], NULL, NULL, app_meta));
+                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, &message, "Unsupported M3 operation", ogs_strdup(message.h.resource.component[0]), NULL, NULL, app_meta));
                     break;
                 END
                 break;
