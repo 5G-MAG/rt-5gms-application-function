@@ -98,7 +98,7 @@ msaf_certificate_t *server_cert_retrieve(const char *certid)
     ogs_assert(ret == 0);
     ogs_free(current);
 
-    if(!out_return_code){
+    if(out_return_code == 0 || out_return_code == 4 || out_return_code == 8){
         msaf_certificate = msaf_certificate_populate(certid, cert, out_return_code);
         ogs_assert(msaf_certificate);
     }

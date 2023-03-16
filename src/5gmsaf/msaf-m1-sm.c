@@ -501,8 +501,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_sbi_response_t *response;
                                     const char *provisioning_session_cert;
                                     provisioning_session_cert = ogs_hash_get(msaf_provisioning_session->certificate_map, message.h.resource.component[3], OGS_HASH_KEY_STRING);
+                                    if(!provisioning_session_cert) {
+                                        char *err = NULL;
+                                        asprintf(&err,"Certificate [%s] not found in provisioning session [%s]", message.h.resource.component[3], message.h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Certificate not found.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        break;
+                                    }
                                     cert = server_cert_retrieve(message.h.resource.component[3]);
-                                    if(!cert || !provisioning_session_cert) {
+                                    if (!cert) {
                                         char *err = NULL;
                                         asprintf(&err,"Certificate [%s] management problem", message.h.resource.component[3]);
                                         ogs_error("%s", err);
