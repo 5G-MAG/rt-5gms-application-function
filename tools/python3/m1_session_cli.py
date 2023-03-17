@@ -627,18 +627,18 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
                                         help='PEM file to load the public certificate from, if omitted will use stdin instead')
 
     # m1-session-cli check-certificate-renewal
-    parser_checkrenewal = subparsers.add_parser('check-certificate-renewal', help='Renew all certificates if close to expiry')
-    parser_checkrenewal.set_defaults(command=cmd_check_all_renewal)
+    #parser_checkrenewal = subparsers.add_parser('check-certificate-renewal', help='Renew all certificates if close to expiry')
+    #parser_checkrenewal.set_defaults(command=cmd_check_all_renewal)
 
     # m1-session-cli renew-certificate -p <provisioning-session-id>
     # m1-session-cli renew-certificate <ingest-URL> [<entry-point-path>]
-    parser_renewcert = subparsers.add_parser('renew-certificate', help='Force renewal of a specific certificate')
-    parser_renewcert.set_defaults(command=cmd_renew_certs)
-    parser_renewcert_filter = parser_renewcert.add_mutually_exclusive_group(required=True)
-    parser_renewcert_filter.add_argument('-p', '--provisioning-session', help='Renew by provisioning session id')
-    parser_renewcert_filter.add_argument('ingesturl', metavar='ingest-URL', nargs='?', help='The ingest URL prefix to use')
+    #parser_renewcert = subparsers.add_parser('renew-certificate', help='Force renewal of a specific certificate')
+    #parser_renewcert.set_defaults(command=cmd_renew_certs)
+    #parser_renewcert_filter = parser_renewcert.add_mutually_exclusive_group(required=True)
+    #parser_renewcert_filter.add_argument('-p', '--provisioning-session', help='Renew by provisioning session id')
+    #parser_renewcert_filter.add_argument('ingesturl', metavar='ingest-URL', nargs='?', help='The ingest URL prefix to use')
     # The entry-point-path should go with ingest-URL, but argparser lacks the ability to do subgroups
-    parser_renewcert.add_argument('entrypoint', metavar='entry-point-path', nargs='?', help='The media player entry point suffix.')
+    #parser_renewcert.add_argument('entrypoint', metavar='entry-point-path', nargs='?', help='The media player entry point suffix.')
 
     args = parser.parse_args()
 
@@ -686,6 +686,9 @@ async def main():
             print(repr(parse_args()))
     except M1Error as err:
         print(f'Communication error: {err}')
+        return 2
+    except Exception as err:
+        print(f'General failure: {err}')
         return 2
     return 0
 

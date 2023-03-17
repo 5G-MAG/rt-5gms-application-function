@@ -92,9 +92,23 @@ class JSONFileDataStore(DataStore):
     This class implements a DataStore as a set of files containing JSON.
     '''
     def __init__(self, data_store_dir: str):
+        '''Constructor
+
+        :param str data_store_dir: The directory path to use for the JSON file data store.
+
+        Please note that this object should be instantiated using ``await JSONFileDataStore(data_store_dir)`` as it has
+        asynchronous initialisation to perform.
+        '''
         self.__dir = data_store_dir
 
     async def asyncInit(self):
+        '''Asynchronous JSONFileDataStore initialisation
+
+        This will ensure that the data store directory for JSON files exists during instantiation.
+
+        :return: self
+        :raise RuntimeError: if the data store path already exists but is not a directory.
+        '''
         if not await aiofiles.os.path.exists(self.__dir):
             await aiofiles.os.makedirs(self.__dir)
         if not await aiofiles.os.path.isdir(self.__dir):
@@ -103,6 +117,11 @@ class JSONFileDataStore(DataStore):
 
     async def get(self, key: str, default: Any = None) -> Any:
         '''Get a persisted value by key name
+
+        :param str key: The key name to retrieve the `DataStore` value for.
+        :param default: The default value to return if the *key* does not exist in the `DataStore`.
+
+        :return: The value of the retrieved key or the *default* value.
         '''
         json_file = os.path.join(self.__dir, f'{key}.json')
         if not await aiofiles.os.path.exists(json_file) or not await aiofiles.os.path.isfile(json_file):
@@ -113,6 +132,11 @@ class JSONFileDataStore(DataStore):
 
     async def set(self, key: str, value: Any) -> bool:
         '''Store a persisted value using the key name
+
+        :param str key: The key name to set a value for.
+        :param value: The value to set.
+
+        :return: ``True`` if the value was set in the `DataStore` or ``False`` if there was a failure.
         '''
         json_file = os.path.join(self.__dir, f'{key}.json')
         async with aiofiles.open(json_file, mode='w') as json_out:

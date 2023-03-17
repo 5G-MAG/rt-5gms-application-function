@@ -39,15 +39,27 @@ ProvisioningSessionId = ResourceId
 ProvisioningSessionType = Literal['DOWNLINK','UPLINK']
 
 class ProvisioningSessionMandatory(TypedDict):
+    '''Madatory fields for a `ProvisioningSession`
+    '''
     provisioningSessionId: ProvisioningSessionId
     provisioningSessionType: ProvisioningSessionType
     externalApplicationId: ApplicationId
 
 class ProvisioningSession (ProvisioningSessionMandatory, total=False):
+    '''A `ProvisioningSession` object as defined in TS 26.512
+    '''
     aspId: ApplicationId
 
     @staticmethod
     def fromJSON(json_str: str) -> "ProvisioningSession":
+        '''Create a `ProvisioningSession` from a JSON string
+
+        :param str json_str: The JSON string to convert to a `ProvisioningSession`.
+
+        :return: a `ProvisioningSession` holding the data from the *json_str*.
+        :rtype: ProvisioningSession
+        :raise TypeError: if there is a problem with interpretting the *json_str* as a `ProvisioningSession`.
+        '''
         ret: dict = json.loads(json_str)
         for mandatory_field in ProvisioningSessionMandatory.__required_keys__:
             if mandatory_field not in ret:
@@ -57,75 +69,90 @@ class ProvisioningSession (ProvisioningSessionMandatory, total=False):
             
         return ProvisioningSession(ret)
 
-PROVISIONING_SESSION_TYPE_DOWNLINK: ProvisioningSessionType = 'DOWNLINK'
-PROVISIONING_SESSION_TYPE_UPLINK: ProvisioningSessionType = 'UPLINK'
+PROVISIONING_SESSION_TYPE_DOWNLINK: ProvisioningSessionType = 'DOWNLINK' #: Downlink `ProvisioningSessionType`.
+PROVISIONING_SESSION_TYPE_UPLINK: ProvisioningSessionType = 'UPLINK'     #: Uplink `ProvisioningSessionType`.
 
 # TS 26.512 ContentHostingConfiguration
 
 class PathRewriteRule(TypedDict):
     '''PathRewriteRule structure in TS 26.512
     '''
-    requestPathPattern: str
-    mappedPath: str
+    requestPathPattern: str #: A regex to match the request path.
+    mappedPath: str         #: The path to map in instead of the matched path.
 
-class CachingDirectivesMandatory(TypedDict):
+class CachingDirectiveMandatory(TypedDict):
     '''Mandatory fields from CachingConfiguration.cachingDirectives structure in TS 26.512
     '''
-    noCache: bool
+    noCache: bool #: ``True`` if ``no-cache`` should be included for this directive.
 
-class CachingDirectives(CachingDirectivesMandatory, total=False):
+class CachingDirective(CachingDirectiveMandatory, total=False):
     '''CachingConfiguration.cachingDirectives structure in TS 26.512
     '''
-    statusCodeFilters: List[int]
-    maxAge: int
+    statusCodeFilters: List[int] #: A list of status codes to apply this cache directive for.
+    maxAge: int                  #: A ``max-age`` to apply for this directive.
 
 class CachingConfigurationMandatory(TypedDict):
     '''Mandatory fields from CachingConfiguration structure in TS 26.512
     '''
-    urlPatternFilter: str
+    urlPatternFilter: str #: A URL pattern to match for the cache configuration
 
 class CachingConfiguration(CachingConfigurationMandatory, total=False):
     '''CachingConfiguration structure in TS 26.512
     '''
-    cachingDirectives: CachingDirectives
+    cachingDirectives: List[CachingDirective] #: Array of cache directives for the matched URL
 
 class ContentProtocolDescriptorMandatory(TypedDict):
     '''Mandatory fields from ContentProtocolDescriptor in TS 26.512
     '''
-    termIdentifier: Uri
+    termIdentifier: Uri #: A URI (usually URN) to identify an ingest protocol.
 
 class ContentProtocolDescriptor(ContentProtocolDescriptorMandatory, total=False):
     '''ContentProtocolDescriptor structure in TS 26.512
     '''
-    descriptionLocator: Uri
+    descriptionLocator: Uri #: A URL to documentation describing the *termIdentfier*.
 
 class ContentProtocols(TypedDict, total=False):
     '''ContentProtocols structure in TS 26.512
     '''
-    downlinkIngestProtocols: List[ContentProtocolDescriptor]
-    uplinkEgestProtocols: List[ContentProtocolDescriptor]
-    geoFencingLocatorTypes: List[Uri]
+    downlinkIngestProtocols: List[ContentProtocolDescriptor] #: An array of available downlink ingest protocols.
+    uplinkEgestProtocols: List[ContentProtocolDescriptor]    #: An array of available uplink ingest protocols.
+    geoFencingLocatorTypes: List[Uri]                        #: An array of available geo-fencing location types.
 
     @staticmethod
     def fromJSON(json_str: str) -> "ContentProtocols":
+        '''Create a `ContentProtocols` from a JSON string
+
+        :param str json_str: The JSON string to convert to a `ContentProtocols`.
+        :return: a `ContentProtocols` containing the data from the *json_str*.
+        :rtype: ContentProtocols
+        :raise TypeError: if the *json_str* could not be interpretted as a `ContentProtocols`.
+        '''
         return ContentProtocols(json.loads(str))
 
 class DistributionNetworkType(enum.Enum):
     '''Enumeration DistributionNetworkType in TS 26.512
     '''
-    NETWORK_EMBMS = enum.auto()
+    NETWORK_EMBMS = enum.auto() #: Distribution type is via EMBMS network.
 
-    def __str__(self):
+    def __str__(self) -> str:
+        '''String representation of the `DistributionNetworkType`.
+
+        :return: a `str` containing the name of the enumerated `DistributionNetworkType`.
+        '''
         return self.name
 
 class DistributionMode(enum.Enum):
     '''Enumeration DistributionMode in TS 26.512
     '''
-    MODE_EXCLUSIVE = enum.auto()
-    MODE_HYBRID = enum.auto()
-    MODE_DYNAMIC = enum.auto()
+    MODE_EXCLUSIVE = enum.auto() #: Distribution mode is exclusive
+    MODE_HYBRID = enum.auto()    #: Distribution mode is hybrid
+    MODE_DYNAMIC = enum.auto()   #: Distribution mode is dynamic
 
     def __str__(self):
+        '''String representation of the `DistributionMode`.
+
+        :return: a `str` containing the name of the enumerated `DistributionMode`.
+        '''
         return self.name
 
 class DistributionConfiguration(TypedDict, total=False):
@@ -196,6 +223,11 @@ class ContentHostingConfiguration(ContentHostingConfigurationMandatory, total=Fa
 
     @classmethod
     def format(cls, chc: "ContentHostingConfiguration") -> str:
+        '''Get a formatted `str` representation of a `ContentHostingConfiguration`.
+
+        :param ContentHostingConfiguration chc: The `ContentHostingConfiguration` to format.
+        :return: a formatted `str` representation of the `ContentHostingConfiguration`.
+        '''
         return f'''Name: {chc['name']}
 {cls.__formatEntryPoint(chc)}Ingest:
     Type: {chc['ingestConfiguration']['protocol']}
@@ -206,6 +238,14 @@ Distributions:
 
     @classmethod
     def __formatDistributions(cls, chc: "ContentHostingConfiguration", indent: int = 0) -> str:
+        '''Format a ContentHostingConfiguration.distributionConfigurations
+
+        :meta private:
+        :param ContentHostingConfiguration chc: The `ContentHostingConfiguration` to get the distributionConfigurations from.
+        :param int indent: The amount of spaces to indent the formatted distributionConfigurations by.
+
+        :return: a `str` containing the distributionConfigurations as formatted text.
+        '''
         prefix = ' '*indent
         dists = []
         for d in chc['distributionConfigurations']:
@@ -255,6 +295,14 @@ Distributions:
 
     @classmethod
     def __formatEntryPoint(cls, chc: "ContentHostingConfiguration", indent: int = 0) -> str:
+        '''Format an ``entryPointPath`` as a string.
+
+        :meta private:
+        :param ContentHostingConfiguration chc: The `ContentHostingConfiguration` to look for an ``entryPointPath`` in.
+        :param int indent: The amount of spaces to indent the formatted ``entryPointPath`` by.
+
+        :return: the formatted ``entryPointPath`` if it exists or an empty string if it does not.
+        '''
         if 'entryPointPath' not in chc:
             return ''
         prefix = ' '*indent
@@ -354,11 +402,15 @@ class ProblemDetail(TypedDict, total=False):
     nrfId: str
 
     @staticmethod
-    def fromJSON(problem_detail_json: str):
+    def fromJSON(problem_detail_json: str) -> "ProblemDetail":
         '''
-        Generate a ProblemDetail structure from a JSON string
+        Generate a `ProblemDetail` structure from a JSON string
+
+        :param str problem_detail_json: The JSON string to convert to a `ProblemDetail`.
+        :return: a `ProblemDetail` containing the data from the *problem_detail_json* JSON string.
         '''
         prob_detail = json.loads(problem_detail_json)
+        # Convert enumerated type strings to their enum values
         if 'accessTokenError' in prob_detail:
             for ate in prob_detail['accessTokenError']:
                 ate['error'] = AccessTokenErrError(ate['error'])

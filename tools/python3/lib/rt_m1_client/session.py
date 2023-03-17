@@ -36,7 +36,7 @@ Function via the interface at reference point M1.
 import datetime
 import importlib
 import logging
-from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List
+from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List, Iterable
 
 import OpenSSL
 
@@ -52,10 +52,20 @@ class M1Session:
     '''M1 Session management class
     ===========================
 
-    This class is used as the top level class to manage a communication session
-    with the 5GMS Application Function.
+    This class is used as the top level class to manage a communication session with the 5GMS Application Function. It will
+    communicate using the `M1Client` class with the M1 Server (5GMS Application Function) and cache the results to improve
+    efficiency. It can also use a `DataStore` to provide persistence of information across different sessions, and can use a
+    `CertificateSigner` to perform signing of certificates when ``domainNameAlias`` is used.
     '''
+
     def __init__(self, host_address: Tuple[str,int], persistent_data_store: Optional[DataStore] = None, certificate_signer: Optional[Union[CertificateSigner,type,str]] = None):
+        '''Constructor
+
+        :param host_address: A tuple containing the M1 server (5GMS Application Function) hostname/ip-address and TCP port number
+                             to contact it at.
+        :param persistent_data_store: A `DataStore` object to use to provide persistent storage.
+        :param certificate_signer: A `CertificateSigner` to use when signing certificates with extra domain names. This can be either a `str` containing the full Python class name, a `CertificateSigner` class to instantiate if needed, or an instance of a `CertificateSigner` to use. If not given then ``rt_m1_client.certificates.DefaultCertificateSigner`` is used.
+        '''
         self.__m1_host = host_address
         self.__data_store_dir = persistent_data_store
         self.__cert_signer = certificate_signer
@@ -66,21 +76,35 @@ class M1Session:
         self.__log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
 
     def __await__(self):
+        '''``await`` provider for asynchronous instansiation.
+        '''
         return self.__asyncInit().__await__()
 
     async def __asyncInit(self):
+        '''Asynchronous object instantiation
+
+        Loads previous state from the DataStore.
+
+        :meta private:
+        :return: self
+        '''
         await self.__reloadFromDataStore()
         return self
 
     # Provisioning Session Management
 
-    async def provisioningSessionIds(self):
+    async def provisioningSessionIds(self) -> Iterable:
         '''Get the list of current known provisioning session ids
+
+        :return: an iterable for the provisioning session ids.
         '''
         return self.__provisioning_sessions.keys()
 
     async def provisioningSessionProtocols(self, provisioning_session_id: ResourceId) -> Optional[ContentProtocols]:
         '''Get the ContentProtocols for the existing provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to get `ContentProtocols` for.
+        :return: a `ContentProtocols` for the provisioning session or ``None`` if the `ContentProtocols` could not be found.
         '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
@@ -89,6 +113,9 @@ class M1Session:
 
     async def provisioningSessionCertificateIds(self, provisioning_session_id: ResourceId) -> Optional[List[ResourceId]]:
         '''Get the list of certificate Ids for a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session id to get the certificate ids for.
+        :return: a list of certificate ids associated with the *provisioning_session_id* or ``None`` if they could not be found.
         '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
@@ -101,8 +128,9 @@ class M1Session:
     async def provisioningSessionContentHostingConfiguration(self, provisioning_session_id: ResourceId) -> Optional[ContentHostingConfiguration]:
         '''Get the ContentHostingConfiguration associated with the provisioning session
 
-        Returns None if the provisioning session does not exist or if there is no ContentHostingConfiguration associated with the
-                provisioning session.
+        :param ResourceId provisioning_session_id: The provisioning session id to get the `ContentHostingConfiguration` for.
+        :return: ``None`` if the provisioning session does not exist or if there is no `ContentHostingConfiguration` associated
+                 with the provisioning session, otherwise return the `ContentHostingConfiguration`.
         '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
@@ -116,6 +144,12 @@ class M1Session:
         return chc
 
     async def provisioningSessionDestroy(self, provisioning_session_id: ResourceId) -> Optional[bool]:
+        '''Destroy a provisioning session
+
+        :param provisioning_session_id: The provisioning session id of the session to destroy.
+        :return: ``True`` if the provisioning session was destroyed, ``False`` if it could not be destroyed or ``None`` if the
+                 provisioning session does not exist.
+        '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
         await self.__connect()
@@ -124,15 +158,33 @@ class M1Session:
             del self.__provisioning_sessions[provisioning_session_id]
             if self.__data_store_dir:
                 await self.__data_store_dir.set('provisioning_sessions', list(self.__provisioning_sessions.keys()))
+            return True
+        return False
 
-    async def provisioningSessionCreate(self, prov_type: ProvisioningSessionType, app_id: ApplicationId, asp_id: ApplicationId):
+    async def provisioningSessionCreate(self, prov_type: ProvisioningSessionType, app_id: ApplicationId, asp_id: Optional[ApplicationId] = None) -> Optional[ResourceId]:
+        '''Create a provisioning session
+
+        The *prov_type* should be `rt_m1_client.types.PROVISIONING_SESSION_TYPE_DOWNLINK` or
+        `rt_m1_client.types.PROVISIONING_SESSION_TYPE_UPLINK`. The *app_id* is the mandatory external application id, and the
+        *asp_id* is the optional ASP identfier.
+
+        :param prov_type: The provisioning session type, either `PROVISIONING_SESSION_TYPE_DOWNLINK` or
+                          `PROVISIONING_SESSION_TYPE_UPLINK`.
+        :param app_id: This is the External Application Id.
+        :param asp_id: This is the optional Application Service Provider Id.
+
+        :return: the provisioning session id for the new provisioning session or ``None`` if the `ProvisioningSession` could not
+                 be created.
+        '''
         await self.__connect()
-        prov_sess_resp: ProvisioningSessionResponse = await self.__m1_client.createProvisioningSession(prov_type, app_id, asp_id)
+        prov_sess_resp: Optional[ProvisioningSessionResponse] = await self.__m1_client.createProvisioningSession(prov_type, app_id, asp_id)
         if prov_sess_resp is None:
             self.__log.debug("provisioningSessionCreate: no response")
             return None
         ps_id = prov_sess_resp['ProvisioningSessionId']
+        # Register the provisioning session id
         self.__provisioning_sessions[ps_id] = None
+        # Store in the `DataStore` if available
         if self.__data_store_dir:
             await self.__data_store_dir.set('provisioning_sessions', list(self.__provisioning_sessions.keys()))
         return ps_id
@@ -140,6 +192,11 @@ class M1Session:
     # Certificates management
 
     async def certificateIds(self, provisioning_session_id: ResourceId) -> Optional[List[ResourceId]]:
+        '''Get a list of certificate Ids
+
+        :param provisioning_session_id: The provisioning session id to retrieve certificate ids for.
+        :return: a list of certificate ids or ``None`` if the provisioning session doesn't exist or cannot be retrieved.
+        '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
         await self.__cacheProvisioningSession(provisioning_session_id)
@@ -149,6 +206,15 @@ class M1Session:
         return ps['serverCertificateIds']
 
     async def certificateCreate(self, provisioning_session_id: ResourceId) -> Optional[ResourceId]:
+        '''Create a new certificate
+
+        This creates a new M1 Server signed certificate in the provisioning session and returns the new certificate id.
+
+        :param provisioning_session_id: The provisioning session to create the new certificate in.
+
+        :return: the certificate id of the new certificate or ``None`` if the provisioning session does not exist or if there was
+                 no response from the M1 Server.
+        '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
         await self.__connect()
@@ -173,21 +239,43 @@ class M1Session:
         return cert_id
 
     async def certificateGet(self, provisioning_session_id: ResourceId, certificate_id: ResourceId) -> Optional[str]:
+        '''Retrieve a public certificate
+
+        :param provisioning_session_id: The provisioning session id to use to look up the certificate.
+        :param certificate_id: The certificate id for the certificate in the provisioning session.
+
+        :return: The PEM string for the public certificate or ``None`` if the certificate could not be found.
+        '''
         ret_err = None
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
         try:
             await self.__cacheCertificates(provisioning_session_id)
         except M1Error as err:
+            # This error may happen for a different certificate, so just remember it for now
             ret_err = err
         ps = self.__provisioning_sessions[provisioning_session_id]
+        # If the certificate does not exist return None
         if 'certificates' not in ps or ps['certificates'] is None or certificate_id not in ps['certificates']:
             return None
+        # If there was an error caching certificates and this certificate failed to cache then forward the exception
         if ret_err is not None and ps['certificates'][certificate_id]['servercertificate'] is None:
             raise ret_err
+        # Return the cached certificate
         return ps['certificates'][certificate_id]['servercertificate']
 
     async def certificateNewSigningRequest(self, provisioning_session_id: ResourceId) -> Optional[Tuple[ResourceId,str]]:
+        '''Create a new CSR for a provisioning session
+
+        This reserves a new certificate in the provisioning session and returns the new certificate id and CSR PEM string.
+        It is the responsibility of the caller to generate a signed public certificate from the CSR and post it back to the M1
+        Server using the `certificateSet` method.
+
+        :param provisioning_session_id: The provisioning session to reserve the new certificate in.
+
+        :return: a tuple of certificate id and CSR PEM string for the new certificate or ``None`` if the provisioning session does
+                 not exist or if there was no response from the M1 Server.
+        '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
         await self.__connect()
@@ -205,6 +293,19 @@ class M1Session:
         return (cert_id,cert_resp['CertificateSigningRequestPEM'])
 
     async def certificateSet(self, provisioning_session_id: ResourceId, certificate_id: ResourceId, pem: str) -> Optional[bool]:
+        '''Set the public certificate for a reserved certificate in a provisioning session
+
+        This is used to provide a signed public certificate to the M1 Server after reserving the certificate with
+        `certificateNewSigningRequest`. This can only be done once per certificate reservation, once the public certificate is set
+        then further updates to it are not allowed.
+
+        :param provisioning_session_id: The provisioning session id of the provisioning session to upload the certificate to.
+        :param certificate_id: The certificate id in the provisioning session to upload the certificate to.
+        :param pem: The public certificate as a PEM string to be uploaded.
+
+        :return: ``True`` if the certificate was set, ``False`` if it has already been set and ``None`` if the provisioning
+                 session or certificate id was not found.
+        '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
         await self.__connect()
@@ -213,6 +314,14 @@ class M1Session:
     # ContentHostingConfiguration methods
 
     async def contentHostingConfigurationCreate(self, provisioning_session: ResourceId, chc: ContentHostingConfiguration) -> bool:
+        '''Store a new `ContentHostingConfiguration` for a provisioning session
+
+        :param provisioning_session: The provisioning session id of the provisioning session to set the
+                                     `ContentHostingConfiguration` in.
+        :param chc: The `ContentHostingConfiguration` to set in the provisioning session.
+        :return: ``True`` if the new `ContentHostingConfiguration` was successfully set in the provisioning session or ``False`` if
+                 the operation failed (e.g. because there was already a `ContentHostingConfiguration` set).
+        '''
         if provisioning_session not in self.__provisioning_sessions:
             return False
         await self.__connect()
@@ -226,6 +335,13 @@ class M1Session:
         return True
 
     async def contentHostingConfigurationGet(self, provisioning_session: ResourceId) -> Optional[ContentHostingConfiguration]:
+        '''Retrieve the `ContentHostingConfiguration` set on a provisioning session
+
+        :param provisioning_session: The provisioning session id to retrieve the `ContentHostingConfiguration` for.
+
+        :return: a `ContentHostingConfiguration` for the provisioning session or ``None`` if the provisioning session does not
+                 exist or if it has no `ContentHostingConfiguration` set.
+        '''
         if provisioning_session not in self.__provisioning_sessions:
             return None
         await self.__cacheContentHostingConfiguration(provisioning_session)
@@ -236,10 +352,27 @@ class M1Session:
 
     # Convenience methods
 
-    async def createDownlinkPullProvisioningSession(self, app_id, asp_id=None) -> Optional[ResourceId]:
+    async def createDownlinkPullProvisioningSession(self, app_id: ApplicationId, asp_id: Optional[ApplicationId] = None) -> Optional[ResourceId]:
+        '''Create a downlink provisioning session
+
+        :param app_id: The mandatory external application id for the provisioning session.
+        :param asp_id: The optional ASP id for the provisioning session.
+        :return: the new provisioning session id or ``None`` if creation failed.
+        '''
         return await self.provisioningSessionCreate(PROVISIONING_SESSION_TYPE_DOWNLINK, app_id, asp_id)
 
     async def createNewCertificate(self, provisioning_session: ResourceId, domain_name_alias: Optional[str] = None) -> Optional[ResourceId]:
+        '''Create a new certificate
+
+        This will create a new certificate for the provisioning session. If *domain_name_alias* is not given this will leave
+        creation of the certificate up to the M1 server (5GMS Application Function). If *domain_name_alias* is given and is not
+        ``None`` then this will reserve a certificate for the provisioning session, sign the CSR using the local `CertificateSigner`
+        object and set the signed public certificate for the provisioning session.
+
+        :param provisioning_session: The provisioning session id of the provisioning session to create the certificate in.
+        :param domain_name_alias: An optional ``domainNameAlias`` to add to the certificate.
+        :return: The certificate id of the newly created certificate or ``None`` if the certificate could not be created.
+        '''
         # simple case just create the certificate
         if domain_name_alias is None or len(domain_name_alias) == 0:
             return await self.certificateCreate(provisioning_session)
@@ -257,7 +390,37 @@ class M1Session:
             return None
         return cert_id
 
-    async def createNewDownlinkPullStream(self, ingesturl, entrypoint, app_id, name=None, asp_id=None, ssl=False, insecure=True, domain_name_alias=None):
+    async def createNewDownlinkPullStream(self, ingesturl: str, app_id: ApplicationId, entrypoint: Optional[str] = None, name: Optional[str] = None, asp_id: Optional[ApplicationId] = None, ssl: bool = False, insecure: bool = True, domain_name_alias: Optional[str] = None) -> ResourceId:
+        '''Create a new downlink pull stream
+
+        This will create a new provisioning session, reserve any necessary certificates (if *ssl* is requested) and set the
+        `ContentHostingConfiguration`.
+
+        The provisioning session is created with the *app_id* and *asp_id* provided.
+
+        If *ssl* is ``True`` then a certificate will be created in the new provisioning session. This certificate will use the
+        *domain_name_alias* if set.
+
+        The `ContentHostingConfiguration` set in the new provisioning session is created from the *ingesturl*, *entrypoint* and
+        *name* and will contain a ``distributionConfiguration`` for an HTTP distribution if *insecure* is ``True`` (the default)
+        and an HTTPS distribution, using the new certificate, if *ssl* is ``True`` (default is no HTTPS).
+
+        :param ingesturl: The ingest URL for the `ContentHostingConfiguration` to create.
+        :param app_id: The external application id for creatation of the provisioning session.
+        :param entrypoint: Optional ``entryPointPath`` for the `ContentHostingConfiguration`.
+        :param name: Optional ``name`` for the `ContentHostingConfiguration`.
+        :param asp_id: Optional Application Service Provider Id for creating the provisioning session.
+        :param ssl: If ``True`` include an HTTPS ``distributionConfiguration`` in the `ContentHostingConfiguration`.
+        :param insecure: If ``True`` include an HTTP ``distributionConfiguration`` in the `ContentHostingConfiguration`.
+        :param domain_name_alias: Optional ``domainNameAlias`` to include in the ``distributionConfiguration`` in the
+                                  `ContentHostingConfiguration`.
+
+        :return: The provisioning session id
+        :raise RuntimeError: if the creation of provisioning session, certificate or content hosting configuration fails.
+        '''
+        # Abort if bad parameters
+        if not ssl and not insecure:
+            raise RuntimeError('Cannot create a stream without HTTP and HTTPS distributions.')
         # Create a new provisioning session
         provisioning_session: ResourceId = await self.provisioningSessionCreate(PROVISIONING_SESSION_TYPE_DOWNLINK, app_id, asp_id)
         if provisioning_session is None:
@@ -297,11 +460,19 @@ class M1Session:
             chc['entryPointPath'] = entrypoint
         if not await self.contentHostingConfigurationCreate(provisioning_session, chc):
             raise RuntimeError('Failed to create the content hosting configuration')
-        return True
+        return provisioning_session
 
     # Private methods
 
-    async def __reloadFromDataStore(self):
+    async def __reloadFromDataStore(self) -> None:
+        '''Reload persistent information from the DataStore
+        
+        Checks the provisioning session ids retrieved from the DataStore against the M1 server and will delete any that are no
+        longer available.
+
+        :meta private:
+        :return: None
+        '''
         if self.__data_store_dir is None:
             return
 
@@ -327,18 +498,35 @@ class M1Session:
             self.__provisioning_sessions[prov_sess] = None
         
     async def __getProvisioningSessionCache(self, provisioning_session_id: ResourceId) -> Optional[dict]:
+        '''Find a provisioning session cache
+
+        :meta private:
+        :param provisioning_session_id: The provisioning session id to get the cache for.
+        :return: The cache `dict` or ``None`` if the cache doesn't exist.
+        '''
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
         await self.__cacheProvisioningSession(provisioning_session_id)
         return self.__provisioning_sessions[provisioning_session_id]
 
-    async def __cacheResources(self):
+    async def __cacheResources(self) -> None:
+        '''Cache the provisioning session resources lists
+
+        Caches the provisioning session information for each known provisioning session
+        '''
         if len(self.__provisioning_sessions) == 0:
             return
         for prov_sess in self.__provisioning_sessions.keys():
             self.__cacheProvisioningSession(prov_sess)
 
-    async def __cacheProvisioningSession(self, prov_sess: ResourceId):
+    async def __cacheProvisioningSession(self, prov_sess: ResourceId) -> None:
+        '''Cache the provisioning session resource lists for a provisioning session
+
+        Will only cache if the old cache didn't exist or has expired.
+
+        :meta private:
+        :param prov_sess: The id of provisioning session to cache.
+        '''
         ps = self.__provisioning_sessions[prov_sess]
         now = datetime.datetime.now(datetime.timezone.utc)
         if ps is None or ps['cache-until'] is None or ps['cache-until'] < now:
@@ -358,6 +546,13 @@ class M1Session:
                     ps['certificates'] = {k: None for k in ps['provisioningsession']['serverCertificateIds']}
 
     async def __cacheProtocols(self, provisioning_session_id: ResourceId):
+        '''Cache the ContentProtocols for a provisioning session
+
+        Will only cache if the old cache didn't exist or has expired.
+
+        :meta private:
+        :param provisioning_session_id: The id of provisioning session to cache the `ContentProtocols` for.
+        '''
         await self.__cacheProvisioningSession(provisioning_session_id)
         ps = self.__provisioning_sessions[provisioning_session_id]
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -368,6 +563,13 @@ class M1Session:
                 ps['protocols'].update({k.lower(): v for k,v in result.items()})
 
     async def __cacheCertificates(self, provisioning_session_id: ResourceId):
+        '''Cache all public certificates for the provisioning session
+
+        Will only cache if the old cache didn't exist or has expired.
+
+        :meta private:
+        :param provisioning_session_id: The id of provisioning session to cache the public certificates for.
+        '''
         await self.__cacheProvisioningSession(provisioning_session_id)
         ps = self.__provisioning_sessions[provisioning_session_id]
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -391,7 +593,14 @@ class M1Session:
         if ret_err is not None:
             raise ret_err
 
-    async def __cacheContentHostingConfiguration(self, provisioning_session_id: ResourceId):
+    async def __cacheContentHostingConfiguration(self, provisioning_session_id: ResourceId) -> None:
+        '''Cache the `ContentHostingConfiguration` for a provisioning session
+
+        Will only cache if the old cache didn't exist or has expired.
+
+        :meta private:
+        :param provisioning_session_id: The id of provisioning session to cache the `ContentHostingConfiguration` for.
+        '''
         await self.__cacheProvisioningSession(provisioning_session_id)
         ps = self.__provisioning_sessions[provisioning_session_id]
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -407,7 +616,15 @@ class M1Session:
             else:
                 ps['content-hosting-configuration'] = None
 
-    async def __getCertificateSigner(self):
+    async def __getCertificateSigner(self) -> CertificateSigner:
+        '''Get the `CertificateSigner`
+
+        Creates the CertificateSigner object if we don't already have one.
+
+        :meta private:
+        :return: a `CertificateSigner`
+        :raise RuntimeError: if the certificate signer requested is not derived from `CertificateSigner`.
+        '''
         if self.__cert_signer is None:
             self.__cert_signer = 'rt_m1_client.certificates.DefaultCertificateSigner'
         if isinstance(self.__cert_signer, str):
@@ -420,11 +637,17 @@ class M1Session:
             raise RuntimeError('The certificate signer class given is not derived from CertificateSigner')
         return self.__cert_signer
 
-    async def __connect(self):
+    async def __connect(self) -> None:
+        '''Connect to the M1Client
+
+        :meta private:
+        '''
         if self.__m1_client is None:
             self.__m1_client = M1Client(self.__m1_host)
             
-    def _dump_state(self):
+    def _dump_state(self) -> None:
+        '''Dump the current provisioning session cache to the log
+        '''
         self.__log.debug(repr(self.__provisioning_sessions))
 
 __all__ = [
