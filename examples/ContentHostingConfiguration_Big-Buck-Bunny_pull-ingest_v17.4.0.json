@@ -1,0 +1,24 @@
+{
+    "name": "Big Buck Bunny",
+    "ingestConfiguration": {
+      "pull": true,
+      "protocol": "urn:3gpp:5gms:content-protocol:http-pull-ingest",
+      "baseURL": "https://ftp.itec.aau.at/datasets/DASHDataset2014/BigBuckBunny/4sec/"
+    },
+    "distributionConfigurations": [
+      {
+        "entryPoint": {
+          "relativePath": "BigBuckBunny_4s_onDemand_2014_05_09.mpd",
+          "contentType": "application/dash+xml",
+          "profiles": ["urn:mpeg:dash:profile:isoff-on-demand:2011"]
+        }
+      },
+      {
+          "entryPoint": {
+            "locator": "BigBuckBunny_4s_onDemand_2014_05_10.mpd",
+            "contentType": "application/dash+xml"
+          }
+        }
+          
+    ]
+  }
