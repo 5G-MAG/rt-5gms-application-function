@@ -77,6 +77,8 @@ specify an alternative configuration file. For example:
 
 The source example configuration file can be found in `~/rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
 
+Also see the [Configuring the Application Function](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Configuring-the-Application-Function) wiki page for details on configuration.
+
 ## Testing
 
 See the section on [Testing](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Developing-and-Contributing#testing) in the wiki.
