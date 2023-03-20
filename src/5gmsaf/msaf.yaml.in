@@ -135,6 +135,15 @@ msaf:
     sbi:
       - addr: 127.0.0.22
         port: 7777
+    m1:
+      - addr: 127.0.0.23
+        port: 7777
+    m5:
+      - addr: 127.0.0.24
+        port: 7777
+    maf:
+      - addr: 127.0.0.25
+        port: 7777
     applicationServers:
       - canonicalHostname: localhost
         urlPathPrefixFormat: /m4d/provisioning-session-{provisioningSessionId}/
