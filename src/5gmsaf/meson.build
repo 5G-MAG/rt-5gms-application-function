@@ -37,9 +37,7 @@ libmsaf_dist_sources = files('''
     provisioning-session.h
     provisioning-session.c
     application-server-context.h
-    application-server-context.c
-    media-player-entry.h
-    media-player-entry.c
+    application-server-context.c   
     sbi-path.c
     sbi-path.h
     service-access-information.h
@@ -62,6 +60,10 @@ libmsaf_gen_sources = '''
     openapi/model/caching_configuration.c
     openapi/model/caching_configuration_caching_directives.h
     openapi/model/caching_configuration_caching_directives.c
+    openapi/model/abs_media_entry_point.h
+    openapi/model/abs_media_entry_point.c
+    openapi/model/rel_media_entry_point.h
+    openapi/model/rel_media_entry_point.c
     openapi/model/content_hosting_configuration.h
     openapi/model/content_hosting_configuration.c
     openapi/model/distribution_configuration.h

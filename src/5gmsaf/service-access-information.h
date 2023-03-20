@@ -29,7 +29,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 extern "C" {
 #endif
 
-extern OpenAPI_service_access_information_resource_t *msaf_context_service_access_information_create(const char *provisioning_session_id, char *media_player_entry);
+extern OpenAPI_service_access_information_resource_t *msaf_context_service_access_information_create(const char *provisioning_session_id, OpenAPI_list_t *entry_points);
 extern cJSON *msaf_context_retrieve_service_access_information(char *provisioning_session_id);
 
 #ifdef __cplusplus

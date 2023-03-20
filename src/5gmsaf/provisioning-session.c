@@ -10,7 +10,6 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include <time.h>
 #include "application-server-context.h"
-#include "media-player-entry.h"
 #include "certmgr.h"
 #include "context.h"
 #include "utilities.h"
@@ -92,13 +91,6 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
-
-#if 0 /* TODO: Remove when content hosting configuration is available via M1 interface */
-    msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
-    media_player_entry = media_player_entry_create(msaf_provisioning_session->provisioningSessionId, msaf_provisioning_session->contentHostingConfiguration);
-    ogs_assert(media_player_entry);
-    msaf_provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(msaf_provisioning_session->provisioningSessionId, media_player_entry);
-#endif
 
     OpenAPI_provisioning_session_free(provisioning_session);
 
@@ -343,13 +335,17 @@ int
 msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session)
 {
     OpenAPI_lnode_t *dist_config_node = NULL;
+    OpenAPI_lnode_t *media_entry_point_profile_node = NULL;
     OpenAPI_distribution_configuration_t *dist_config = NULL;
     char *url_path;
     char *domain_name;
-    char *media_player_entry;
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_node_t *msaf_as = NULL;
     char *content_hosting_config_to_hash = NULL;
+    OpenAPI_list_t *media_entry_point_list;
+    OpenAPI_list_t *media_entry_point_profiles_list = NULL;
+    OpenAPI_abs_media_entry_point_t *entry_point;
+    char *locator_absolute_path;
 
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
 
@@ -357,61 +353,68 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
         = OpenAPI_content_hosting_configuration_parseFromJSON(content_hosting_config);
-        if(!uri_relative_check(content_hosting_configuration->entry_point_path)) {
-            cJSON_Delete(content_hosting_config);
-            ogs_free(url_path);
-	        if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
-	        return 0;
-	    }
 	
-        if (content_hosting_configuration->distribution_configurations) {
-            OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
-                char *protocol = "http";
+    if (content_hosting_configuration->distribution_configurations) {
+        media_entry_point_list = OpenAPI_list_create();
+        OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
+            char *protocol = "http";
 
-                dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
+            dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
 
-                if(dist_config->canonical_domain_name) ogs_free(dist_config->canonical_domain_name);
-
-                dist_config->canonical_domain_name = ogs_strdup(msaf_as->canonicalHostname);
-
-                if (dist_config->certificate_id) {
-                    protocol = "https";
-                }
-
-                if(dist_config->domain_name_alias){
-                    domain_name = dist_config->domain_name_alias;
-                } else {
-                    domain_name = dist_config->canonical_domain_name;
-                }
-
-                if(dist_config->base_url) ogs_free(dist_config->base_url);
-
-                dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, domain_name, url_path);
-
-                ogs_info("dist_config->base_url: %s",dist_config->base_url);
+            if(!uri_relative_check(dist_config->entry_point->relative_path)) {
+                cJSON_Delete(content_hosting_config);
+                ogs_free(url_path);
+                OpenAPI_list_free(media_entry_point_list);
+                if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
+                return 0;
             }
-        } else {
-            ogs_error("The Content Hosting Configuration has no Distribution Configuration");
-        }
-    if (content_hosting_configuration->entry_point_path) {
 
-        media_player_entry = ogs_msprintf("%s%s", dist_config->base_url, content_hosting_configuration->entry_point_path);
+            if (dist_config->canonical_domain_name) ogs_free(dist_config->canonical_domain_name);
+
+            dist_config->canonical_domain_name = ogs_strdup(msaf_as->canonicalHostname);
+
+            if (dist_config->certificate_id) {
+                protocol = "https";
+            }
+
+            if(dist_config->domain_name_alias){
+                domain_name = dist_config->domain_name_alias;
+            } else {
+                domain_name = dist_config->canonical_domain_name;
+            }
+
+            if(dist_config->base_url) ogs_free(dist_config->base_url);
+
+            dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, domain_name, url_path);
+
+            if (dist_config->entry_point) {
+                locator_absolute_path = ogs_msprintf("%s%s", dist_config->base_url, dist_config->entry_point->relative_path);
+                if(dist_config->entry_point->profiles){
+                    media_entry_point_profiles_list = OpenAPI_list_create();
+                    OpenAPI_list_for_each(dist_config->entry_point->profiles, media_entry_point_profile_node) {
+                        OpenAPI_list_add(media_entry_point_profiles_list, ogs_strdup((char *)media_entry_point_profile_node->data));
+                    }
+                } else {
+                    media_entry_point_profiles_list = NULL;
+                }
+
+                entry_point = OpenAPI_abs_media_entry_point_create(locator_absolute_path, ogs_strdup(dist_config->entry_point->content_type), media_entry_point_profiles_list);
+                OpenAPI_list_add(media_entry_point_list, entry_point);
+            }
+        } 
     } else {
-         ogs_debug("The contentHostingConfiguration has no entryPointPath");
+        ogs_error("The Content Hosting Configuration has no Distribution Configuration");
     }
-    if(media_player_entry) {
-
-    provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_player_entry);
-    provisioning_session->serviceAccessInformationCreated = time(NULL);
+   
+    provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_entry_point_list);
+    provisioning_session->serviceAccessInformationCreated = time(NULL);    
     provisioning_session->serviceAccessInformationHash = ogs_strdup(calculate_service_access_information_hash(provisioning_session->serviceAccessInformation));
-    } else {
-        ogs_debug("Couldn't formulate serviceAccessInformation as media Player Entry is not formulated");
-    }
+    
     provisioning_session->contentHostingConfiguration =  content_hosting_configuration;
-    if(provisioning_session->contentHostingConfiguration)
+    if (provisioning_session->contentHostingConfiguration)
     {
         content_hosting_config_to_hash = cJSON_Print(content_hosting_config);
-	    provisioning_session->contentHostingConfigurationReceived = time(NULL);
+        provisioning_session->contentHostingConfigurationReceived = time(NULL);
 
         provisioning_session->contentHostingConfigurationHash = ogs_strdup(calculate_hash(content_hosting_config_to_hash));
     }
