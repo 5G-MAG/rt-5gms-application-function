@@ -408,7 +408,7 @@ async def cmd_new_stream(args: argparse.Namespace, config: Configuration) -> int
     app_id = args.app_id or config.get('external_app_id')
     asp_id = args.asp_id or config.get('asp_id')
     domain_name_alias = args.domain_name_alias
-    provisioning_session_id = await session.createNewDownlinkPullStream(args.ingesturl, args.entrypoint, name=name, ssl=use_ssl, insecure=use_plain, app_id=app_id, asp_id=asp_id, domain_name_alias=domain_name_alias)
+    provisioning_session_id = await session.createNewDownlinkPullStream(args.ingesturl, app_id, args.entrypoint, name=name, ssl=use_ssl, insecure=use_plain, asp_id=asp_id, domain_name_alias=domain_name_alias)
     print(f'Hosting created as provisioning session {provisioning_session_id}')
     return 0
 
