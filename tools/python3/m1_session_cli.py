@@ -87,6 +87,7 @@ import logging
 import os
 import os.path
 import sys
+import traceback
 from typing import Tuple, List
 
 import json
@@ -302,6 +303,7 @@ async def __prettyPrintCertificate(cert: str, indent: int = 0) -> None:
     end = datetime.datetime.strptime(end_str, '%Y%m%d%H%M%SZ').replace(tzinfo=datetime.timezone.utc)
     subject_key = None
     issuer_key = None
+    sans = []
     for ext_num in range(x509.get_extension_count()):
         ext = x509.get_extension(ext_num)
         ext_name = ext.get_short_name().decode('utf-8')
@@ -309,6 +311,8 @@ async def __prettyPrintCertificate(cert: str, indent: int = 0) -> None:
             subject_key = str(ext)
         elif ext_name == "authorityKeyIdentifier":
             issuer_key = str(ext)
+        elif ext_name == "subjectAltName":
+            sans += [s.strip() for s in str(ext).split(',')]
     cert_info_prefix=' '*indent
     cert_desc=f'{cert_info_prefix}Serial = {serial}\n{cert_info_prefix}Not before = {start}\n{cert_info_prefix}Not after = {end}\n{cert_info_prefix}Subject = {__formatX509Name(subject)}\n'
     if subject_key is not None:
@@ -316,6 +320,9 @@ async def __prettyPrintCertificate(cert: str, indent: int = 0) -> None:
     cert_desc += f'{cert_info_prefix}Issuer = {__formatX509Name(issuer)}'
     if issuer_key is not None:
         cert_desc += f'\n{cert_info_prefix}         key={issuer_key}'
+    if len(sans) > 0:
+        cert_desc += f'\n{cert_info_prefix}Subject Alternative Names:'
+        cert_desc += ''.join([f'\n{cert_info_prefix}  {san}' for san in sans])
     print(f'{cert_desc}')
 
 async def cmd_list_verbose(args: argparse.Namespace, config: Configuration) -> int:
@@ -423,11 +430,46 @@ async def cmd_delete_stream(args: argparse.Namespace, config: Configuration) -> 
     if args.provisioning_session is not None:
         ps_id = args.provisioning_session
     else:
-        ps_id = await session.provisioningSessionIdByIngestUrl(args.ingesturl, args.entrypointsuffix)
+        ps_id = await session.provisioningSessionIdByIngestUrl(args.ingesturl, args.entrypoint)
         if ps_id is None:
             print('No such hosting session found')
             return 1
-    await session.provisioningSessionDestroy(ps_id)
+    result = await session.provisioningSessionDestroy(ps_id)
+    if result is None:
+        print(f'Provisioning Session {ps_id} not found')
+        return 1
+    if not result:
+        print(f'Failed to destroy Provisioning Session {ps_id}')
+        return 1
+    print(f'Provisioning Session {ps_id} and all its resources were destroyed')
+    return 0
+
+async def cmd_protocols(args: argparse.Namespace, config: Configuration) -> int:
+    '''Perform ``protocols`` operation
+
+    This will list the download and upload protocols for the provisioning session.
+    '''
+    session = await get_session(config)
+    result = await session.provisioningSessionProtocols(args.provisioning_session)
+    if result is None:
+        print(f'Failed to fetch the content protocols for provisioning session {args.provisioning_session}')
+        return 1
+    print(f'Protocols for {args.provisioning_session}:')
+    if 'downlinkIngestProtocols' in result:
+        print('  Downlink:')
+        print('\n'.join([f'    {proto["termIdentifier"]}' for proto in result['downlinkIngestProtocols']]))
+    else:
+        print('  No downlink capability')
+    if 'uplinkEgestProtocols' in result:
+        print('  Uplink:')
+        print('\n'.join([f'    {proto["termIdentifier"]}' for proto in result['uplinkEgestProtocols']]))
+    else:
+        print('  No uplink capability')
+    if 'geoFencingLocatorTypes' in result:
+        print('  Geo-fencing:')
+        print('\n'.join([f'    {proto}' for proto in result['geoFencingLocatorTypes']]))
+    else:
+        print('  No geo-fencing capability')
     return 0
 
 async def cmd_new_certificate(args: argparse.Namespace, config: Configuration) -> int:
@@ -531,7 +573,7 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     '''
     cfg = Configuration()
 
-    parser = argparse.ArgumentParser(prog='m1-session-cli', description='M1 Session Tool')
+    parser = argparse.ArgumentParser(prog='m1-session', description='M1 Session Tool')
     subparsers = parser.add_subparsers(required=True)
 
     # m1-session-cli configure <cmd> ...
@@ -595,6 +637,12 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_new_provisioning_session.set_defaults(command=cmd_new_provisioning_session)
     parser_new_provisioning_session.add_argument('-e', '--external-app-id', dest='app_id', metavar="APPLICATION-ID", help='The external application id to register the stream to', required=False)
     parser_new_provisioning_session.add_argument('-a','--asp-id', metavar="PROVIDER-ID", help="The Application Service Provider Id to use", required=False)
+
+    # m1-session-cli protocols -p <provisioning-session-id>
+    parser_protocols = subparsers.add_parser('protocols', help='Get the available upload/download protocols for a provisioning session')
+    parser_protocols.set_defaults(command=cmd_protocols)
+    parser_protocols.add_argument('-p', '--provisioning-session',
+                                        help='Provisioning session id to list the upload and download protocols for')
 
     # m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name> | --csr]
     parser_new_certificate = subparsers.add_parser('new-certificate', help='Create a new certificate')
@@ -689,6 +737,7 @@ async def main():
         return 2
     except Exception as err:
         print(f'General failure: {err}')
+        #traceback.print_exc() # add in for debugging
         return 2
     return 0
 

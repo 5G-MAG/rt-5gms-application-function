@@ -127,7 +127,7 @@ class ContentProtocols(TypedDict, total=False):
         :rtype: ContentProtocols
         :raise TypeError: if the *json_str* could not be interpretted as a `ContentProtocols`.
         '''
-        return ContentProtocols(json.loads(str))
+        return ContentProtocols(json.loads(json_str))
 
 class DistributionNetworkType(enum.Enum):
     '''Enumeration DistributionNetworkType in TS 26.512

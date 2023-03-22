@@ -170,7 +170,7 @@ class M1Client:
 
         :param ResourceId provisioning_session_id: The provisioning session to find.
 
-        :return: True if a provisioning session was deleted or False if there was no action.
+        :return: True if a provisioning session was deleted (or pending deletion) or False if there was no action.
 
         :raise M1ClientError: if there was a problem with the request
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
@@ -178,7 +178,7 @@ class M1Client:
         result = await self.__do_request('DELETE',
                                          '/provisioning-sessions/' + provisioning_session_id, '',
                                          'application/json')
-        if result['status_code'] == 204:
+        if result['status_code'] == 204 or result['status_code'] == 202:
             return True
         self.__default_response(result)
         return False

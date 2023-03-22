@@ -153,7 +153,7 @@ class M1Session:
         if provisioning_session_id not in self.__provisioning_sessions:
             return None
         await self.__connect()
-        result = await self.__m1_client.destroyProvisioningSession(prov_sess)
+        result = await self.__m1_client.destroyProvisioningSession(provisioning_session_id)
         if result:
             del self.__provisioning_sessions[provisioning_session_id]
             if self.__data_store_dir:
@@ -188,6 +188,19 @@ class M1Session:
         if self.__data_store_dir:
             await self.__data_store_dir.set('provisioning_sessions', list(self.__provisioning_sessions.keys()))
         return ps_id
+
+    async def provisioningSessionIdByIngestUrl(self, ingesturl: str, entrypoint: Optional[str] = None) -> Optional[ResourceId]:
+        ret = None
+        for ps_id in self.__provisioning_sessions.keys():
+            await self.__cacheContentHostingConfiguration(ps_id)
+            ps = await self.__getProvisioningSessionCache(ps_id)
+            if ps is None or ps['content-hosting-configuration'] is None:
+                continue
+            if ps['content-hosting-configuration']['contenthostingconfiguration']['ingestConfiguration']['baseURL'] == ingesturl:
+                if (entrypoint is None and 'entryPointPath' not in ps['content-hosting-configuration']['contenthostingconfiguration']) or (entrypoint is not None and 'entryPointPath' in ps['content-hosting-configuration']['contenthostingconfiguration'] and ps['content-hosting-configuration']['contenthostingconfiguration']['entryPointPath'] == entrypoint):
+                    ret = ps_id
+                    break
+        return ret
 
     # Certificates management
 
@@ -374,7 +387,9 @@ class M1Session:
         :return: The certificate id of the newly created certificate or ``None`` if the certificate could not be created.
         '''
         # simple case just create the certificate
-        if domain_name_alias is None or len(domain_name_alias) == 0:
+        if domain_name_alias is not None and len(domain_name_alias) == 0:
+            domain_name_alias = None
+        if domain_name_alias is None:
             return await self.certificateCreate(provisioning_session)
         # When domainNameAlias is used we need to use a CSR
         csr: Optional[Tuple[ResourceId,str]] = await self.certificateNewSigningRequest(provisioning_session)
@@ -558,8 +573,10 @@ class M1Session:
         now = datetime.datetime.now(datetime.timezone.utc)
         if ps['protocols'] is None or ps['protocols']['cache-until'] is None or ps['protocols']['cache-until'] < now:
             await self.__connect()
-            result = await self.__m1_client.getContentProtocols(provisioning_session_id)
+            result = await self.__m1_client.retrieveContentProtocols(provisioning_session_id)
             if result is not None:
+                if ps['protocols'] is None:
+                    ps['protocols'] = {}
                 ps['protocols'].update({k.lower(): v for k,v in result.items()})
 
     async def __cacheCertificates(self, provisioning_session_id: ResourceId):

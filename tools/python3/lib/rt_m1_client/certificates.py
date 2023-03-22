@@ -109,33 +109,35 @@ class LocalCACertificateSigner(CertificateSigner):
         :return: a public X509 certificate in PEM format.
         '''
         x509req: OpenSSL.crypto.X509Req = OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, csr.encode('utf-8'))
-        need_canonical_sans = True
-        for ext in x509req.get_extensions():
-            ext_name = ext.get_short_name().decode('utf-8')
-            if ext_name == 'subjectAltName' and str(ext) == 'DNS:'+x509req.get_subject().commonName:
-                need_canonical_sans = False
-        sans: List[OpenSSL.crypto.X509Extension] = []
-        if need_canonical_sans:
-            sans += [OpenSSL.crypto.X509Extension(b'subjectAltName', False, b'DNS:'+x509req.get_subject().commonName)]
+        # Adjust SANs
+        sans: List[bytes] = []
         if domain_name_alias is not None:
-            sans += [OpenSSL.crypto.X509Extension(b'subjectAltName', False, b'DNS:'+domain_name_alias.encode('utf-8'))]
-        x509req.add_extensions(sans)
+            sans += [b'DNS:'+domain_name_alias.encode('utf-8')]
+        sans += [b'DNS:'+x509req.get_subject().commonName.encode('utf-8')]
         # Get local CA
         ca_key, ca = await self.__getLocalCA()
         # Convert CSR to X509 certificate
         x509 = OpenSSL.crypto.X509()
-        x509.set_subject(x509req.get_subject())
+        if domain_name_alias is not None:
+            new_subj = x509.get_subject()
+            new_subj.commonName = domain_name_alias
+            new_subj.organizationName = '5G-MAG'
+        else:
+            x509.set_subject(x509req.get_subject())
         x509.set_serial_number(1)
         x509.gmtime_adj_notBefore(0)
         x509.gmtime_adj_notAfter(self.__local_cert_days * 24 * 60 * 60)
         x509.set_issuer(ca.get_subject())
         x509.set_pubkey(x509req.get_pubkey())
+        # Copy any extensions we aren't replacing
         for ext in x509req.get_extensions():
-            if ext.get_short_name() != b'authorityKeyIdentifier' and ext.get_short_name() != b'basicConstraints':
+            if ext.get_short_name() not in [b'subjectKeyIdentifier', b'authorityKeyIdentifier', b'basicConstraints', b'subjectAltName']:
                 x509.add_extensions([ext])
         x509.add_extensions([
+            OpenSSL.crypto.X509Extension(b'subjectKeyIdentifier', False, b'hash', subject=x509),
             OpenSSL.crypto.X509Extension(b'authorityKeyIdentifier', False, b'keyid, issuer', issuer=ca),
-            OpenSSL.crypto.X509Extension(b'basicConstraints', True, b'CA:FALSE')
+            OpenSSL.crypto.X509Extension(b'basicConstraints', True, b'CA:FALSE'),
+            OpenSSL.crypto.X509Extension(b'subjectAltName', False, b','.join(sans))
             ])
         x509.sign(ca_key, "sha256")
         return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, x509).decode('utf-8')
