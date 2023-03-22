@@ -128,13 +128,21 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     ogs_sbi_message_free(&message);
                     break;
                 }
-                SWITCH(message.h.resource.component[0])
+                if (!message.h.resource.component[0]) {
+                    char *error;
+                    error = ogs_strdup("Protocol on M1 requires a resource");
+                    ogs_error("%s", error);
+                    ogs_assert(true == nf_server_send_error(stream, 404, 1, NULL, "No resource given", error, NULL, NULL, app_meta));
+                    ogs_sbi_message_free(&message);
+                    break;
+                }
 
+                SWITCH(message.h.resource.component[0])
                 CASE("provisioning-sessions")
                     SWITCH(message.h.method)
                     CASE(OGS_SBI_HTTP_METHOD_POST)
 
-                        if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3]) {
+                        if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
 
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration") && !strcmp(message.h.resource.component[3],"purge")) {
@@ -220,7 +228,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             }
 
-                        } else if (message.h.resource.component[1] && message.h.resource.component[2]) {
+                        } else if (message.h.resource.component[1] && message.h.resource.component[2] && !message.h.resource.component[3]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
                                 msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
@@ -396,7 +404,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 }
                             }
 
-                        } else if (message.h.resource.component[1]){
+                        } else if (message.h.resource.component[1] && !message.h.resource.component[2]){
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
                             if(msaf_provisioning_session) {
@@ -492,7 +500,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         break;
 
                     CASE(OGS_SBI_HTTP_METHOD_GET)
-                        if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3]) {
+                        if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
                             if (!strcmp(message.h.resource.component[2],"certificates") ) {
                                 msaf_provisioning_session_t *msaf_provisioning_session;
                                 msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
@@ -555,7 +563,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exists.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                                 }
                             }
-                        } else if (message.h.resource.component[1] && message.h.resource.component[2]) {
+                        } else if (message.h.resource.component[1] && message.h.resource.component[2] && !message.h.resource.component[3]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
@@ -603,7 +611,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Provisioning session does not exist.", err, NULL, m1_contentprotocolsdiscovery_api, app_meta));
                                 }
                             }
-                        } else if (message.h.resource.component[1]) {
+                        } else if (message.h.resource.component[1] && !message.h.resource.component[2]) {
                             msaf_provisioning_session_t *msaf_provisioning_session = NULL;
                             cJSON *provisioning_session = NULL;
 
@@ -641,7 +649,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
                             if(msaf_provisioning_session) {
                                 ogs_info("PUT: with msaf_provisioning_session: %s", message.h.resource.component[1]);
-                                if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
+                                if (!strcmp(message.h.resource.component[2],"content-hosting-configuration") && !message.h.resource.component[3]) {
 
                                     // process the POST body
                                     cJSON *entry;
@@ -696,7 +704,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Failed to update the contentHostingConfiguration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     }
                                 }
-                                if (message.h.resource.component[1] && !strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3]) {
+                                if (!strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3] && !message.h.resource.component[4]) {
                                     char *cert_id;
                                     char *cert;
                                     int rv;
@@ -772,8 +780,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_free(cert);
                                     }
 
+                                } else {
+                                    char *err = NULL;
+                                    asprintf(&err,"[%s]: Resource not found.", message.h.method);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Resource not found.", err, NULL, m1_provisioningsession_api, app_meta));
                                 }
-
                             } else {
                                 char *err = NULL;
                                 asprintf(&err,"Provisioning Session [%s] does not exist.", message.h.resource.component[1]);
@@ -792,7 +804,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                     CASE(OGS_SBI_HTTP_METHOD_DELETE)
 
-                        if (message.h.resource.component[1] && !strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3]) {
+                        if (message.h.resource.component[1] && message.h.resource.component[2] && !strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3] && !message.h.resource.component[4]) {
                             ogs_sbi_response_t *response;
                             msaf_provisioning_session_t *provisioning_session = NULL;
                             provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
@@ -828,7 +840,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                 ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                             }
-                        } else if (message.h.resource.component[1] && message.h.resource.component[2]) {
+                        } else if (message.h.resource.component[1] && message.h.resource.component[2] && !message.h.resource.component[3]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             ogs_sbi_response_t *response;
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
@@ -858,7 +870,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             }
 
-                        } else if (message.h.resource.component[1]) {
+                        } else if (message.h.resource.component[1] && !message.h.resource.component[2]) {
                             ogs_sbi_response_t *response;
                             msaf_provisioning_session_t *provisioning_session = NULL;
                             provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
@@ -1023,6 +1035,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     ogs_sbi_message_free(&message);
                     break;
                 }              
+                if (!message.h.resource.component[0]) {
+                    char *error;
+                    error = ogs_strdup("Resource required for Management interface");
+                    ogs_error("%s", error);
+                    ogs_assert(true == nf_server_send_error(stream, 404, 1, NULL, "Resource name required", error, NULL, maf_management_api, app_meta));
+                    ogs_sbi_message_free(&message);
+                    break;
+                }
+
                 SWITCH(message.h.resource.component[0])
 
                     CASE("provisioning-sessions")
