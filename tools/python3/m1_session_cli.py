@@ -393,7 +393,16 @@ async def cmd_set_stream(args: argparse.Namespace, config: Configuration) -> int
 
     async with aiofiles.open(args.file, 'r') as json_in:
         chc = json.loads(await json_in.read())
-    result = await session.contentHostingConfigurationCreate(provisioning_session_id, chc)
+    old_chc = await session.contentHostingConfigurationGet(provisioning_session_id)
+    if old_chc is None:
+        result = await session.contentHostingConfigurationCreate(provisioning_session_id, chc)
+    else:
+        # Remove any read-only fields
+        for dc in chc['distributionConfigurations']:
+            for strip_field in ['canonicalDomainName', 'baseURL']:
+                if strip_field in dc:
+                    del dc[strip_field]
+        result = await session.contentHostingConfigurationUpdate(provisioning_session_id, chc)
     if not result:
         print(f'Failed to set hosting for provisioning session {provisioning_session_id}')
         return 1
@@ -442,6 +451,26 @@ async def cmd_delete_stream(args: argparse.Namespace, config: Configuration) -> 
         print(f'Failed to destroy Provisioning Session {ps_id}')
         return 1
     print(f'Provisioning Session {ps_id} and all its resources were destroyed')
+    return 0
+
+async def cmd_show_stream(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    if args.provisioning_session is not None:
+        ps_id = args.provisioning_session
+    else:
+        ps_id = await session.provisioningSessionIdByIngestUrl(args.ingesturl, args.entrypoint)
+        if ps_id is None:
+            print('No such hosting session found')
+            return 1
+    result = await session.contentHostingConfigurationGet(ps_id)
+    if result is None:
+        print(f'Provisioning Session {ps_id} does not have a ContentHostingConfiguration')
+        return 1
+    if args.raw:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print(f'ContentHostingConfiguration for provisioning session {ps_id}:')
+        print('\n'.join(['  '+line for line in ContentHostingConfiguration.format(result).split('\n')]))
     return 0
 
 async def cmd_protocols(args: argparse.Namespace, config: Configuration) -> int:
@@ -504,7 +533,11 @@ async def cmd_show_certificate(args: argparse.Namespace, config: Configuration) 
     if result is None:
         print(f'Unable to get certificate {args.certificate_id} for provisioning session {args.provisioning_session}')
         return 1
-    await __prettyPrintCertificate(result)
+    if args.raw:
+        print(result)
+    else:
+        print(f'Certificate details for {args.certificate_id}:')
+        await __prettyPrintCertificate(result, indent=2)
     return 0
 
 async def cmd_set_certificate(args: argparse.Namespace, config: Configuration) -> int:
@@ -629,20 +662,37 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     # m1-session-cli set-stream -p <provisioning-session-id> <CHC-JSON-FILE>
     parser_set_stream = subparsers.add_parser('set-stream', help='Set the hosting for a provisioning session from a JSON file')
     parser_set_stream.set_defaults(command=cmd_set_stream)
-    parser_set_stream.add_argument('-p', '--provisioning-session', help='The provisioning session id to set the hosting for', required=True)
+    parser_set_stream.add_argument('-p', '--provisioning-session', help='The provisioning session id to set the hosting for',
+                                   required=True)
     parser_set_stream.add_argument('file', metavar='CHC-JSON-FILE', help='A filepath to a JSON encoded ContentHostingConfiguration')
+
+    # m1-session-cli show-stream (-p <provisioning-session-id>|<ingest-URL> [<entry-point-path>]) [-r]
+    parser_show_stream = subparsers.add_parser('show-stream',
+                                               help='Display the ContentHostingConfiguration for a provisioning session')
+    parser_show_stream.set_defaults(command=cmd_show_stream)
+    parser_show_stream_filter = parser_show_stream.add_mutually_exclusive_group(required=True)
+    parser_show_stream_filter.add_argument('-p', '--provisioning-session', help='The provisioning session id to show',
+                                           required=False)
+    parser_show_stream_filter.add_argument('ingesturl', metavar='ingest-URL', nargs='?', help='The ingest URL prefix used')
+    parser_show_stream.add_argument('entrypoint', metavar='entry-point-path', nargs='?',
+                                    help='The media player entry point suffix.')
+    parser_show_stream.add_argument('-r', '--raw', required=False, action="store_true",
+                                    help='Use "raw" output mode to present the ContentHostingConfiguration JSON')
 
     # m1-session-cli new-provisioning-session [-e <APPLICATION-ID>] [-a <PROVIDER-ID>]
     parser_new_provisioning_session = subparsers.add_parser('new-provisioning-session', help='Create a new provisioning session')
     parser_new_provisioning_session.set_defaults(command=cmd_new_provisioning_session)
-    parser_new_provisioning_session.add_argument('-e', '--external-app-id', dest='app_id', metavar="APPLICATION-ID", help='The external application id to register the stream to', required=False)
-    parser_new_provisioning_session.add_argument('-a','--asp-id', metavar="PROVIDER-ID", help="The Application Service Provider Id to use", required=False)
+    parser_new_provisioning_session.add_argument('-e', '--external-app-id', dest='app_id', metavar="APPLICATION-ID",
+                                                 help='The external application id to register the stream to', required=False)
+    parser_new_provisioning_session.add_argument('-a','--asp-id', metavar="PROVIDER-ID",
+                                                 help="The Application Service Provider Id to use", required=False)
 
     # m1-session-cli protocols -p <provisioning-session-id>
-    parser_protocols = subparsers.add_parser('protocols', help='Get the available upload/download protocols for a provisioning session')
+    parser_protocols = subparsers.add_parser('protocols',
+                                             help='Get the available upload/download protocols for a provisioning session')
     parser_protocols.set_defaults(command=cmd_protocols)
     parser_protocols.add_argument('-p', '--provisioning-session',
-                                        help='Provisioning session id to list the upload and download protocols for')
+                                  help='Provisioning session id to list the upload and download protocols for')
 
     # m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name> | --csr]
     parser_new_certificate = subparsers.add_parser('new-certificate', help='Create a new certificate')
@@ -662,6 +712,8 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
                                          help='Provisioning session id to show the certificate for')
     parser_show_certificate.add_argument('-c', '--certificate-id', required=True,
                                          help='The certificate id of the certificate to show')
+    parser_show_certificate.add_argument('-r', '--raw', required=False, action="store_true",
+                                         help='Use "raw" output mode to present the public certificate PEM data')
 
     # m1-session-cli set-certificate -p <provisioning-session-id> -c <certificate-id> [<certificate-PEM-file>]
     parser_set_certificate = subparsers.add_parser('set-certificate',
@@ -737,7 +789,7 @@ async def main():
         return 2
     except Exception as err:
         print(f'General failure: {err}')
-        #traceback.print_exc() # add in for debugging
+        traceback.print_exc() # add in for debugging
         return 2
     return 0
 

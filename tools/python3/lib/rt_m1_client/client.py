@@ -250,8 +250,8 @@ class M1Client:
         return None
 
     async def updateContentHostingConfiguration(self, provisioning_session_id: ResourceId,
-                                        content_hosting_configuration: ContentHostingConfiguration
-                                                ) -> Union[bool,ContentHostingConfigurationResponse]:
+                                                content_hosting_configuration: ContentHostingConfiguration
+                                                ) -> bool:
         '''
         Update a content hosting configuration for a provisioning session
 
@@ -259,26 +259,14 @@ class M1Client:
                                                    for.
         :param ContentHostingConfiguration content_hosting_configuration: The new content hosting configuration to apply.
 
-        :return: a ContentHostingConfigurationResponse if the update succeeded and the new ContentHostingConfiguration was
-                 returned by the M1 Server, or True if the update succeeded but no ContentHostingConfiguration was returned,
-                 or False if the update failed.
+        :return: ``True`` if the update succeeded or ``False`` if the update failed.
 
         :raise M1ClientError: if there was a problem with the request.
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
-        result = await self.__do_request('PUT',
-                    f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
-
-                                         str(content_hosting_configuration), 'application/json')
+        result = await self.__do_request('PUT', f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
+                                         json.dumps(content_hosting_configuration), 'application/json')
         if result['status_code'] == 204:
-            if len(result['body']) > 0:
-                ret: ContentHostingConfigurationResponse = self.__tag_and_date(result)
-                ret.update({
-                    'ProvisioningSessionId': provisioning_session_id,
-                    'ContentHostingConfiguration': ContentHostingConfiguration.fromJSON(
-                        result['body'])
-                    })
-                return ret
             return True
         if result['status_code'] == 404:
             return False

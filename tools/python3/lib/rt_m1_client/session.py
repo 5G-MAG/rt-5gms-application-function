@@ -363,6 +363,20 @@ class M1Session:
             return None
         return ContentHostingConfiguration(ps['content-hosting-configuration']['contenthostingconfiguration'])
 
+    async def contentHostingConfigurationUpdate(self, provisioning_session: ResourceId, chc: ContentHostingConfiguration) -> bool:
+        '''Update the `ContentHostingConfiguration` for a provisioning session
+
+        :param provisioning_session: The provisioning session id of the provisioning session to set the
+                                     `ContentHostingConfiguration` in.
+        :param chc: The `ContentHostingConfiguration` to set in the provisioning session.
+        :return: ``True`` if the new `ContentHostingConfiguration` was successfully set in the provisioning session or ``False`` if
+                 the operation failed (e.g. because there was no `ContentHostingConfiguration` set).
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.updateContentHostingConfiguration(provisioning_session, chc)
+
     # Convenience methods
 
     async def createDownlinkPullProvisioningSession(self, app_id: ApplicationId, asp_id: Optional[ApplicationId] = None) -> Optional[ResourceId]:
