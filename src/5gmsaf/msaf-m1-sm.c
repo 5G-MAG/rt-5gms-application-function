@@ -168,16 +168,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 if(msaf_provisioning_session) {
                                     // process the POST body
                                     purge_resource_id_node_t *purge_cache;
-                                    msaf_application_server_state_node_t *as_state;
+                                    msaf_application_server_state_ref_node_t *as_state_ref;
                                     assigned_provisioning_sessions_node_t *assigned_provisioning_sessions_resource;
                                     m1_purge_information_t *m1_purge_info = ogs_calloc(1, sizeof(m1_purge_information_t));
                                     m1_purge_info->m1_stream = stream;
                                     m1_purge_info->m1_message = message;
 
-                                    ogs_list_for_each(&msaf_provisioning_session->msaf_application_server_state_nodes, as_state) {
-                                        if(as_state->application_server && as_state->application_server->canonicalHostname) {
+                                    ogs_list_for_each(&msaf_provisioning_session->application_server_states, as_state_ref) {
+                                        msaf_application_server_state_node_t *as_state = as_state_ref->as_state;
+                                        if (as_state->application_server && as_state->application_server->canonicalHostname) {
                                             ogs_list_for_each(&as_state->assigned_provisioning_sessions,assigned_provisioning_sessions_resource){
-                                                if(!strcmp(assigned_provisioning_sessions_resource->assigned_provisioning_session->provisioningSessionId, msaf_provisioning_session->provisioningSessionId)) {
+                                                if(assigned_provisioning_sessions_resource->assigned_provisioning_session == msaf_provisioning_session) {
 
                                                     purge_cache = ogs_calloc(1, sizeof(purge_resource_id_node_t));
                                                     ogs_assert(purge_cache);
@@ -355,11 +356,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         msaf_certificate_free(csr_cert);
 
                                         break;
-                                    }
-
-                                    if (ogs_list_first(&msaf_provisioning_session->msaf_application_servers) == NULL) {
-                                        ogs_list_init(&msaf_provisioning_session->msaf_application_server_state_nodes);
-                                        ogs_list_add(&msaf_provisioning_session->msaf_application_server_state_nodes, msaf_as);
                                     }
 
                                     cert = check_in_cert_list(canonical_domain_name);
@@ -651,12 +647,24 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_info("PUT: with msaf_provisioning_session: %s", message.h.resource.component[1]);
                                 if (!strcmp(message.h.resource.component[2],"content-hosting-configuration") && !message.h.resource.component[3]) {
 
-                                    // process the POST body
+                                    // process the PUT body
                                     cJSON *entry;
                                     int rv;
                                     cJSON *content_hosting_config = cJSON_Parse(request->http.content);
-                                    char *txt = cJSON_Print(content_hosting_config);
-                                    ogs_debug("txt:%s", txt);
+
+                                    if (!content_hosting_config) {
+                                        char *err = NULL;
+                                        asprintf(&err,"While updating the Content Hosting Configuration for the Provisioning Session [%s], Failure parsing ContentHostingConfiguration JSON.",message.h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 422, 2, &message, "Bad ContentHosting Configuration JSON.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                        break;
+                                    }
+
+                                    {
+                                        char *txt = cJSON_Print(content_hosting_config);
+                                        ogs_debug("txt:%s", txt);
+                                        ogs_free(txt);
+                                    }
 
                                     cJSON_ArrayForEach(entry, content_hosting_config) {
                                         if(!strcmp(entry->string, "entryPointPath")){
@@ -888,7 +896,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 nf_server_populate_response(response, 0, NULL, 202);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                 msaf_delete_content_hosting_configuration(message.h.resource.component[1]);
-                                msaf_delete_certificate(message.h.resource.component[1]);
+                                msaf_delete_certificates(message.h.resource.component[1]);
                                 msaf_context_provisioning_session_free(provisioning_session);
                                 msaf_provisioning_session_hash_remove(message.h.resource.component[1]);
                             }

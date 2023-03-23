@@ -23,7 +23,7 @@ typedef struct client_request_info {
 
 static void application_server_state_init(msaf_application_server_node_t *msaf_as);
 static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port);
-static int 
+static int
 m3_client_as_state_requests(msaf_application_server_state_node_t *as_state, purge_resource_id_node_t *purge_node,const char *type, const char *data, const char *method, const char *component);
 static int client_notify_cb(int status, ogs_sbi_response_t *response, void *data);
 static void msaf_application_server_remove(msaf_application_server_node_t *msaf_as);
@@ -43,11 +43,13 @@ msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisio
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
     ogs_assert(msaf_as);
     ogs_list_for_each(&msaf_self()->application_server_states, as_state){
-        if(!strcmp(as_state->application_server->canonicalHostname, msaf_as->canonicalHostname)) {
+        if (as_state->application_server == msaf_as) {
+            msaf_application_server_state_ref_node_t *as_state_ref;
 
             certs = msaf_retrieve_certificates_from_map(provisioning_session);
             if (certs) {
                 ogs_list_for_each_safe(certs, next_node, node) {
+                    ogs_list_remove(certs, node);
                     ogs_list_add(&as_state->upload_certificates, node);
                 }
                 ogs_free(certs);
@@ -59,14 +61,17 @@ msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisio
             ogs_assert(chc);
             chc->state = ogs_strdup(provisioning_session->provisioningSessionId);
             ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
+
             assigned_provisioning_sessions = ogs_calloc(1, sizeof(assigned_provisioning_sessions_node_t));
             ogs_assert(assigned_provisioning_sessions);
             assigned_provisioning_sessions->assigned_provisioning_session = provisioning_session;
-            assigned_provisioning_sessions->assigned_provisioning_session->contentHostingConfiguration = provisioning_session->contentHostingConfiguration;
             ogs_list_add(&as_state->assigned_provisioning_sessions, assigned_provisioning_sessions);
 
-            ogs_list_init(&provisioning_session->msaf_application_server_state_nodes);
-            ogs_list_add(&provisioning_session->msaf_application_server_state_nodes, as_state);
+            ogs_list_init(&provisioning_session->application_server_states);
+            as_state_ref = ogs_calloc(1, sizeof(msaf_application_server_state_ref_node_t));
+            ogs_assert(as_state_ref);
+            as_state_ref->as_state = as_state;
+            ogs_list_add(&provisioning_session->application_server_states, as_state_ref);
 
             next_action_for_application_server(as_state);
         }
@@ -77,21 +82,46 @@ msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisio
 void
 msaf_application_server_state_update( msaf_provisioning_session_t *provisioning_session)
 {
-    msaf_application_server_state_node_t *as_state;
-    resource_id_node_t *chc;
-    assigned_provisioning_sessions_node_t *assigned_provisioning_sessions;
+    msaf_application_server_state_ref_node_t *as_state_ref;
 
-    ogs_list_for_each(&provisioning_session->msaf_application_server_state_nodes, as_state){
+    ogs_list_for_each(&provisioning_session->application_server_states, as_state_ref){
+        resource_id_node_t *chc;
+        msaf_application_server_state_node_t *as_state = as_state_ref->as_state;
+        ogs_list_t *certs = msaf_retrieve_certificates_from_map(provisioning_session);
+        if (certs) {
+            resource_id_node_t *next_node, *node;
+            ogs_list_for_each_safe(certs, next_node, node) {
+                int upload_cert = 1;
+                resource_id_node_t *cur_cert;
+                /* Check if the certificate is already uploaded */
+                ogs_list_for_each(as_state->current_certificates, cur_cert) {
+                    if (!strcmp(node->state, cur_cert->state)) {
+                        upload_cert = 0;
+                        break;
+                    }
+
+                }
+                /* If there is a new certificate for this AS, upload it */
+                if (upload_cert) {
+                    ogs_list_remove(certs, node);
+                    ogs_list_add(&as_state->upload_certificates, node);
+                }
+            }
+            /* free any cert map nodes left in the list (didn't need update) */
+            ogs_list_for_each_safe(certs, next_node, node) {
+                ogs_list_remove(certs, node);
+                if (node->state) ogs_free(node->state);
+                ogs_free(node);
+            }
+            ogs_free(certs);
+        } else {
+            continue;
+        }
+
         chc = ogs_calloc(1, sizeof(resource_id_node_t));
         ogs_assert(chc);
         chc->state = ogs_strdup(provisioning_session->provisioningSessionId);
         ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
-
-        ogs_list_for_each(&as_state->assigned_provisioning_sessions,assigned_provisioning_sessions){
-
-            assigned_provisioning_sessions->assigned_provisioning_session = provisioning_session;
-            assigned_provisioning_sessions->assigned_provisioning_session->contentHostingConfiguration = provisioning_session->contentHostingConfiguration;
-        }
 
         next_action_for_application_server(as_state);
     }
@@ -108,6 +138,7 @@ msaf_application_server_state_set(msaf_application_server_state_node_t *as_state
     certs = msaf_retrieve_certificates_from_map(provisioning_session);
     if (certs) {
         ogs_list_for_each_safe(certs, next_node, node) {
+            ogs_list_remove(certs, node);
             ogs_list_add(&as_state->upload_certificates, node);
         }
         ogs_free(certs);
@@ -261,9 +292,9 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
             ogs_debug("M3 client: Sending Purge operation for cache [%s] to the Application Server", purge_chc->provisioning_session_id);
             m3_client_as_state_requests(as_state, purge_chc, "application/x-www-form-urlencoded", NULL, OGS_SBI_HTTP_METHOD_POST, component);
         }
-        ogs_free(component); 
+        ogs_free(component);
 
-    } 
+    }
 
 
 }

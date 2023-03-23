@@ -34,12 +34,16 @@ typedef struct msaf_provisioning_session_s {
     char *contentHostingConfigurationHash;
     time_t serviceAccessInformationCreated;
     char *serviceAccessInformationHash;
-    /*ogs_list_t certificates;  //Nodes for this list are msaf_assigned_certificate_t * */
-    ogs_hash_t  *certificate_map;
-    ogs_list_t msaf_application_servers; // Nodes for this list are msaf_application_server_node_t *
-    ogs_list_t msaf_application_server_state_nodes; //Nodes for this list are msaf_application_server_state_node_t *
+    ogs_hash_t *certificate_map;
+    ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t *
     int marked_for_deletion;
 } msaf_provisioning_session_t;
+
+typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;
+typedef struct msaf_application_server_state_ref_node_s {
+    ogs_lnode_t node;
+    msaf_application_server_state_node_t *as_state;
+} msaf_application_server_state_ref_node_t;
 
 extern msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id);
 extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
@@ -56,20 +60,20 @@ extern ogs_list_t *msaf_retrieve_certificates_from_map(msaf_provisioning_session
 
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session);
 
-extern void msaf_delete_content_hosting_configuration(char * resource_id);
+extern void msaf_delete_content_hosting_configuration(const char *provisioning_session_id);
 
-extern void msaf_delete_certificate(char *resource_id);
+extern void msaf_delete_certificates(const char *provisioning_session_id);
 
-extern void msaf_provisioning_session_hash_remove(char *provisioning_session_id);
+extern void msaf_provisioning_session_hash_remove(const char *provisioning_session_id);
 
-extern void msaf_provisioning_session_certificate_hash_remove(char *provisioning_session_id, char *certificate_id);
+extern void msaf_provisioning_session_certificate_hash_remove(const char *provisioning_session_id, const char *certificate_id);
 
-extern int uri_relative_check(char *entry_point_path);
+extern int uri_relative_check(const char *entry_point_path);
 
 extern int
 msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session);
 
-extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(char *provisioning_session_id);
+extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
 
 extern char *enumerate_provisioning_sessions(void);
 
