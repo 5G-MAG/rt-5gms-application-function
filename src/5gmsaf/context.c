@@ -678,6 +678,8 @@ free_ogs_hash_entry(void *rec, const void *key, int klen, const void *value)
 void
 msaf_context_provisioning_session_free(msaf_provisioning_session_t *provisioning_session)
 {
+    msaf_application_server_state_ref_node_t *next_as_state_ref, *as_state_ref;
+
     ogs_assert(provisioning_session);
     if (provisioning_session->certificate_map) {
         free_ogs_hash_context_t fohc = {
@@ -697,7 +699,11 @@ msaf_context_provisioning_session_free(msaf_provisioning_session_t *provisioning
 
     if (provisioning_session->serviceAccessInformation) OpenAPI_service_access_information_resource_free(provisioning_session->serviceAccessInformation);
     if (provisioning_session->serviceAccessInformationHash) ogs_free(provisioning_session->serviceAccessInformationHash);
-
+    
+    ogs_list_for_each_safe(&provisioning_session->application_server_states, next_as_state_ref, as_state_ref) {
+        ogs_list_remove(&provisioning_session->application_server_states, as_state_ref);
+        ogs_free(as_state_ref);
+    }
     
     ogs_free(provisioning_session);
 }
