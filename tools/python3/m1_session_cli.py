@@ -789,7 +789,7 @@ async def main():
         return 2
     except Exception as err:
         print(f'General failure: {err}')
-        traceback.print_exc() # add in for debugging
+        #traceback.print_exc() # add in for debugging
         return 2
     return 0
 
