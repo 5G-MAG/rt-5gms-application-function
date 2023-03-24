@@ -1,13 +1,12 @@
 {
-	"name": "AMP Demo Stream: Big Buck Bunny",
+	"name": "AMP Demo Stream: Caminandes: Llama Drama",
 	"ingestConfiguration": {
 		"pull": true,
 		"protocol": "urn:3gpp:5gms:content-protocol:http-pull-ingest",
-		"baseURL": "http://amssamples.streaming.mediaservices.windows.net/622b189f-ec39-43f2-93a2-201ac4e31ce1/BigBuckBunny.ism/"
+		"baseURL": "http://amssamples.streaming.mediaservices.windows.net/634cd01c-6822-4630-8444-8dd6279f94c6/CaminandesLlamaDrama4K.ism/"
 	},
 	"distributionConfigurations": [
 		{
-			"certificateId": "@certificate-id@",
 			"entryPoint": {
 				"relativePath": "manifest(format=mpd-time-csf)",
 				"contentType": "application/dash+xml",
@@ -15,7 +14,6 @@
 			}
 		},
 		{
-			"certificateId": "@certificate-id@",
                         "entryPoint": {
                                 "relativePath": "manifest(format=m3u8-aapl-v3)",
                                 "contentType": "application/vnd.apple.mpegurl"
