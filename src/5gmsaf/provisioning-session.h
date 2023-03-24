@@ -16,8 +16,8 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "openapi/model/service_access_information_resource.h"
 #include "openapi/model/provisioning_session.h"
 #include "openapi/model/provisioning_session_type.h"
-#include "openapi/model/rel_media_entry_point.h"
-#include "openapi/model/abs_media_entry_point.h"
+#include "openapi/model/m1_media_entry_point.h"
+#include "openapi/model/m5_media_entry_point.h"
 
 #ifdef __cplusplus
 extern "C" {

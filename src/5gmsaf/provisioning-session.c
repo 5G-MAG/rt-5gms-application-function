@@ -344,7 +344,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     char *content_hosting_config_to_hash = NULL;
     OpenAPI_list_t *media_entry_point_list;
     OpenAPI_list_t *media_entry_point_profiles_list = NULL;
-    OpenAPI_abs_media_entry_point_t *entry_point;
+    OpenAPI_m5_media_entry_point_t *entry_point;
     char *locator_absolute_path;
 
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
@@ -398,7 +398,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
                     media_entry_point_profiles_list = NULL;
                 }
 
-                entry_point = OpenAPI_abs_media_entry_point_create(locator_absolute_path, ogs_strdup(dist_config->entry_point->content_type), media_entry_point_profiles_list);
+                entry_point = OpenAPI_m5_media_entry_point_create(locator_absolute_path, ogs_strdup(dist_config->entry_point->content_type), media_entry_point_profiles_list);
                 OpenAPI_list_add(media_entry_point_list, entry_point);
             }
         } 
