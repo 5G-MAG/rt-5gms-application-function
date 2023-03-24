@@ -112,7 +112,7 @@ class Configuration:
     [m1-client]
     log_level = info
     data_store = %(state_dir)s/m1-client
-    m1_address = localhost
+    m1_address = 127.0.0.23
     m1_port = 7777
     asp_id =
     external_app_id = please-change-this
