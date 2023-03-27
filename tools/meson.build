@@ -4,7 +4,7 @@ fs = import('fs')
 support_scripts_dir = get_option('libexecdir') / 'rt-5gms'
 
 scripts = {
-#'python3/m1_client_cli.py': 'm1-client',
+'python3/m1_client_cli.py': 'm1-client',
 'python3/m1_session_cli.py': 'm1-session'
 }
 
