@@ -34,8 +34,8 @@ static int free_ogs_hash_provisioning_session(void *rec, const void *key, int kl
 static int free_ogs_hash_provisioning_session_certificate(void *rec, const void *key, int klen, const void *value);
 static char* url_path_create(const char* macro, const char* session_id, const msaf_application_server_node_t *msaf_as);
 static void tidy_relative_path_re(void);
-static const char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
-static const char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
+static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
+static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
 
 /***** Public functions *****/
 
@@ -87,7 +87,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     msaf_provisioning_session->aspId = (provisioning_session->asp_id)?ogs_strdup(provisioning_session->asp_id):NULL;
     msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
     msaf_provisioning_session->provisioningSessionReceived = time(NULL);
-    msaf_provisioning_session->provisioningSessionHash = ogs_strdup(calculate_provisioning_session_hash(provisioning_session));
+    msaf_provisioning_session->provisioningSessionHash = calculate_provisioning_session_hash(provisioning_session);
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
@@ -129,7 +129,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 	OpenAPI_list_free(provisioning_session->server_certificate_ids);
         ogs_free(provisioning_session);
     } else {
-        ogs_error("Unable to retrieve Provisioning Session");
+        ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
     }
     return provisioning_session_json;
 }
@@ -408,7 +408,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
    
     provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_entry_point_list);
     provisioning_session->serviceAccessInformationCreated = time(NULL);    
-    provisioning_session->serviceAccessInformationHash = ogs_strdup(calculate_service_access_information_hash(provisioning_session->serviceAccessInformation));
+    provisioning_session->serviceAccessInformationHash = calculate_service_access_information_hash(provisioning_session->serviceAccessInformation);
     
     provisioning_session->contentHostingConfiguration =  content_hosting_configuration;
     if (provisioning_session->contentHostingConfiguration)
@@ -416,16 +416,18 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
         content_hosting_config_to_hash = cJSON_Print(content_hosting_config);
         provisioning_session->contentHostingConfigurationReceived = time(NULL);
 
-        provisioning_session->contentHostingConfigurationHash = ogs_strdup(calculate_hash(content_hosting_config_to_hash));
+        provisioning_session->contentHostingConfigurationHash = calculate_hash(content_hosting_config_to_hash);
+        cJSON_free(content_hosting_config_to_hash);
     }
     ogs_free(url_path);
+    cJSON_Delete(content_hosting_config);
 
     return 1;
 }
 
 cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const char *provisioning_session_id) {
     msaf_provisioning_session_t *msaf_provisioning_session;
-    cJSON *content_hosting_configuration_json;
+    cJSON *content_hosting_configuration_json = NULL;
 
     msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
 
@@ -433,9 +435,7 @@ cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const c
     {
        content_hosting_configuration_json = OpenAPI_content_hosting_configuration_convertToJSON(msaf_provisioning_session->contentHostingConfiguration);
     } else {
-        ogs_error("Unable to retrieve Provisioning Session");
-        return NULL;
-
+        ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
     }
     return content_hosting_configuration_json;
 }
@@ -535,29 +535,29 @@ char *enumerate_provisioning_sessions(void)
 
 }
 
-static const char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
+static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
 {
     cJSON *provisioning_sess = NULL;
     char *provisioning_session_to_hash;
-    const char *provisioning_session_hashed = NULL;
+    char *provisioning_session_hashed = NULL;
     provisioning_sess = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
     provisioning_session_to_hash = cJSON_Print(provisioning_sess);
     cJSON_Delete(provisioning_sess);
-    provisioning_session_hashed =  calculate_hash(provisioning_session_to_hash);
-    ogs_free(provisioning_session_to_hash);
+    provisioning_session_hashed = calculate_hash(provisioning_session_to_hash);
+    cJSON_free(provisioning_session_to_hash);
     return provisioning_session_hashed;
 }
 
-static const char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information)
+static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information)
 {
     cJSON *service_access_info = NULL;
     char *service_access_information_to_hash;
-    const char *service_access_information_hashed = NULL;
+    char *service_access_information_hashed = NULL;
     service_access_info = OpenAPI_service_access_information_resource_convertToJSON(service_access_information);
     service_access_information_to_hash = cJSON_Print(service_access_info);
     cJSON_Delete(service_access_info);
     service_access_information_hashed = calculate_hash(service_access_information_to_hash);
-    ogs_free(service_access_information_to_hash);
+    cJSON_free(service_access_information_to_hash);
     return service_access_information_hashed;
 }
 

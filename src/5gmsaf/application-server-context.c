@@ -265,6 +265,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
         if (chc_with_af_unique_cert_id) OpenAPI_content_hosting_configuration_free(chc_with_af_unique_cert_id);
         ogs_free(component);
         cJSON_Delete(json);
+        cJSON_free(data);
 
     }   else if (ogs_list_first(&as_state->delete_content_hosting_configurations) !=  NULL) {
         char *component;
@@ -344,8 +345,7 @@ static void msaf_application_server_remove(msaf_application_server_node_t *msaf_
     ogs_free(msaf_as);
 }
 
-    static ogs_sbi_client_t *
-msaf_m3_client_init(const char *hostname, int port)
+static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port)
 {
     int rv;
     ogs_sbi_client_t *client = NULL;
@@ -368,10 +368,8 @@ msaf_m3_client_init(const char *hostname, int port)
     return client;
 }
 
-    static int
-m3_client_as_state_requests(msaf_application_server_state_node_t *as_state,
-        purge_resource_id_node_t *purge_node,	
-        const char *type, const char *data, const char *method,
+static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_state,
+        purge_resource_id_node_t *purge_node, const char *type, const char *data, const char *method,
         const char *component)
 {
     ogs_sbi_request_t *request;
@@ -390,8 +388,7 @@ m3_client_as_state_requests(msaf_application_server_state_node_t *as_state,
         ogs_sbi_header_set(request->http.headers, "Content-Type", type);
 
     if (as_state->client == NULL) {
-        as_state->client = msaf_m3_client_init(
-                as_state->application_server->canonicalHostname,
+        as_state->client = msaf_m3_client_init(as_state->application_server->canonicalHostname,
                 as_state->application_server->m3Port);
     }
     client_request_info_t *request_info = ogs_calloc(1, sizeof(client_request_info_t));
@@ -405,8 +402,7 @@ m3_client_as_state_requests(msaf_application_server_state_node_t *as_state,
     return 1;
 }		
 
-    static int
-client_notify_cb(int status, ogs_sbi_response_t *response, void *data)
+static int client_notify_cb(int status, ogs_sbi_response_t *response, void *data)
 {
     int rv;
     client_request_info_t *client_request_info = data;

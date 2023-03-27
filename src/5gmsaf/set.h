@@ -1,7 +1,6 @@
 #ifndef OGS_SBI_SET_H
 #define OGS_SBI_SET_H
 
-#include "../external/cJSON.h"
 #include "ogs-core.h"
 
 #ifdef __cplusplus

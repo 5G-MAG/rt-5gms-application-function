@@ -72,8 +72,7 @@ extern void msaf_provisioning_session_certificate_hash_remove(const char *provis
 
 extern int uri_relative_check(const char *entry_point_path);
 
-extern int
-msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session);
+extern int msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session);
 
 extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
 
