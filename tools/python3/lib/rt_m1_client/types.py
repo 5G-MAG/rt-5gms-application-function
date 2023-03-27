@@ -155,6 +155,17 @@ class DistributionMode(enum.Enum):
         '''
         return self.name
 
+class M1MediaEntryPointMandatory(TypedDict, total=True):
+    '''Mandatory fields from M1MediaEntryPoint in TS 26.512 (v17.5.0)
+    '''
+    relativePath: str
+    contentType: str
+
+class M1MediaEntryPoint(M1MediaEntryPointMandatory, total=False):
+    '''M1MediaEntryPoint in TS 26.512 (v17.5.0)
+    '''
+    profiles: List[str]
+
 class DistributionConfiguration(TypedDict, total=False):
     '''
     DistributionConfiguration structure in TS 26.512
@@ -163,6 +174,7 @@ class DistributionConfiguration(TypedDict, total=False):
     canonicalDomainName: str
     domainNameAlias: str
     baseURL: Uri
+    entryPoint: List[M1MediaEntryPoint]
     pathRewriteRules: List[PathRewriteRule]
     cachingConfigurations: List[CachingConfiguration]
     geoFencing: TypedDict('GeoFencing', {'locatorType': str, 'locators': List[str]})
@@ -200,7 +212,6 @@ class ContentHostingConfiguration(ContentHostingConfigurationMandatory, total=Fa
     '''
     ContentHostingConfiguration structure in TS 26.512
     '''
-    entryPointPath: str
 
     @staticmethod
     def fromJSON(chc_json: str) -> "ContentHostingConfiguration":
@@ -229,11 +240,11 @@ class ContentHostingConfiguration(ContentHostingConfigurationMandatory, total=Fa
         :return: a formatted `str` representation of the `ContentHostingConfiguration`.
         '''
         return f'''Name: {chc['name']}
-{cls.__formatEntryPoint(chc)}Ingest:
-    Type: {chc['ingestConfiguration']['protocol']}
-    URL: {chc['ingestConfiguration']['baseURL']}
+Ingest:
+  Type: {chc['ingestConfiguration']['protocol']}
+  URL: {chc['ingestConfiguration']['baseURL']}
 Distributions:
-{cls.__formatDistributions(chc, indent=2)}
+{cls.__formatDistributions(chc)}
 '''
 
     @classmethod
@@ -251,62 +262,73 @@ Distributions:
         for d in chc['distributionConfigurations']:
             s = f"{prefix}- URL: {d['baseURL']}"
             if 'canonicalDomainName' in d:
-                s += f"\n{prefix}  Canonical Domain Name: {d['canonicalDomainName']}"
+                s += f'''
+{prefix}  Canonical Domain Name: {d['canonicalDomainName']}'''
             if 'contentPreparationTemplateId' in d:
-                s += f"\n{prefix}  Content Preparation Template: {d['contentPreparationTemplateId']}"
+                s += f'''
+{prefix}  Content Preparation Template: {d['contentPreparationTemplateId']}'''
             if 'certificateId' in d:
-                s += f"\n{prefix}  Certificate: {d['certificateId']}"
+                s += f'''
+{prefix}  Certificate: {d['certificateId']}'''
             if 'domainNameAlias' in d:
-                s += f"\n{prefix}  Domain Name Alias: {d['domainNameAlias']}"
+                s += f'''
+{prefix}  Domain Name Alias: {d['domainNameAlias']}'''
+            if 'entryPoint' in d:
+                s += f'''
+{prefix}  Entry point:
+{prefix}    Relative Path: {d['entryPoint']['relativePath']}
+{prefix}    Content Type: {d['entryPoint']['contentType']}'''
+                if 'profiles' in d['entryPoint']:
+                    s += f'''
+{prefix}    Profiles:'''
+                    for p in d['entryPoint']['profiles']:
+                        s += f'''
+{prefix}    - {p}'''
             if 'pathRewriteRules' in d:
-                s += f"\n{prefix}  Path Rewrite Rules:"
+                s += f'''
+{prefix}  Path Rewrite Rules:'''
                 for prr in d['pathRewriteRules']:
-                    s += f"\n{prefix}  - {prr['requestPathPattern']} => {prr['mappedPath']}"
+                    s += f'''
+{prefix}  - {prr['requestPathPattern']} => {prr['mappedPath']}'''
             if 'cachingConfigurations' in d:
-                s += f"\n{prefix}  Caching Configurations:"
+                s += f'''
+{prefix}  Caching Configurations:'''
                 for cc in d['cachingConfigurations']:
-                    s += f"\n{prefix}  - URL Pattern: {cc['urlPatternFilter']}"
+                    s += f'''
+{prefix}  - URL Pattern: {cc['urlPatternFilter']}'''
                     if 'cachingDirectives' in cc:
                         cd = cc['cachingDirectives']
-                        s += f"\n{prefix}    Directive:"
-                        s += f"\n{prefix}      no-cache={repr(cd['noCache'])}"
+                        s += f'''
+{prefix}    Directive:
+{prefix}      no-cache={repr(cd['noCache'])}'''
                         if 'maxAge' in cd:
-                            s += f"\n{prefix}      max-age={cd['maxAge']}"
+                            s += f'''
+{prefix}      max-age={cd['maxAge']}'''
                         if 'statusCodeFilters' in cd:
-                            s += f"\n{prefix}      filters=[{', '.join([str(i) for i in cd['statusCodeFilters']])}]"
+                            s += f'''
+{prefix}      filters=[{', '.join([str(i) for i in cd['statusCodeFilters']])}]'''
             if 'geoFencing' in d:
                 gf = d['geoFencing']
-                s += f"\n{prefix}  Geo-fencing({gf['locatorType']}):"
+                s += f'''
+{prefix}  Geo-fencing({gf['locatorType']}):'''
                 for l in gf['locators']:
-                    s += f"\n{prefix}  - {l}"
+                    s += f'''
+{prefix}  - {l}'''
             if 'urlSignature' in d:
                 us = d['urlSignature']
-                s += f"\n{prefix}  URL Signature:"
-                s += f"\n{prefix}  - Pattern: {us['urlPattern']}"
-                s += f"\n{prefix}    Token: {us['tokenName']}"
-                s += f"\n{prefix}    Passphase name: {us['passphraseName']}"
-                s += f"\n{prefix}    Passphase: {us['passphrase']}"
-                s += f"\n{prefix}    Token Expiry name: {us['tokenExpiryName']}"
-                s += f"\n{prefix}    Use IP Address?: {repr(us['useIPAddress'])}"
+                s += f'''
+{prefix}  URL Signature:
+{prefix}  - Pattern: {us['urlPattern']}
+{prefix}    Token: {us['tokenName']}
+{prefix}    Passphase name: {us['passphraseName']}
+{prefix}    Passphase: {us['passphrase']}
+{prefix}    Token Expiry name: {us['tokenExpiryName']}
+{prefix}    Use IP Address?: {us['useIPAddress']!r}'''
                 if 'ipAddressName' in us:
-                    s += f"\n{prefix}    IP Address name: {us['ipAddressName']}"
+                    s += f'''
+{prefix}    IP Address name: {us['ipAddressName']}'''
             dists += [s]
         return '\n'.join(dists)
-
-    @classmethod
-    def __formatEntryPoint(cls, chc: "ContentHostingConfiguration", indent: int = 0) -> str:
-        '''Format an ``entryPointPath`` as a string.
-
-        :meta private:
-        :param ContentHostingConfiguration chc: The `ContentHostingConfiguration` to look for an ``entryPointPath`` in.
-        :param int indent: The amount of spaces to indent the formatted ``entryPointPath`` by.
-
-        :return: the formatted ``entryPointPath`` if it exists or an empty string if it does not.
-        '''
-        if 'entryPointPath' not in chc:
-            return ''
-        prefix = ' '*indent
-        return f"{prefix}Entry Point Path: {chc['entryPointPath']}\n"
 
 # TS 29.571 ProblemDetail
 class InvalidParamMandatory(TypedDict):

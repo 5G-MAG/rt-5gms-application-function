@@ -36,6 +36,7 @@ Function via the interface at reference point M1.
 import datetime
 import importlib
 import logging
+import re
 from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List, Iterable
 
 import OpenSSL
@@ -419,7 +420,7 @@ class M1Session:
             return None
         return cert_id
 
-    async def createNewDownlinkPullStream(self, ingesturl: str, app_id: ApplicationId, entrypoint: Optional[str] = None, name: Optional[str] = None, asp_id: Optional[ApplicationId] = None, ssl: bool = False, insecure: bool = True, domain_name_alias: Optional[str] = None) -> ResourceId:
+    async def createNewDownlinkPullStream(self, ingesturl: str, app_id: ApplicationId, entrypoints: Optional[List[str]] = None, name: Optional[str] = None, asp_id: Optional[ApplicationId] = None, ssl: bool = False, insecure: bool = True, domain_name_alias: Optional[str] = None) -> ResourceId:
         '''Create a new downlink pull stream
 
         This will create a new provisioning session, reserve any necessary certificates (if *ssl* is requested) and set the
@@ -436,7 +437,8 @@ class M1Session:
 
         :param ingesturl: The ingest URL for the `ContentHostingConfiguration` to create.
         :param app_id: The external application id for creatation of the provisioning session.
-        :param entrypoint: Optional ``entryPointPath`` for the `ContentHostingConfiguration`.
+        :param entrypoints: Optional list of ``distributionConfiguration.entryPoint.relativePath`` for the
+                            `ContentHostingConfiguration`.
         :param name: Optional ``name`` for the `ContentHostingConfiguration`.
         :param asp_id: Optional Application Service Provider Id for creating the provisioning session.
         :param ssl: If ``True`` include an HTTPS ``distributionConfiguration`` in the `ContentHostingConfiguration`.
@@ -447,6 +449,7 @@ class M1Session:
         :return: The provisioning session id
         :raise RuntimeError: if the creation of provisioning session, certificate or content hosting configuration fails.
         '''
+        self.__log.debug(f'createNewDownlinkPullStream(ingesturl={ingesturl!r}, app_id={app_id!r}, entrypoints={entrypoints!r}, name={name!r}, asp_id={asp_id!r}, ssl={ssl!r}, insecure={insecure!r}, domain_name_alias={domain_name_alias!r})')
         # Abort if bad parameters
         if not ssl and not insecure:
             raise RuntimeError('Cannot create a stream without HTTP and HTTPS distributions.')
@@ -475,23 +478,56 @@ class M1Session:
                     },
                 'distributionConfigurations': []
                 }
-        if ssl and cert is not None:
-            dc = {'certificateId': cert}
-            if domain_name_alias is not None:
-                dc['domainNameAlias'] = domain_name_alias
-            chc['distributionConfigurations'] += [dc]
-        if insecure:
-            dc = {}
-            if domain_name_alias is not None:
-                dc['domainNameAlias'] = domain_name_alias
-            chc['distributionConfigurations'] += [dc]
-        if entrypoint is not None:
-            chc['entryPointPath'] = entrypoint
+        if entrypoints is None:
+            entrypoints = [None]
+        for ep in entrypoints:
+            if ssl and cert is not None:
+                dc = {'certificateId': cert}
+                if domain_name_alias is not None:
+                    dc['domainNameAlias'] = domain_name_alias
+                if ep is not None:
+                    dc['entryPoint'] = {'relativePath': ep, 'contentType': await self.__pathToContentType(ep)}
+                chc['distributionConfigurations'] += [dc]
+            if insecure:
+                dc = {}
+                if domain_name_alias is not None:
+                    dc['domainNameAlias'] = domain_name_alias
+                if ep is not None:
+                    dc['entryPoint'] = {'relativePath': ep, 'contentType': await self.__pathToContentType(ep)}
+                chc['distributionConfigurations'] += [dc]
         if not await self.contentHostingConfigurationCreate(provisioning_session, chc):
             raise RuntimeError('Failed to create the content hosting configuration')
         return provisioning_session
 
+    # Private data
+
+    __file_suffix_to_mime = {
+            'mpd': 'application/dash+xml',
+            'm3u8': 'application/vnd.apple.mpegurl',
+            }
+
+    __regex_to_mime = [
+            (re.compile(r'mpd'), 'application/dash+xml'),
+            (re.compile(r'm3u8'), 'application/vnd.apple.mpegurl'),
+            (re.compile(r'dash', re.IGNORECASE), 'application/dash+xml'),
+            (re.compile(r'hls', re.IGNORECASE), 'application/vnd.apple.mpegurl'),
+            ]
+
     # Private methods
+
+    async def __pathToContentType(self, path: str) -> str:
+        self.__log.debug(f'__pathToContentType({path!r})')
+        type_map = {
+                'mpd': 'application/dash+xml',
+                'm3u8': 'application/vnd.apple.mpegurl',
+                }
+        suffix = path.rsplit('.',1)[-1]
+        if suffix in self.__file_suffix_to_mime:
+            return self.__file_suffix_to_mime[suffix]
+        for regexp, ctype in self.__regex_to_mime:
+            if regexp.search(path) is not None:
+                return ctype
+        return 'application/octet-stream'
 
     async def __reloadFromDataStore(self) -> None:
         '''Reload persistent information from the DataStore
