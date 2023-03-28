@@ -144,9 +144,10 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
 
         for (i = 1; i <= number_of_components; i++)
         {
+            char *instance;
+            instance = ogs_msprintf("%s/%s", problem.instance, message->h.resource.component[i]);
             ogs_free(problem.instance);
-            problem.instance = ogs_msprintf("%s/%s", problem.instance, message->h.resource.component[i]);
-
+            problem.instance = instance;
         }
         ogs_expect_or_return_val(problem.instance, NULL);
     }
@@ -154,8 +155,8 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
         problem.is_status = true;
         problem.status = status;
     }
-    if (title) problem.title = ogs_strdup(title);
-    if (detail) problem.detail = ogs_strdup(detail);
+    if (title) problem.title = msaf_strdup(title);
+    if (detail) problem.detail = msaf_strdup(detail);
 
     nf_server_send_problem(stream, &problem, interface, app);
 

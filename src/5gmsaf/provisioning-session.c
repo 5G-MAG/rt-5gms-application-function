@@ -74,23 +74,23 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     OpenAPI_provisioning_session_t *provisioning_session;
     char *prov_sess_type;
 
-    prov_sess_type = ogs_strdup(provisioning_session_type);
+    prov_sess_type = msaf_strdup(provisioning_session_type);
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
-    provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id), OpenAPI_provisioning_session_type_FromString(prov_sess_type), (asp_id)?ogs_strdup(asp_id):NULL, ogs_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
+    provisioning_session = OpenAPI_provisioning_session_create(msaf_strdup(id), OpenAPI_provisioning_session_type_FromString(prov_sess_type), msaf_strdup(asp_id), msaf_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
     ogs_free(prov_sess_type);
 
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
     ogs_assert(msaf_provisioning_session);
-    msaf_provisioning_session->provisioningSessionId = ogs_strdup(provisioning_session->provisioning_session_id);
+    msaf_provisioning_session->provisioningSessionId = msaf_strdup(provisioning_session->provisioning_session_id);
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
-    msaf_provisioning_session->aspId = (provisioning_session->asp_id)?ogs_strdup(provisioning_session->asp_id):NULL;
-    msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
+    msaf_provisioning_session->aspId = msaf_strdup(provisioning_session->asp_id);
+    msaf_provisioning_session->externalApplicationId = msaf_strdup(provisioning_session->external_application_id);
     msaf_provisioning_session->provisioningSessionReceived = time(NULL);
     msaf_provisioning_session->provisioningSessionHash = calculate_provisioning_session_hash(provisioning_session);
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
-    ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
+    ogs_hash_set(msaf_self()->provisioningSessions_map, msaf_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
     OpenAPI_provisioning_session_free(provisioning_session);
 
@@ -181,7 +181,7 @@ msaf_delete_certificates(const char *provisioning_session_id)
             ogs_list_for_each_safe(as_state->current_certificates, next, certificate){
                 char *cert_id;
                 char *provisioning_session;
-                char *current_cert_id = ogs_strdup(certificate->state);
+                char *current_cert_id = msaf_strdup(certificate->state);
 
                 provisioning_session = strtok_r(current_cert_id,":",&cert_id);
 
@@ -190,7 +190,7 @@ msaf_delete_certificates(const char *provisioning_session_id)
                     resource_id_node_t *delete_cert;
                     delete_cert = ogs_calloc(1, sizeof(resource_id_node_t));
                     ogs_assert(delete_cert);
-                    delete_cert->state = ogs_strdup(certificate->state);
+                    delete_cert->state = msaf_strdup(certificate->state);
                     ogs_list_add(&as_state->delete_certificates, delete_cert);
                 }
 
@@ -202,7 +202,7 @@ msaf_delete_certificates(const char *provisioning_session_id)
         /* remove entries from upload queue and try to delete just to be safe */
         ogs_list_for_each_safe(&as_state->upload_certificates, next_node, upload_certificate) {
             char *cert_id;
-            char *upload_cert_id = ogs_strdup(upload_certificate->state);
+            char *upload_cert_id = msaf_strdup(upload_certificate->state);
             char *provisioning_session = strtok_r(upload_cert_id,":",&cert_id);
 
             if (!strcmp(provisioning_session, provisioning_session_id)) {
@@ -238,7 +238,7 @@ msaf_delete_content_hosting_configuration(const char *provisioning_session_id)
             if (content_hosting_configuration) {
                 delete_chc = ogs_calloc(1, sizeof(resource_id_node_t));
                 ogs_assert(delete_chc);
-                delete_chc->state = ogs_strdup(content_hosting_configuration->state);
+                delete_chc->state = msaf_strdup(content_hosting_configuration->state);
                 ogs_list_add(&as_state->delete_content_hosting_configurations, delete_chc);
 
             }
@@ -371,7 +371,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 
             if (dist_config->canonical_domain_name) ogs_free(dist_config->canonical_domain_name);
 
-            dist_config->canonical_domain_name = ogs_strdup(msaf_as->canonicalHostname);
+            dist_config->canonical_domain_name = msaf_strdup(msaf_as->canonicalHostname);
 
             if (dist_config->certificate_id) {
                 protocol = "https";
@@ -392,13 +392,13 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
                 if(dist_config->entry_point->profiles){
                     media_entry_point_profiles_list = OpenAPI_list_create();
                     OpenAPI_list_for_each(dist_config->entry_point->profiles, media_entry_point_profile_node) {
-                        OpenAPI_list_add(media_entry_point_profiles_list, ogs_strdup((char *)media_entry_point_profile_node->data));
+                        OpenAPI_list_add(media_entry_point_profiles_list, msaf_strdup((char *)media_entry_point_profile_node->data));
                     }
                 } else {
                     media_entry_point_profiles_list = NULL;
                 }
 
-                entry_point = OpenAPI_m5_media_entry_point_create(locator_absolute_path, ogs_strdup(dist_config->entry_point->content_type), media_entry_point_profiles_list);
+                entry_point = OpenAPI_m5_media_entry_point_create(locator_absolute_path, msaf_strdup(dist_config->entry_point->content_type), media_entry_point_profiles_list);
                 OpenAPI_list_add(media_entry_point_list, entry_point);
             }
         } 

@@ -23,7 +23,7 @@ msaf_context_service_access_information_create(const char *provisioning_session_
         = OpenAPI_service_access_information_resource_streaming_access_create(entry_points, NULL);
     OpenAPI_service_access_information_resource_t *service_access_information
         = OpenAPI_service_access_information_resource_create(
-                ogs_strdup(provisioning_session_id),
+                msaf_strdup(provisioning_session_id),
                 OpenAPI_provisioning_session_type_DOWNLINK, streaming_access, NULL, NULL,
                 NULL, NULL,NULL);
     return service_access_information;

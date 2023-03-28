@@ -59,7 +59,7 @@ msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisio
 
             chc = ogs_calloc(1, sizeof(resource_id_node_t));
             ogs_assert(chc);
-            chc->state = ogs_strdup(provisioning_session->provisioningSessionId);
+            chc->state = msaf_strdup(provisioning_session->provisioningSessionId);
             ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
 
             assigned_provisioning_sessions = ogs_calloc(1, sizeof(assigned_provisioning_sessions_node_t));
@@ -120,7 +120,7 @@ msaf_application_server_state_update( msaf_provisioning_session_t *provisioning_
 
         chc = ogs_calloc(1, sizeof(resource_id_node_t));
         ogs_assert(chc);
-        chc->state = ogs_strdup(provisioning_session->provisioningSessionId);
+        chc->state = msaf_strdup(provisioning_session->provisioningSessionId);
         ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
 
         next_action_for_application_server(as_state);
@@ -148,7 +148,7 @@ msaf_application_server_state_set(msaf_application_server_state_node_t *as_state
 
     chc = ogs_calloc(1, sizeof(resource_id_node_t));
     ogs_assert(chc);
-    chc->state = ogs_strdup(provisioning_session->provisioningSessionId);
+    chc->state = msaf_strdup(provisioning_session->provisioningSessionId);
     ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
 
     assigned_provisioning_sessions = ogs_calloc(1, sizeof(assigned_provisioning_sessions_node_t));
@@ -214,7 +214,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
                 break;
             }
         }
-        upload_cert_id = ogs_strdup(upload_cert->state);
+        upload_cert_id = msaf_strdup(upload_cert->state);
         provisioning_session = strtok_r(upload_cert_id,":",&cert_id);
         certificate = server_cert_get_servercert(cert_id);
         component = ogs_msprintf("certificates/%s:%s", provisioning_session, cert_id);
@@ -375,13 +375,13 @@ static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_
     ogs_sbi_request_t *request;
 
     request = ogs_sbi_request_new();
-    request->h.method = ogs_strdup(method);	
+    request->h.method = msaf_strdup(method);	
     request->h.uri = ogs_msprintf("http://%s:%i/3gpp-m3/v1/%s",
             as_state->application_server->canonicalHostname,
             as_state->application_server->m3Port, component);
-    request->h.api.version = ogs_strdup("v1");
+    request->h.api.version = msaf_strdup("v1");
     if (data) {
-        request->http.content = ogs_strdup(data);
+        request->http.content = msaf_strdup(data);
         request->http.content_length = strlen(data);
     }
     if (type)
@@ -412,6 +412,8 @@ static int client_notify_cb(int status, ogs_sbi_response_t *response, void *data
         ogs_log_message(
                 status == OGS_DONE ? OGS_LOG_DEBUG : OGS_LOG_WARN, 0,
                 "client_notify_cb() failed [%d]", status);
+        if (client_request_info) ogs_free(client_request_info);
+        if (response) ogs_sbi_response_free(response);
         return OGS_ERROR;
     }
 

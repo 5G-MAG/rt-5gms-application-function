@@ -10,6 +10,7 @@
 
 
 #include "ogs-sbi.h"
+
 #include "sbi-path.h"
 #include "context.h"
 #include "certmgr.h"
@@ -17,6 +18,7 @@
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
+#include "utilities.h"
 #include "ContentProtocolsDiscovery_body.h"
 #include "openapi/api/TS26512_M1_ProvisioningSessionsAPI-info.h"
 #include "openapi/api/TS26512_M1_ServerCertificatesProvisioningAPI-info.h"
@@ -126,11 +128,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     break;
                 }
                 if (!message->h.resource.component[0]) {
-                    char *error;
-                    error = ogs_strdup("Protocol on M1 requires a resource");
-                    ogs_error("%s", error);
+                    const char *error = "Protocol on M1 requires a resource";
+                    ogs_error(error);
                     ogs_assert(true == nf_server_send_error(stream, 404, 1, NULL, "No resource given", error, NULL, NULL, app_meta));
-                    ogs_free(error);
                     break;
                 }
 
@@ -181,12 +181,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                                     purge_cache = ogs_calloc(1, sizeof(purge_resource_id_node_t));
                                                     ogs_assert(purge_cache);
-                                                    purge_cache->provisioning_session_id = ogs_strdup(assigned_provisioning_sessions_resource->assigned_provisioning_session->provisioningSessionId);
+                                                    purge_cache->provisioning_session_id = msaf_strdup(assigned_provisioning_sessions_resource->assigned_provisioning_session->provisioningSessionId);
 
                                                     purge_cache->m1_purge_info = m1_purge_info;
                                                     m1_purge_info->refs++;
                                                     if(request->http.content)
-                                                        purge_cache->purge_regex = ogs_strdup(request->http.content);
+                                                        purge_cache->purge_regex = msaf_strdup(request->http.content);
                                                     else
                                                         purge_cache->purge_regex = NULL;
 
@@ -357,7 +357,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         char *location;
                                         int m1_server_certificates_response_max_age;
                                         csr_cert = server_cert_new("newcsr", canonical_domain_name);
-                                        ogs_hash_set(msaf_provisioning_session->certificate_map, ogs_strdup(csr_cert->id), OGS_HASH_KEY_STRING, ogs_strdup(csr_cert->id));
+                                        ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(csr_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(csr_cert->id));
                                         ogs_sbi_response_t *response;
                                         location = ogs_msprintf("%s/%s", request->h.uri, csr_cert->id);
                                         if(csr_cert->cache_control_max_age){
@@ -367,7 +367,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         }
                                         response = nf_server_new_response(location, "application/x-pem-file",  csr_cert->last_modified, csr_cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
 
-                                        nf_server_populate_response(response, strlen(csr_cert->certificate), ogs_strdup(csr_cert->certificate), 200);
+                                        nf_server_populate_response(response, strlen(csr_cert->certificate), msaf_strdup(csr_cert->certificate), 200);
 
                                         ogs_assert(response);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -382,7 +382,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_sbi_response_t *response;
                                         char *location;
 
-                                        ogs_hash_set(msaf_provisioning_session->certificate_map, ogs_strdup(cert), OGS_HASH_KEY_STRING, ogs_strdup(cert));
+                                        ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(cert), OGS_HASH_KEY_STRING, cert);
                                         
                                         location = ogs_msprintf("%s/%s", request->h.uri, cert);
                                         response = nf_server_new_response(location, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
@@ -396,7 +396,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_sbi_response_t *response;
                                         char *location;
                                         new_cert = server_cert_new("newcert", canonical_domain_name);
-                                        ogs_hash_set(msaf_provisioning_session->certificate_map, ogs_strdup(new_cert->id), OGS_HASH_KEY_STRING, ogs_strdup(new_cert->id));
+                                        ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(new_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(new_cert->id));
                                      
                                         location = ogs_msprintf("%s/%s", request->h.uri, new_cert->id);
                                         if(new_cert->cache_control_max_age){
@@ -560,7 +560,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
                                         }
                                         response = nf_server_new_response(NULL, "application/x-pem-file",  cert->last_modified, cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
-                                        nf_server_populate_response(response, strlen(cert->certificate), ogs_strdup(cert->certificate), 200);
+                                        nf_server_populate_response(response, strlen(cert->certificate), msaf_strdup(cert->certificate), 200);
                                         ogs_assert(response);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                     } else if(cert->return_code == 4){
@@ -633,7 +633,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_info("CONTENT_PROTOCOLS_DISCOVERY_JSON: %s", CONTENT_PROTOCOLS_DISCOVERY_JSON);
                                     response = nf_server_new_response(NULL, "application/json",  CONTENT_PROTOCOLS_DISCOVERY_JSON_TIME, CONTENT_PROTOCOLS_DISCOVERY_JSON_HASH, msaf_self()->config.server_response_cache_control->m1_content_protocols_response_max_age, NULL, m1_contentprotocolsdiscovery_api, app_meta);
                                     ogs_assert(response);
-                                    nf_server_populate_response(response, strlen(CONTENT_PROTOCOLS_DISCOVERY_JSON), ogs_strdup(CONTENT_PROTOCOLS_DISCOVERY_JSON), 200);
+                                    nf_server_populate_response(response, strlen(CONTENT_PROTOCOLS_DISCOVERY_JSON), msaf_strdup(CONTENT_PROTOCOLS_DISCOVERY_JSON), 200);
                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                 } else {
                                     char *err = NULL;
@@ -771,7 +771,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         const char *provisioning_session_cert;
                                         provisioning_session_cert = ogs_hash_get(msaf_provisioning_session->certificate_map, message->h.resource.component[3], OGS_HASH_KEY_STRING);
                                         cert_id = message->h.resource.component[3];
-                                        cert = ogs_strdup(request->http.content);
+                                        cert = msaf_strdup(request->http.content);
                                         rv = server_cert_set(cert_id, cert);
                                         // response = ogs_sbi_response_new();
 
@@ -1100,10 +1100,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 if(provisioning_sessions) {
                                     response = nf_server_new_response(NULL, "application/json", 0, NULL, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, maf_management_api, app_meta);
         
-                                    nf_server_populate_response(response, strlen(provisioning_sessions), ogs_strdup(provisioning_sessions), 200);
+                                    nf_server_populate_response(response, strlen(provisioning_sessions), provisioning_sessions, 200);
                                     ogs_assert(response);
                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                    if (strcmp(provisioning_sessions,"[]"))  ogs_free(provisioning_sessions);
                                     break;
                                 } else {
                                     ogs_error("Internal Server Error.");                                          
@@ -1507,7 +1506,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 id++;
                                             }
                                             current_chc = ogs_calloc(1, sizeof(*current_chc));
-                                            current_chc->state = ogs_strdup(id);
+                                            current_chc->state = msaf_strdup(id);
                                             ogs_debug("Adding [%s] to the current Content Hosting Configuration list",
                                                     current_chc->state);
                                             ogs_list_add(as_state->current_content_hosting_configurations, current_chc);
@@ -1749,7 +1748,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 id++;
                                             }
                                             current_cert = ogs_calloc(1, sizeof(*current_cert));
-                                            current_cert->state = ogs_strdup(id);
+                                            current_cert->state = msaf_strdup(id);
                                             ogs_debug("Adding certificate [%s] to Current certificates", current_cert->state);
                                             ogs_list_add(as_state->current_certificates, current_cert);
                                         } else {
