@@ -8,7 +8,8 @@
 #
 #===========================================================================
 #
-# logger:
+logger:
+ level: debug
 #
 #  o Set OGS_LOG_INFO to all domain level
 #   - If `level` is omitted, the default level is OGS_LOG_INFO)
@@ -130,17 +131,31 @@ logger:
 #    * That is, 'no_service_names' has no effect.
 #
 msaf:
-    open5gsIntegration: false
+    open5gsIntegration: false    
     sbi:
-      - addr: 0.0.0.0
-        port: 7778
+      - addr: 127.0.0.22
+        port: 7777
+    m1:
+      - addr: 127.0.0.23
+        port: 7777
+    m5:
+      - addr: 127.0.0.24
+        port: 7777
+    maf:
+      - addr: 127.0.0.25
+        port: 7777
     applicationServers:
       - canonicalHostname: localhost
         urlPathPrefixFormat: /m4d/provisioning-session-{provisioningSessionId}/
         m3Port: 7777
-    # The following parameters are only needed until M1 is implemented.
-    certificate: ../../examples/Certificates.json
-    contentHostingConfiguration: ../../examples/ContentHostingConfiguration_Big-Buck-Bunny_pull-ingest.json
+    certificateManager: @default-certmgr@
+    serverResponseCacheControl:
+      - maxAge: 60
+        m1ProvisioningSessions: 60
+        m1ContentHostingConfigurations: 60
+        m1ServerCertificates: 60
+        m1ContentProtocols: 86400
+        m5ServiceAccessInformation: 60
 #
 # nrf:
 #

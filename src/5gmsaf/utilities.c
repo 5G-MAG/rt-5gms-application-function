@@ -8,12 +8,41 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <ctype.h>
+#include <time.h>
+
 #include "utilities.h"
+
+time_t str_to_time(const char *str_time)
+{
+    static time_t time;
+    struct tm tm = {0};
+    strptime(str_time, "%a, %d %b %Y %H:%M:%S %Z", &tm);
+    time = mktime(&tm);      
+    return time;
+}	
+
+const char *get_time(time_t time_epoch)
+{
+    struct tm *ts;
+    static char buf[80];
+
+    /* Format and print the time, "ddd yyyy-mm-dd hh:mm:ss zzz" */
+    ts = localtime(&time_epoch);   
+    strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ts);
+
+    return buf;
+}
 
 char *read_file(const char *filename)
 {
@@ -38,6 +67,22 @@ char *read_file(const char *filename)
     fclose(f);
     return data_json;
 
+}
+
+int str_match(const char *line, const char *word_to_find) {
+ 
+  char* p = strstr(line,word_to_find);
+  if ((p==line) || (p!=NULL && !isalnum((unsigned char)p[-1])))
+  {
+     p += strlen(word_to_find);
+     if (!isalnum((unsigned char)*p))
+     {      
+       return 1;
+     } else {
+	return 0;
+    }
+  }
+  return 0;
 }
 
 char *get_path(const char *file)
@@ -77,6 +122,18 @@ long int ascii_to_long(const char *str)
     ret = strtol(str, &endp, 10);
     if (endp == NULL || *endp != 0) {
         ogs_error("Failed to convert '%s' to an integer", str);
+        ret = 0;
+    }
+    return ret;
+}
+
+uint16_t ascii_to_uint16(const char *str) 
+{
+    long int ret;
+    ret = ascii_to_long(str);
+    if (ret > UINT16_MAX)
+    {
+        ogs_error("[%s] cannot be greater than [%d]", str, UINT16_MAX);
         ret = 0;
     }
     return ret;

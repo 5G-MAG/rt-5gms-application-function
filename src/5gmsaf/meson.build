@@ -17,11 +17,23 @@ python3_exe = open5gs_project.get_variable('python3_exe')
 mkdir_p = open5gs_project.get_variable('mkdir_p')
 install_conf = open5gs_project.get_variable('install_conf')
 
+fs = import('fs')
+
 libmsaf_dist_sources = files('''
     context.c
     context.h
     event.c
     event.h
+    server.h
+    server.c
+    certmgr.c
+    certmgr.h
+    hash.h
+    hash.c
+    headers.c
+    headers.h
+    response-cache-control.h
+    response-cache-control.c
     provisioning-session.h
     provisioning-session.c
     application-server-context.h
@@ -32,8 +44,13 @@ libmsaf_dist_sources = files('''
     sbi-path.h
     service-access-information.h
     service-access-information.c
-    msaf-sm.c
+    msaf-fsm.h
+    msaf-fsm.c
     msaf-sm.h
+    msaf-sm.c
+    msaf-mgmt-sm.c
+    msaf-m1-sm.c
+    msaf-m5-sm.c
     utilities.h
     utilities.c
     init.c
@@ -172,7 +189,31 @@ libmsaf_gen_sources = '''
 '''.split()
 
 gen_5gmsaf_openapi = find_program('sh')
-openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf'], check: true, capture: false)
+openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf', '-b', 'REL-'+fiveg_api_release], check: true, capture: false)
+
+json_file = files(['ContentProtocolsDiscovery_body.json'])
+file_content = ''
+data = fs.read(json_file).split('\n')
+
+foreach line : data
+   file_content = file_content + ''.join(line + '\\n')
+endforeach
+
+file_hash = fs.hash(json_file, 'sha256')
+json_file_time = run_command(['stat', '-c', '%Y', json_file])
+file_time = json_file_time.stdout().strip()
+
+content_hosting_discovery_protocols_conf = configuration_data()
+content_hosting_discovery_protocols_conf.set_quoted('CONTENT_PROTOCOLS_DISCOVERY_JSON', file_content)
+content_hosting_discovery_protocols_conf.set_quoted('CONTENT_PROTOCOLS_DISCOVERY_JSON_HASH', file_hash)
+content_hosting_discovery_protocols_conf.set('CONTENT_PROTOCOLS_DISCOVERY_JSON_TIME', file_time)
+libmsaf_gen_sources += [configure_file(output : 'ContentProtocolsDiscovery_body.h', configuration : content_hosting_discovery_protocols_conf)]
+
+version_conf = configuration_data()
+version_conf.set_quoted('MSAF_NAME', meson.project_name())
+version_conf.set_quoted('MSAF_VERSION', meson.project_version())
+version_conf.set_quoted('FIVEG_API_RELEASE', fiveg_api_release)
+libmsaf_gen_sources += [configure_file(output : 'msaf-version.h', configuration : version_conf)]
 
 libmsaf_sources = libmsaf_dist_sources + libmsaf_gen_sources
 
@@ -206,7 +247,9 @@ executable('open5gs-msafd',
     install : true)
 
 meson.add_install_script(python3_exe, '-c', mkdir_p.format(open5gs_sysconfdir))
+conf_configuration = configuration_data()
+conf_configuration.set('default-certmgr', get_option('prefix') / self_signed_certmgr_runtime)
 foreach conf_file : msaf_config_source
-    gen = configure_file(input : conf_file, copy : true, output : conf_file)
+    gen = configure_file(input : conf_file + '.in', configuration : conf_configuration, output : conf_file)
     meson.add_install_script(python3_exe, '-c', install_conf.format(gen, open5gs_sysconfdir))
 endforeach
