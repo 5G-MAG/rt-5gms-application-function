@@ -362,6 +362,16 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
             dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
 
             if(!uri_relative_check(dist_config->entry_point->relative_path)) {
+                ogs_error("distributionConfiguration.entryPoint.relativePath malformed for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
+                cJSON_Delete(content_hosting_config);
+                ogs_free(url_path);
+                OpenAPI_list_free(media_entry_point_list);
+                if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
+                return 0;
+            }
+
+            if (dist_config->entry_point->profiles != NULL && dist_config->entry_point->profiles->first == NULL) {
+                ogs_error("distributionConfiguration.entryPoint.profiles present but empty for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
                 cJSON_Delete(content_hosting_config);
                 ogs_free(url_path);
                 OpenAPI_list_free(media_entry_point_list);
@@ -403,7 +413,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
             }
         } 
     } else {
-        ogs_error("The Content Hosting Configuration has no Distribution Configuration");
+        ogs_error("The Content Hosting Configuration has no distributionConfigurations for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
     }
    
     provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_entry_point_list);
