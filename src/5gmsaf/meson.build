@@ -189,7 +189,7 @@ libmsaf_gen_sources = '''
 '''.split()
 
 gen_5gmsaf_openapi = find_program('sh')
-openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf', '-b', 'REL-'+fiveg_api_release], check: true, capture: false)
+openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c', '$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf -b TSG98-Rel'+fiveg_api_release], check: true, capture: false)
 
 json_file = files(['ContentProtocolsDiscovery_body.json'])
 file_content = ''
