@@ -362,18 +362,26 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
             dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
 
             if(!uri_relative_check(dist_config->entry_point->relative_path)) {
+                OpenAPI_lnode_t *node;
                 ogs_error("distributionConfiguration.entryPoint.relativePath malformed for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
                 cJSON_Delete(content_hosting_config);
                 ogs_free(url_path);
+                OpenAPI_list_for_each(media_entry_point_list, node) {
+                    OpenAPI_m5_media_entry_point_free(node->data);
+                }
                 OpenAPI_list_free(media_entry_point_list);
                 if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
                 return 0;
             }
 
             if (dist_config->entry_point->profiles != NULL && dist_config->entry_point->profiles->first == NULL) {
+                OpenAPI_lnode_t *node;
                 ogs_error("distributionConfiguration.entryPoint.profiles present but empty for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
                 cJSON_Delete(content_hosting_config);
                 ogs_free(url_path);
+                OpenAPI_list_for_each(media_entry_point_list, node) {
+                    OpenAPI_m5_media_entry_point_free(node->data);
+                }
                 OpenAPI_list_free(media_entry_point_list);
                 if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
                 return 0;
@@ -416,16 +424,24 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
         ogs_error("The Content Hosting Configuration has no distributionConfigurations for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
     }
    
+    if (provisioning_session->serviceAccessInformation)
+        OpenAPI_service_access_information_resource_free(provisioning_session->serviceAccessInformation);
     provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_entry_point_list);
-    provisioning_session->serviceAccessInformationCreated = time(NULL);    
+    provisioning_session->serviceAccessInformationCreated = time(NULL);
+    if (provisioning_session->serviceAccessInformationHash)
+        ogs_free(provisioning_session->serviceAccessInformationHash);
     provisioning_session->serviceAccessInformationHash = calculate_service_access_information_hash(provisioning_session->serviceAccessInformation);
     
-    provisioning_session->contentHostingConfiguration =  content_hosting_configuration;
+    if (provisioning_session->contentHostingConfiguration)
+        OpenAPI_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
+    provisioning_session->contentHostingConfiguration = content_hosting_configuration;
     if (provisioning_session->contentHostingConfiguration)
     {
         content_hosting_config_to_hash = cJSON_Print(content_hosting_config);
         provisioning_session->contentHostingConfigurationReceived = time(NULL);
 
+        if (provisioning_session->contentHostingConfigurationHash)
+            ogs_free(provisioning_session->contentHostingConfigurationHash);
         provisioning_session->contentHostingConfigurationHash = calculate_hash(content_hosting_config_to_hash);
         cJSON_free(content_hosting_config_to_hash);
     }
