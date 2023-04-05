@@ -713,6 +713,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     }
 
                                     rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
+                                    content_hosting_config = NULL;
                                     if (rv){
                                         msaf_application_server_state_update(msaf_provisioning_session);
 
@@ -732,10 +733,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Failed to update the contentHostingConfiguration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                         ogs_free(err);
                                     }
-
-                                    if (content_hosting_config) cJSON_Delete(content_hosting_config);
                                 }
-                                if (!strcmp(message->h.resource.component[2],"certificates") && message->h.resource.component[3] && !message->h.resource.component[4]) {
+                                else if (!strcmp(message->h.resource.component[2],"certificates") && message->h.resource.component[3] && !message->h.resource.component[4]) {
                                     char *cert_id;
                                     char *cert;
                                     int rv;
@@ -936,6 +935,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 msaf_context_provisioning_session_free(provisioning_session);
                                 msaf_provisioning_session_hash_remove(message->h.resource.component[1]);
                             }
+                        } else {
+                            char *err = NULL;
+                            err = ogs_msprintf("[%s]: Resource not found.", message->h.method);
+                            ogs_error("%s", err);
+                            ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Resource not found.", err, NULL, m1_provisioningsession_api, app_meta));
+                            ogs_free(err);
                         }
 
                         break;
