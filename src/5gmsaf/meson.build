@@ -17,6 +17,10 @@ python3_exe = open5gs_project.get_variable('python3_exe')
 mkdir_p = open5gs_project.get_variable('mkdir_p')
 install_conf = open5gs_project.get_variable('install_conf')
 
+latest_apis = get_option('latest_apis')
+fiveg_api_approval = get_option('fiveg_api_approval')
+fiveg_api_release = get_option('fiveg_api_release')
+
 fs = import('fs')
 
 libmsaf_dist_sources = files('''
@@ -190,8 +194,11 @@ libmsaf_gen_sources = '''
     openapi/model/uncertainty_ellipsoid.c
 '''.split()
 
+api_tag = latest_apis?'REL-'+fiveg_api_release:'TSG'+fiveg_api_approval+'-Rel'+fiveg_api_release
+
 gen_5gmsaf_openapi = find_program('sh')
-openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','"$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf" -b REL-'+fiveg_api_release], check: true, capture: false)
+message('Generating OpenAPI bindings for version '+api_tag+' of the 5G APIs...')
+openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','"$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf" -b '+api_tag], check: true, capture: false)
 
 json_file = files(['ContentProtocolsDiscovery_body.json'])
 file_content = ''
