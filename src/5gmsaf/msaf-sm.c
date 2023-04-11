@@ -82,7 +82,8 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
         case OGS_FSM_EXIT_SIG:
             break;
 
-
+        // Event for request coming in on server
+        // Handler of all incoming requests
         case OGS_EVENT_SBI_SERVER:
             request = e->h.sbi.request;
             ogs_assert(request);
@@ -109,7 +110,6 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 break;
             }
 
-            // What kind of service
             SWITCH(message.h.service.name)
             CASE(OGS_SBI_SERVICE_NAME_NNRF_NFM)
             if (strcmp(message.h.api.version, OGS_SBI_API_V1) != 0) {
@@ -120,8 +120,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 ogs_sbi_message_free(&message);
                 break;
             }
-            // Array of components starts after version
-            // MetricsConfigurationId will be component[3]
+
             SWITCH(message.h.resource.component[0])
             CASE(OGS_SBI_RESOURCE_NAME_NF_STATUS_NOTIFY)
             SWITCH(message.h.method)
@@ -153,6 +152,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             CASE("3gpp-m1")
             if(check_event_addresses(e, msaf_self()->config.m1_server_sockaddr, msaf_self()->config.m1_server_sockaddr_v6)){
                 e->message =  &message;
+                // Dispatching to another state machine
                 ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
 
 
