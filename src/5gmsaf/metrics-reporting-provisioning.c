@@ -56,8 +56,8 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
 msaf_metrics_reporting_configuration_t *
 msaf_metrics_configuration_find_by_Id(const char *metrics_reporting_configuration_id)
 {
-    // TBD!
-    return 0;
+    if (!msaf_self()->metricsConfiguration_map) return NULL;
+    return (msaf_provisioning_session_t*) ogs_hash_get(msaf_self()->metricsConfiguration_map, metrics_reporting_configuration_id, OGS_HASH_KEY_STRING);
 }
 
 /*cJSON *metrics_reporting_get_json(msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration)
