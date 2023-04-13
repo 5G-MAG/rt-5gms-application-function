@@ -50,13 +50,15 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     OpenAPI_service_access_information_resource_client_metrics_reporting_configuration_free(metrics_reporting_configuration);
     return msaf_metrics_reporting_configuration;
 }
+
+
+// Find configuration by it's ID.
 msaf_metrics_reporting_configuration_t *
 msaf_metrics_configuration_find_by_Id(const char *metrics_reporting_configuration_id)
 {
     // TBD!
     return 0;
 }
-
 
 /*cJSON *metrics_reporting_get_json(msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration)
 {

@@ -143,17 +143,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 // Checking first component of the URL
                 CASE("provisioning-sessions")
                     SWITCH(message.h.method)
+
+                    //***********************POST****************************
+
                     CASE(OGS_SBI_HTTP_METHOD_POST)
-                        // Checking if the URL have 4 components
+                        // URL check for only 3 components
                         if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
-
-                            // Handling Metrics Reporting POST
-                            // Operate without ID so 3rd message component is empty
-                            if (!strcmp(message.h.resource.component[2], "metrics-reporting-configuration") && !message.h.resource.component[3]) {
-                            // PROCESS POST = Create Metrics Reporting Configuration
-                            return 0;
-                            }
 
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration") && !strcmp(message.h.resource.component[3],"purge")) {
                                 ogs_hash_index_t *hi;
@@ -241,6 +237,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             }
 
                         } else if (message.h.resource.component[1] && message.h.resource.component[2] && !message.h.resource.component[3]) {
+
+                            // Handling Metrics Reporting POST
+                            // Operate without ID so 3rd message component is empty
+                            if (!strcmp(message.h.resource.component[2], "metrics-reporting-configuration") && !message.h.resource.component[3]) {
+                                // PROCESS POST
+                                // Invoking create method
+                                return 0;
+                            }
+
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
                                 msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
@@ -506,48 +511,23 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                         break;
 
+                    //***********************GET****************************
+
                     CASE(OGS_SBI_HTTP_METHOD_GET)
                         if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
 
-                            // Handles Metrics Reporting GET
-                            if(!strcmp(message.h.resource.component[2], "metrics-reporting-configuration")){
-                                msaf_provisioning_session_t *msaf_provisioning_session;
-                                msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
-
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
-                                // TBD: Implement msaf_metrics_configuration_find_by_Id
-                                msaf_metrics_reporting_configuration = msaf_metrics_configuration_find_by_Id(message.h.resource.component[3]);
-
-                                if (msaf_provisioning_session && msaf_metrics_reporting_configuration) {
-                                    ogs_sbi_response_t *response;
-                                    // TBD: Implement msaf_metrics_reporting_configuration_to_json
-                                    cJSON *json_data = msaf_metrics_reporting_configuration_to_json(msaf_metrics_reporting_configuration);
-                                    char *json_string = cJSON_Print(json_data);
-
-                                    response = nf_server_new_response(NULL, "application/json", NULL, NULL, 0, NULL, metrics-reporting-provisioning, app_meta);
-                                    nf_server_populate_response(response, strlen(json_string), ogs_strdup(json_string), 200);
-                                    ogs_assert(response);
-                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-
-                                    cJSON_Delete(json_data);
-                                    ogs_free(json_string);
-                                }
-                                else if(!msaf_provisioning_session){
-                                    char *err = NULL;
-                                    asprintf(&err, "Provisioning session [%s] is not available.", message.h.resource.component[1]);
-                                    ogs_error("%s", err);
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exist.", err, NULL, metrics-reporting-provisioning, app_meta));
-                                }
-                                else if (!msaf_metrics_reporting_configuration) {
-                                    char *err = NULL;
-                                    asprintf(&err, "Metrics Reporting Configuration [%s] is not available.", message.h.resource.component[3]);
-                                    ogs_error("%s", err);
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Metrics Reporting Configuration does not exist.", err, NULL, metrics-reporting-provisioning, app_meta));
-                                }
-
+                            if(!strcmp(message.h.resource.component[2]), "metrics-reporting-configuration"){
+                                // Handles the READ method
+                                // Further check for ID
+                                /* msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
+                                msaf_metrics_reporting_configuration = msaf_metrics_reporting_configuration_find_by_configuration_Id */
+                                // Find specific provisioning session with ID, passing message.h.resource.component[1]
+                                // Find specific metrics configuration with ID, passing message.h.resource.component[3]
+                                // Certificate hash mapping
+                                return 0;
                             }
 
-
+                            // Retrieve "certificates" per provisioning-session-id.
                             if (!strcmp(message.h.resource.component[2],"certificates") ) {
                                 msaf_provisioning_session_t *msaf_provisioning_session;
                                 msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
@@ -643,6 +623,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                 }
 
+                              // Handle the case of protocols per provisioning-session-id.
                             } else if (!strcmp(message.h.resource.component[2],"protocols")) {
                                 if(msaf_provisioning_session) {
                                     ogs_sbi_response_t *response;
@@ -688,6 +669,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         }
                         break;
 
+
+                    //***********************PUT****************************
                     CASE(OGS_SBI_HTTP_METHOD_PUT)
                         if (message.h.resource.component[1] && message.h.resource.component[2]) {
 
@@ -697,7 +680,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             if(msaf_provisioning_session) {
                                 ogs_info("PUT: with msaf_provisioning_session: %s", message.h.resource.component[1]);
                                 if (!strcmp(message.h.resource.component[2],"content-hosting-configuration") && !message.h.resource.component[3]) {
-
                                     // process the PUT body
                                     cJSON *entry;
                                     int rv;
@@ -763,6 +745,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Failed to update the contentHostingConfiguration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     }
                                 }
+
+                                // Handling UPDATE
+                                if (!strcmp(message.h.resource.component[2], "metrics-reporting-configuration") && message.h.resource.component[3] && !message.h.resource.component[4]) {
+                                    return 0;
+                                }
+
+                                // Checking certificate per provisioning-session-id & certificate-id.
                                 if (!strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3] && !message.h.resource.component[4]) {
                                     char *cert_id;
                                     char *cert;
@@ -838,8 +827,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         }
                                         ogs_free(cert);
                                     }
-
-                                } else {
+                                }
+                                else {
                                     char *err = NULL;
                                     asprintf(&err,"[%s]: Resource not found.", message.h.method);
                                     ogs_error("%s", err);
@@ -852,16 +841,25 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_assert(true == nf_server_send_error(stream, 404, 3, &message, "Provisioning session does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
                             }
 
-
                         } else {
                             char *err = NULL;
                             asprintf(&err,"[%s]: Resource not found.", message.h.method);
                             ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, 404, 1, &message, "Resource not found.", err, NULL, m1_provisioningsession_api, app_meta));
                         }
+
                         break;
 
+                    //***********************DELETE****************************
                     CASE(OGS_SBI_HTTP_METHOD_DELETE)
+
+                        if(message.h.resource.component[1]
+                            && message.h.resource.component[2]
+                            && !strcmp(message.h.resource.component[2],"metrics-reporting-configuration")
+                            && message.h.resource.component[3]
+                            && !message.h.resource.component[4]) {
+                            return 0;
+                        }
 
                         if (message.h.resource.component[1] && message.h.resource.component[2] && !strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3] && !message.h.resource.component[4]) {
                             ogs_sbi_response_t *response;
@@ -954,6 +952,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         }
 
                         break;
+
+
                     CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
 
                         if (!strcmp(message.h.resource.component[0],"provisioning-sessions")){
