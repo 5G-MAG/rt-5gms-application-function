@@ -74,8 +74,8 @@ libmsaf_gen_sources = '''
     openapi/model/distribution_configuration.c
     openapi/model/distribution_configuration_geo_fencing.h
     openapi/model/distribution_configuration_geo_fencing.c
-    openapi/model/distribution_configuration_supplementary_distribution_networks.h
-    openapi/model/distribution_configuration_supplementary_distribution_networks.c
+    openapi/model/distribution_configuration_supplementary_distribution_networks_inner.h
+    openapi/model/distribution_configuration_supplementary_distribution_networks_inner.c
     openapi/model/distribution_configuration_url_signature.h
     openapi/model/distribution_configuration_url_signature.c
     openapi/model/distribution_mode.h
@@ -172,8 +172,8 @@ libmsaf_gen_sources = '''
     openapi/model/service_access_information_resource_client_consumption_reporting_configuration.c
     openapi/model/service_access_information_resource_client_edge_resources_configuration.h
     openapi/model/service_access_information_resource_client_edge_resources_configuration.c
-    openapi/model/service_access_information_resource_client_metrics_reporting_configuration.h
-    openapi/model/service_access_information_resource_client_metrics_reporting_configuration.c
+    openapi/model/service_access_information_resource_client_metrics_reporting_configuration_inner.h
+    openapi/model/service_access_information_resource_client_metrics_reporting_configuration_inner.c
     openapi/model/service_access_information_resource_dynamic_policy_invocation_configuration.h
     openapi/model/service_access_information_resource_dynamic_policy_invocation_configuration.c
     openapi/model/service_access_information_resource_network_assistance_configuration.h

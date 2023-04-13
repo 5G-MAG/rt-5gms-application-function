@@ -383,9 +383,10 @@ int msaf_context_parse_config(void)
                                     if (addr && ogs_app()->parameter.no_ipv4 == 0)
                                         ogs_sbi_server_set_advertise(
                                                 server, AF_INET, addr);
-                                
+                                /*
                                     if (key) server->tls.key = key;
                                     if (pem) server->tls.pem = pem;
+                                */
                                 }
 
                                 if (!strcmp(msaf_key, "sbi")) {
@@ -445,9 +446,10 @@ int msaf_context_parse_config(void)
                                     if (addr && ogs_app()->parameter.no_ipv6 == 0)
                                         ogs_sbi_server_set_advertise(
                                                 server, AF_INET6, addr);
-
+                                    /*
                                     if (key) server->tls.key = key;
                                     if (pem) server->tls.pem = pem;
+                                    */
                                     if (!strcmp(msaf_key, "sbi")) {
                                         ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.sbi_server_sockaddr_v6, server->node.addr));
                                         if(!self->config.m1_server_sockaddr_v6){

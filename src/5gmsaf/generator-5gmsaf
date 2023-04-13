@@ -106,7 +106,7 @@ fi
 
 # Get the absolute path to the destination directory
 destdir=`realpath -m "$scriptdir/openapi"`
-openapi_gen_dir=`realpath "$scriptdir/../../subprojects/open5gs/lib/sbi/support/20210629/openapi-generator"`
+openapi_gen_dir=`realpath "$scriptdir/../../subprojects/open5gs/lib/sbi/support/r17-20230301-openapitools-6.4.0/openapi-generator"`
 
 sed "s@^templateDir:.*@templateDir: \"${openapi_gen_dir}/templates\"@" $openapi_gen_dir/config.yaml > $scriptdir/config.yaml
 cp "${scriptdir}/"*.mustache "${openapi_gen_dir}/templates/"
@@ -122,7 +122,7 @@ if [ ! -d "$scriptdir/openapi" ]; then
     mkdir "$scriptdir/openapi"
 fi
 
-"$scriptdir/../../subprojects/rt-common-shared/5gms/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 5.2.0 -y "$scriptdir/fix_openapi_yaml.py"
+"$scriptdir/../../subprojects/rt-common-shared/5gms/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 6.4.0 -y "$scriptdir/fix_openapi_yaml.py"
 
 cp "$scriptdir/set.h" "$scriptdir/openapi/model"
 

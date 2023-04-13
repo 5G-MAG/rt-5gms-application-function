@@ -350,6 +350,7 @@ static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port)
     int rv;
     ogs_sbi_client_t *client = NULL;
     ogs_sockaddr_t *addr = NULL;
+    OpenAPI_uri_scheme_e scheme = OpenAPI_uri_scheme_http;
 
     rv = ogs_getaddrinfo(&addr, AF_UNSPEC, hostname, port, 0);
     if (rv != OGS_OK) {
@@ -360,7 +361,7 @@ static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port)
     if (addr == NULL)
         ogs_error("Could not get the address of the Application Server");
 
-    client = ogs_sbi_client_add(addr);
+    client = ogs_sbi_client_add(scheme, addr);
     ogs_assert(client);
 
     ogs_freeaddrinfo(addr);

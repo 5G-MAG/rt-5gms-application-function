@@ -26,7 +26,7 @@ int msaf_initialize()
     rv = msaf_set_time();
     if(rv != 0) return OGS_ERROR;
 
-    ogs_sbi_context_init();
+    ogs_sbi_context_init(OpenAPI_nf_type_AF);
 
     msaf_context_init();
 

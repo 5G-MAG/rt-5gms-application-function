@@ -44,9 +44,9 @@ int msaf_sbi_open(void)
     ogs_assert(nf_instance);
     ogs_sbi_nf_fsm_init(nf_instance);
 
-    ogs_sbi_nf_instance_build_default(nf_instance, OpenAPI_nf_type_AF);
+    ogs_sbi_nf_instance_build_default(nf_instance);
 
-    ogs_sbi_subscription_data_build_default(
+    ogs_sbi_subscription_spec_add(
             OpenAPI_nf_type_BSF, OGS_SBI_SERVICE_NAME_NBSF_MANAGEMENT);
 
     if (ogs_sbi_server_start_all(server_cb) != OGS_OK)
