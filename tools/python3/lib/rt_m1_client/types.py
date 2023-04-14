@@ -174,7 +174,7 @@ class DistributionConfiguration(TypedDict, total=False):
     canonicalDomainName: str
     domainNameAlias: str
     baseURL: Uri
-    entryPoint: List[M1MediaEntryPoint]
+    entryPoint: M1MediaEntryPoint
     pathRewriteRules: List[PathRewriteRule]
     cachingConfigurations: List[CachingConfiguration]
     geoFencing: TypedDict('GeoFencing', {'locatorType': str, 'locators': List[str]})
@@ -192,6 +192,78 @@ class DistributionConfiguration(TypedDict, total=False):
         'distributionMode': DistributionMode,
         })]
 
+    @staticmethod
+    def format(dc: "DistributionConfiguration", indent: int = 0) -> str:
+        prefix = ' ' * indent
+        s = f"{prefix}- URL: {dc['baseURL']}"
+        if 'canonicalDomainName' in dc:
+            s += f'''
+{prefix}  Canonical Domain Name: {dc['canonicalDomainName']}'''
+        if 'contentPreparationTemplateId' in dc:
+            s += f'''
+{prefix}  Content Preparation Template: {dc['contentPreparationTemplateId']}'''
+        if 'certificateId' in dc:
+            s += f'''
+{prefix}  Certificate: {dc['certificateId']}'''
+        if 'domainNameAlias' in dc:
+            s += f'''
+{prefix}  Domain Name Alias: {dc['domainNameAlias']}'''
+        if 'entryPoint' in dc:
+            s += f'''
+{prefix}  Entry point:
+{prefix}    Relative Path: {dc['entryPoint']['relativePath']}
+{prefix}    Content Type: {dc['entryPoint']['contentType']}'''
+            if 'profiles' in dc['entryPoint']:
+                s += f'''
+{prefix}    Profiles:'''
+                for p in dc['entryPoint']['profiles']:
+                    s += f'''
+{prefix}    - {p}'''
+        if 'pathRewriteRules' in dc:
+            s += f'''
+{prefix}  Path Rewrite Rules:'''
+            for prr in dc['pathRewriteRules']:
+                s += f'''
+{prefix}  - {prr['requestPathPattern']} => {prr['mappedPath']}'''
+        if 'cachingConfigurations' in dc:
+            s += f'''
+{prefix}  Caching Configurations:'''
+            for cc in dc['cachingConfigurations']:
+                s += f'''
+{prefix}  - URL Pattern: {cc['urlPatternFilter']}'''
+                if 'cachingDirectives' in cc:
+                    cd = cc['cachingDirectives']
+                    s += f'''
+{prefix}    Directive:
+{prefix}      no-cache={repr(cd['noCache'])}'''
+                    if 'maxAge' in cd:
+                        s += f'''
+{prefix}      max-age={cd['maxAge']}'''
+                    if 'statusCodeFilters' in cd:
+                        s += f'''
+{prefix}      filters=[{', '.join([str(i) for i in cd['statusCodeFilters']])}]'''
+        if 'geoFencing' in dc:
+            gf = dc['geoFencing']
+            s += f'''
+{prefix}  Geo-fencing({gf['locatorType']}):'''
+            for l in gf['locators']:
+                s += f'''
+{prefix}  - {l}'''
+        if 'urlSignature' in dc:
+            us = dc['urlSignature']
+            s += f'''
+{prefix}  URL Signature:
+{prefix}  - Pattern: {us['urlPattern']}
+{prefix}    Token: {us['tokenName']}
+{prefix}    Passphase name: {us['passphraseName']}
+{prefix}    Passphase: {us['passphrase']}
+{prefix}    Token Expiry name: {us['tokenExpiryName']}
+{prefix}    Use IP Address?: {us['useIPAddress']!r}'''
+            if 'ipAddressName' in us:
+                s += f'''
+{prefix}    IP Address name: {us['ipAddressName']}'''
+        return s
+
 class IngestConfiguration(TypedDict, total=False):
     '''
     IngestConfiguration structure from TS 26.512
@@ -199,6 +271,13 @@ class IngestConfiguration(TypedDict, total=False):
     pull: bool
     protocol: Uri
     baseURL: Uri
+
+    @staticmethod
+    def format(ic: "IngestConfiguration", indent: int = 0) -> str:
+        prefix = ' ' * indent
+        return f'''{prefix}Type: {ic['protocol']}
+{prefix}Pull Ingest?: {ic['pull']!r}
+{prefix}URL: {ic['baseURL']}'''
 
 class ContentHostingConfigurationMandatory(TypedDict):
     '''
@@ -241,8 +320,7 @@ class ContentHostingConfiguration(ContentHostingConfigurationMandatory, total=Fa
         '''
         return f'''Name: {chc['name']}
 Ingest:
-  Type: {chc['ingestConfiguration']['protocol']}
-  URL: {chc['ingestConfiguration']['baseURL']}
+{IngestConfiguration.format(chc['ingestConfiguration'], 2)}
 Distributions:
 {cls.__formatDistributions(chc)}
 '''
@@ -257,78 +335,7 @@ Distributions:
 
         :return: a `str` containing the distributionConfigurations as formatted text.
         '''
-        prefix = ' '*indent
-        dists = []
-        for d in chc['distributionConfigurations']:
-            s = f"{prefix}- URL: {d['baseURL']}"
-            if 'canonicalDomainName' in d:
-                s += f'''
-{prefix}  Canonical Domain Name: {d['canonicalDomainName']}'''
-            if 'contentPreparationTemplateId' in d:
-                s += f'''
-{prefix}  Content Preparation Template: {d['contentPreparationTemplateId']}'''
-            if 'certificateId' in d:
-                s += f'''
-{prefix}  Certificate: {d['certificateId']}'''
-            if 'domainNameAlias' in d:
-                s += f'''
-{prefix}  Domain Name Alias: {d['domainNameAlias']}'''
-            if 'entryPoint' in d:
-                s += f'''
-{prefix}  Entry point:
-{prefix}    Relative Path: {d['entryPoint']['relativePath']}
-{prefix}    Content Type: {d['entryPoint']['contentType']}'''
-                if 'profiles' in d['entryPoint']:
-                    s += f'''
-{prefix}    Profiles:'''
-                    for p in d['entryPoint']['profiles']:
-                        s += f'''
-{prefix}    - {p}'''
-            if 'pathRewriteRules' in d:
-                s += f'''
-{prefix}  Path Rewrite Rules:'''
-                for prr in d['pathRewriteRules']:
-                    s += f'''
-{prefix}  - {prr['requestPathPattern']} => {prr['mappedPath']}'''
-            if 'cachingConfigurations' in d:
-                s += f'''
-{prefix}  Caching Configurations:'''
-                for cc in d['cachingConfigurations']:
-                    s += f'''
-{prefix}  - URL Pattern: {cc['urlPatternFilter']}'''
-                    if 'cachingDirectives' in cc:
-                        cd = cc['cachingDirectives']
-                        s += f'''
-{prefix}    Directive:
-{prefix}      no-cache={repr(cd['noCache'])}'''
-                        if 'maxAge' in cd:
-                            s += f'''
-{prefix}      max-age={cd['maxAge']}'''
-                        if 'statusCodeFilters' in cd:
-                            s += f'''
-{prefix}      filters=[{', '.join([str(i) for i in cd['statusCodeFilters']])}]'''
-            if 'geoFencing' in d:
-                gf = d['geoFencing']
-                s += f'''
-{prefix}  Geo-fencing({gf['locatorType']}):'''
-                for l in gf['locators']:
-                    s += f'''
-{prefix}  - {l}'''
-            if 'urlSignature' in d:
-                us = d['urlSignature']
-                s += f'''
-{prefix}  URL Signature:
-{prefix}  - Pattern: {us['urlPattern']}
-{prefix}    Token: {us['tokenName']}
-{prefix}    Passphase name: {us['passphraseName']}
-{prefix}    Passphase: {us['passphrase']}
-{prefix}    Token Expiry name: {us['tokenExpiryName']}
-{prefix}    Use IP Address?: {us['useIPAddress']!r}'''
-                if 'ipAddressName' in us:
-                    s += f'''
-{prefix}    IP Address name: {us['ipAddressName']}'''
-            dists += [s]
-        return '\n'.join(dists)
+        return '\n'.join([DistributionConfiguration.format(d, indent) for d in chc['distributionConfigurations']])
 
 # TS 29.571 ProblemDetail
 class InvalidParamMandatory(TypedDict):

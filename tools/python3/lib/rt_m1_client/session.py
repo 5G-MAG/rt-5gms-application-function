@@ -198,7 +198,9 @@ class M1Session:
             if ps is None or ps['content-hosting-configuration'] is None:
                 continue
             if ps['content-hosting-configuration']['contenthostingconfiguration']['ingestConfiguration']['baseURL'] == ingesturl:
-                if (entrypoint is None and 'entryPointPath' not in ps['content-hosting-configuration']['contenthostingconfiguration']) or (entrypoint is not None and 'entryPointPath' in ps['content-hosting-configuration']['contenthostingconfiguration'] and ps['content-hosting-configuration']['contenthostingconfiguration']['entryPointPath'] == entrypoint):
+                entry_points = [dc['entryPoint'] for dc in ps['content-hosting-configuration']['contenthostingconfiguration']['distributionConfigurations'] if 'entryPoint' in dc]
+                entry_point_paths = [e['relativePath'] for e in entry_points]
+                if (entrypoint is None and len(entry_point_paths) == 0) or (entrypoint is not None and entrypoint in entry_point_paths):
                     ret = ps_id
                     break
         return ret
