@@ -95,6 +95,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             err = ogs_msprintf("Provisioning Session [%s] not found.", message->h.resource.component[1]);
                             ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Provisioning Session not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
+                            ogs_free(err);
                         } else if (msaf_provisioning_session->serviceAccessInformation) {
                             service_access_information = msaf_context_retrieve_service_access_information(message->h.resource.component[1]);
                             if (service_access_information != NULL) {
@@ -102,7 +103,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 char *text;
                                 text = cJSON_Print(service_access_information);
                                 response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->serviceAccessInformationCreated, msaf_provisioning_session->serviceAccessInformationHash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
-                                nf_server_populate_response(response, strlen(text), text, 201);
+                                nf_server_populate_response(response, strlen(text), text, 200);
                                 ogs_assert(response);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                 cJSON_Delete(service_access_information);
