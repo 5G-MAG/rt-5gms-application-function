@@ -700,8 +700,11 @@ class M1Session:
             cert_sign_cls_mod, cert_sign_cls_name = self.__cert_signer.rsplit('.', 1)
             cert_sign_cls_mod = importlib.import_module(cert_sign_cls_mod)
             self.__cert_signer = getattr(cert_sign_cls_mod, cert_sign_cls_name)
-        if issubclass(self.__cert_signer, CertificateSigner):
-            self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir)
+        try:
+            if issubclass(self.__cert_signer, CertificateSigner):
+                self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir)
+        except TypeError:
+            pass
         if not isinstance(self.__cert_signer, CertificateSigner):
             raise RuntimeError('The certificate signer class given is not derived from CertificateSigner')
         return self.__cert_signer
