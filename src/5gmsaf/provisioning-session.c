@@ -361,7 +361,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 
             dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
 
-            if(!uri_relative_check(dist_config->entry_point->relative_path)) {
+            if(dist_config->entry_point && !uri_relative_check(dist_config->entry_point->relative_path)) {
                 OpenAPI_lnode_t *node;
                 ogs_error("distributionConfiguration.entryPoint.relativePath malformed for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
                 cJSON_Delete(content_hosting_config);
@@ -374,7 +374,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
                 return 0;
             }
 
-            if (dist_config->entry_point->profiles != NULL && dist_config->entry_point->profiles->first == NULL) {
+            if (dist_config->entry_point && dist_config->entry_point->profiles && dist_config->entry_point->profiles->first == NULL) {
                 OpenAPI_lnode_t *node;
                 ogs_error("distributionConfiguration.entryPoint.profiles present but empty for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
                 cJSON_Delete(content_hosting_config);
