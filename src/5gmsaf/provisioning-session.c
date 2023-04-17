@@ -69,9 +69,7 @@ msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_sess
 msaf_provisioning_session_t *
 msaf_provisioning_session_create(const char *provisioning_session_type,
                                  const char *asp_id,
-                                 const char *external_app_id
-        // OpenAPI_list_t *metrics_reporting_configuration_ids
-)
+                                 const char *external_app_id)
 {
     msaf_provisioning_session_t *msaf_provisioning_session;
     ogs_uuid_t uuid;
@@ -92,7 +90,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
                                                                ogs_strdup(external_app_id),
                                                                NULL,
                                                                NULL,
-            // Insert metrics reporting configuration ids
+                                                               // Insert metrics reporting configuration ids
                                                                NULL,
                                                                NULL,
                                                                NULL,
@@ -197,7 +195,7 @@ msaf_content_hosting_configuration_certificate_check(msaf_provisioning_session_t
 }
 
 void
-msaf_delete_certificates(const char *provisioning_session_id)
+    msaf_delete_certificates(const char *provisioning_session_id)
 {
     msaf_application_server_state_node_t *as_state;
 
