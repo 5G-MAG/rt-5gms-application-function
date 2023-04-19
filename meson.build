@@ -22,3 +22,8 @@ patch_open5gs_result = run_command([sh_cmd, '-c', '"$MESON_SOURCE_ROOT/subprojec
 open5gs_project=subproject('open5gs',required:true)
 subdir('tools')
 subdir('src')
+
+systemd_path_cmd = find_program('systemd-path', required : false)
+if systemd_path_cmd.found()
+  subdir('systemd')
+endif
