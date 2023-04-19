@@ -159,6 +159,7 @@ fields defined so that it acts as a top level ingest point for multiple media.
 
 import aiofiles
 import asyncio
+import configparser
 import importlib
 import json
 import logging
@@ -175,10 +176,8 @@ from rt_m1_client.exceptions import M1Error
 from rt_m1_client.data_store import JSONFileDataStore
 from rt_m1_client.types import ContentHostingConfiguration, DistributionConfiguration, IngestConfiguration, M1MediaEntryPoint, PathRewriteRule
 
-g_m5_authority = 'dn.5g-testbed.bbctest01.uk:7776'
-g_publish_dir = '/usr/share/nginx/html'
-g_publish_root = '/var/cache/rt-5gms/as/docroots'
 g_streams_config = os.path.join(os.path.sep, 'etc', 'rt-5gms', 'streams.json')
+g_sync_config = os.path.join(os.path.sep, 'etc', 'rt-5gms', 'af-sync.conf')
 
 scriptdir = os.path.dirname(__file__)
 m1_session_cmd = os.path.realpath(os.path.join(scriptdir,'..','bin','m1-session'))
@@ -319,6 +318,19 @@ async def sync_configuration(m1: M1Session, streams: dict) -> dict:
                     log_error("Failed to create ContentHostingConfiguration for Provisioning Session %s, skipping %r", ps_id, cfg)
     return stream_map
 
+async def get_app_config() -> configparser.ConfigParser:
+    global g_sync_config
+    config = configparser.ConfigParser()
+    config.read_string('''
+[af-sync]
+m5_authority = 127.0.0.23:7777
+docroot = /var/cache/rt-5gms/as/docroots
+default_docroot = /usr/share/nginx/html
+''', source='defaults')
+    async with aiofiles.open(g_sync_config, mode='r') as conffile:
+        config.read_string(await conffile.read(), source=g_sync_config)
+    return config
+
 async def get_streams_config() -> dict:
     global g_streams_config
     async with aiofiles.open(g_streams_config, mode='r') as infile:
@@ -333,13 +345,10 @@ async def get_m1_session(cfg: m1_cli.Configuration) -> M1Session:
     session = await M1Session((cfg.get('m1_address', 'localhost'), cfg.get('m1_port',7777)), data_store, cfg.get('certificate_signing_class'))
     return session
 
-async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict], cfg: m1_cli.Configuration):
-    global g_publish_dir
-    global g_publish_root
-    global g_m5_authority
+async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict], cfg: m1_cli.Configuration, config: configparser.ConfigParser):
     # Assume M5 and M1 share an interface
-    m8_config = {'m5BaseUrl': f'http://{g_m5_authority}/3gpp-m5/v2/', 'serviceList': []}
-    publish_dirs = {g_publish_dir}
+    m8_config = {'m5BaseUrl': f'http://{config.get("af-sync", "m5_authority")}/3gpp-m5/v2/', 'serviceList': []}
+    publish_dirs = {config.get("af-sync", "default_docroot")}
     vod_stream_ids = set([v['stream'] for v in vod_streams])
     vod_ps_ids = set([v for k,v in stream_map.items() if k in vod_stream_ids])
     for ps_id in await m1.provisioningSessionIds():
@@ -349,7 +358,7 @@ async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict]
             m8_config['serviceList'] += [{'provisioningSessionId': ps_id, 'name': chc['name']}]
         for dc in chc['distributionConfigurations']:
             if 'domainNameAlias' in dc:
-                publish_dirs.add(os.path.join(g_publish_root, dc['domainNameAlias']))
+                publish_dirs.add(os.path.join(config.get("af-sync", "docroot"), dc['domainNameAlias']))
     for vod in vod_streams:
         ps_id = stream_map[vod['stream']]
         chc = await m1.contentHostingConfigurationGet(ps_id)
@@ -373,10 +382,11 @@ async def main():
     cfg = m1_cli.Configuration()
     session = await get_m1_session(cfg)
     streams = await get_streams_config()
+    config = await get_app_config()
     
     stream_map = await sync_configuration(session, streams)
 
-    await dump_m8_files(session, stream_map, streams['vodMedia'], cfg)
+    await dump_m8_files(session, stream_map, streams['vodMedia'], cfg, config)
 
     return 0
 
