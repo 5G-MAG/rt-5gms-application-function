@@ -17,6 +17,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "hash.h"
 
 #include "provisioning-session.h"
+#include "metrics-reporting-provisioning.h"
 
 typedef struct free_ogs_hash_provisioning_session_s {
     const char *provisioning_session;
@@ -195,7 +196,7 @@ msaf_content_hosting_configuration_certificate_check(msaf_provisioning_session_t
 }
 
 void
-    msaf_delete_certificates(const char *provisioning_session_id)
+msaf_delete_certificates(const char *provisioning_session_id)
 {
     msaf_application_server_state_node_t *as_state;
 
