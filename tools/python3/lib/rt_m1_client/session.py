@@ -480,7 +480,7 @@ class M1Session:
                     },
                 'distributionConfigurations': []
                 }
-        if entrypoints is None:
+        if entrypoints is None or len(entrypoints) == 0:
             entrypoints = [None]
         for ep in entrypoints:
             if ssl and cert is not None:
