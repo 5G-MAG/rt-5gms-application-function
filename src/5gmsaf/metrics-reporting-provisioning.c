@@ -2,145 +2,40 @@
 #include "metrics-reporting-provisioning.h"
 #include "ogs-core.h"
 
-// Placeholders for potential functions
+// Function that takes new MRC and assigns ID value
 
-
-OpenAPI_metrics_reporting_configuration_t * msaf_metrics_reporting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session) {
-        return 0;
-};
-
-int msaf_metrics_reporting_configuration_certificate_check(msaf_provisioning_session_t *provisioning_session){
-    return 0;
-}
-
-void msaf_metrics_reporting_configuration_delete (const char *provisioning_session_id){
-    return 0;
-}
-
-ogs_hash_t *
-msaf_certificate_map(void)
-{
-    ogs_hash_t *certificate_map = ogs_hash_make();
-    return certificate_map;
-}
-
-const char *
-msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id)
-{
-    msaf_provisioning_session_t *provisioning_session;
-
-    provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
-    ogs_assert(provisioning_session);
-
-    if (provisioning_session->certificate_map == NULL) return NULL;
-
-    return (const char*)ogs_hash_get(provisioning_session->certificate_map, certificate_id, OGS_HASH_KEY_STRING);
-}
-
-
-ogs_list_t*
-msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session)
-{
-
-    ogs_list_t *certs = NULL;
-    resource_id_node_t *certificate = NULL;
-    OpenAPI_lnode_t *dist_config_node = NULL;
-    OpenAPI_distribution_configuration_t *dist_config = NULL;
-
-    ogs_assert(provisioning_session);
-
-    certs = (ogs_list_t*) ogs_calloc(1,sizeof(*certs));
-    ogs_assert(certs);
-    ogs_list_init(certs);
-    if (provisioning_session->contentHostingConfiguration && provisioning_session->certificate_map) {
-        OpenAPI_list_for_each(provisioning_session->contentHostingConfiguration->distribution_configurations, dist_config_node) {
-            dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
-            if (dist_config->certificate_id) {
-                const char *cert = ogs_hash_get(provisioning_session->certificate_map, dist_config->certificate_id, OGS_HASH_KEY_STRING);
-                if (cert){
-                    certificate = ogs_calloc(1, sizeof(resource_id_node_t));
-                    ogs_assert(certificate);
-                    char *provisioning_session_id_plus_cert_id = ogs_msprintf("%s:%s", provisioning_session->provisioningSessionId, dist_config->certificate_id);
-                    certificate->state = provisioning_session_id_plus_cert_id;
-                    ogs_list_add(certs, certificate);
-                } else {
-                    ogs_warn("Certificate id [%s] not found for Content Hosting Configuration [%s]", dist_config->certificate_id, provisioning_session->provisioningSessionId);
-                    resource_id_node_t *next;
-                    ogs_list_for_each_safe(certs, next, certificate) {
-                        ogs_list_remove(certs, certificate);
-                        if (certificate->state) ogs_free(certificate->state);
-                        ogs_free(certificate);
-                    }
-                    ogs_free(certs);
-                    certs = NULL;
-                    break;
-                }
-            }
-        }
-    }
-    return certs;
-}
-
-
-cJSON *msaf_get_metrics_reporting_configuration_by_provisioning_session_id(const char *provisioning_session_id) {
-    return 0;
-}
-
-
-
-
-
-
-
-
-/*
 msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(
-        char *metrics_reporting_configuration_id,
-        char *scheme,
-        char *data_network_name,
-        bool is_reporting_interval,
-        int reporting_interval,
-        bool is_sample_percentage,
-        double sample_percentage,
-        OpenAPI_list_t *url_filters,
-        OpenAPI_list_t *metrics
-) {
+        msaf_provisioning_session_t *provisioning_session)
+{
+    ogs_assert(provisioning_session);
 
-    // Generating ID values
-    msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
+    // Generating Metrics Reporting ID
     ogs_uuid_t uuid;
-    char metrics_reporting_configuration_id[OGS_UUID_FORMATTED_LENGTH + 1];
-    OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
-
+    char MRC_ID[OGS_UUID_FORMATTED_LENGTH + 1];
     ogs_uuid_get(&uuid);
-    ogs_uuid_format(metrics_reporting_configuration_id, &uuid);
+    ogs_uuid_format(MRC_ID, &uuid);
 
-    // Invoking the function defined in openapi/models interface
-    metrics_reporting_configuration = OpenAPI_metrics_reporting_configuration_create(
-            ogs_strdup(metrics_reporting_configuration_id),
+    // Incoming MRC via M1 interface extended with ID
+    OpenAPI_metrics_reporting_configuration_t *MRC = OpenAPI_metrics_reporting_configuration_create(
+            ogs_strdup(MRC_ID),
             ogs_strdup(scheme),
             ogs_strdup(data_network_name),
+            true,
             reporting_interval,
+            true,
             sample_percentage,
             url_filters,
             metrics
     );
 
-    msaf_metrics_reporting_configuration = ogs_calloc(1, sizeof(msaf_metrics_reporting_configuration_t));
+    msaf_metrics_reporting_configuration_t *msaf_mrc;
+    msaf_mrc = ogs_calloc(1, sizeof(msaf_metrics_reporting_configuration_t));
+    ogs_assert(msaf_mrc);
 
-    // Checking if memory allocation was successful
-    ogs_assert(msaf_metrics_reporting_configuration);
+    msaf_mrc->MRC_ID = ogs_strdup(MRC->metrics_reporting_configuration_id);
+    msaf_add_metrics_reporting_configuration(provisioning_session, msaf_mrc->MRC_ID, MRC);
 
-    msaf_metrics_reporting_configuration->metricsReportingConfigurationId = ogs_strdup(metrics_reporting_configuration->metrics_reporting_configuration_id);
-    msaf_metrics_reporting_configuration->scheme = ogs_strdup(metrics_reporting_configuration->scheme);
-    msaf_metrics_reporting_configuration->dataNetworkName = ogs_strdup(metrics_reporting_configuration->data_network_name);
-    msaf_metrics_reporting_configuration->reportingInterval = metrics_reporting_configuration->reporting_interval;
-    msaf_metrics_reporting_configuration->samplePercentage = metrics_reporting_configuration->sample_percentage;
-    msaf_metrics_reporting_configuration->urlFilters = ogs_list_copy(metrics_reporting_configuration->url_filters);
-    msaf_metrics_reporting_configuration->metrics = ogs_list_copy(metrics_reporting_configuration->metrics);
-
-    OpenAPI_metrics_reporting_configuration_free(metrics_reporting_configuration);
-    return msaf_metrics_reporting_configuration;
+    return msaf_mrc;
 }
 
 // TBD: List all metrics configurations
@@ -154,7 +49,45 @@ msaf_metrics_configuration_find_by_Id(const char *metrics_reporting_configuratio
     return (msaf_provisioning_session_t*) ogs_hash_get(msaf_self()->metricsConfiguration_map, metrics_reporting_configuration_id, OGS_HASH_KEY_STRING);
 }
 
-cJSON *metrics_reporting_get_json(msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration)
+// DELETE MetricsReportingConfiguration
+void
+msaf_delete_metrics_reporting_configuration(const char *provisioning_session_id)
+{
+    // This part must be modified to MRC
+    msaf_application_server_state_node_t *as_state;
+    ogs_list_for_each(&msaf_self()->application_server_states, as_state) {
+        resource_id_node_t *metrics_reporting_configuration, *next = NULL;
+        // resource_id_node_t *upload_metrics_reporting_configuration, *next_node = NULL;
+        // resource_id_node_t *delete_chc = NULL;
+        ogs_list_init(&as_state->delete_metrics_reporting_configurations);
+        if (as_state->current_content_hosting_configurations) {
+            ogs_list_for_each_safe(as_state->current_content_hosting_configurations, next, content_hosting_configuration){
+                if (!strcmp(content_hosting_configuration->state, provisioning_session_id))
+                    break;            }
+            if (content_hosting_configuration) {
+                delete_chc = ogs_calloc(1, sizeof(resource_id_node_t));
+                ogs_assert(delete_chc);
+                delete_chc->state = ogs_strdup(content_hosting_configuration->state);
+                ogs_list_add(&as_state->delete_content_hosting_configurations, delete_chc);
+            }
+        }
+        ogs_list_for_each_safe(&as_state->upload_content_hosting_configurations, next_node, upload_content_hosting_configuration){
+            if (!strcmp(upload_content_hosting_configuration->state, provisioning_session_id))
+                break;
+        }
+        if (upload_content_hosting_configuration) {
+            ogs_list_remove(&as_state->upload_content_hosting_configurations, upload_content_hosting_configuration);
+            ogs_list_add(&as_state->delete_content_hosting_configurations, upload_content_hosting_configuration);
+        }
+        next_action_for_application_server(as_state);
+    }
+}
+
+cJSON *msaf_get_metrics_reporting_configuration_by_provisioning_session_id(const char *provisioning_session_id) {
+    return 0;
+}
+
+/*cJSON *metrics_reporting_get_json(msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration)
 {
     if (!msaf_metrics_reporting_configuration)
     {

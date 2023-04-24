@@ -125,7 +125,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
 }
 
 
-// Using cJSON it will convert provisioning session object into JSON.
+// cJSON lib converts provisioning session object into JSON.
 cJSON *
 msaf_provisioning_session_get_json(const char *provisioning_session_id)
 {
