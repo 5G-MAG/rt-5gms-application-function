@@ -1,25 +1,24 @@
 
-#ifndef RT_5GMS_APPLICATION_FUNCTION_METRICS_REPORTING_PROVISIONING_H
-#define RT_5GMS_APPLICATION_FUNCTION_METRICS_REPORTING_PROVISIONING_H
+#ifndef MSAF_METRICS_REPORTING_PROVISIONING_H
+#define MSAF_METRICS_REPORTING_PROVISIONING_H
 
-#include "openapi/model/metrics_reporting_configuration.h."
+#include "openapi/model/metrics_reporting_configuration.h"
 
 typedef struct msaf_metrics_reporting_configuration_s {
-    char *metrics_reporting_configuration_id;
+    char *metricsReportingConfigurationId;
     char *scheme;
-    char *data_network_name;
-    bool is_reporting_interval;
-    int reporting_interval;
-    bool is_sample_percentage;
-    double sample_percentage;
-    OpenAPI_list_t *url_filters;
+    char *dataNetworkName;
+    bool isReportingInterval;
+    int reportingInterval;
+    bool isSamplePercentage;
+    double samplePercentage;
+    OpenAPI_list_t *urlFilters;
     OpenAPI_list_t *metrics;
-    OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
-    time_t metricsReportingConfigurationReceived;
-    char *metricsReportingProvisioningHash;
-    ogs_hash_t *certificate_map;
-    ogs_list_t application_server_states;
-    int marked_for_deletion;
 } msaf_metrics_reporting_configuration_t;
 
-#endif //RT_5GMS_APPLICATION_FUNCTION_METRICS_REPORTING_PROVISIONING_H
+//extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
+extern OpenAPI_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration();
+const char *calculate_metrics_reporting_configuration_hash(OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration);
+
+
+#endif //MSAF_METRICS_REPORTING_PROVISIONING_H

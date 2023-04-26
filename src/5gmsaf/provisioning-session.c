@@ -78,6 +78,14 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     OpenAPI_provisioning_session_t *provisioning_session;
     char *prov_sess_type;
 
+    // Instantiating Metrics Reporting Configuration objects!
+    // Mapping MRC to it's ID
+    // OpenAPI_metrics_reporting_configuration_t is class of MRC;
+    // ID is generated in msaf_metrics_reporting_configuration_t;
+
+    OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
+    msaf_metrics_reporting_configuration_t *metrics_reporting_configuration;
+
     // Duplication of provisioning session type
     prov_sess_type = ogs_strdup(provisioning_session_type);
     // Generating UUID
@@ -91,23 +99,36 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
                                                                ogs_strdup(external_app_id),
                                                                NULL,
                                                                NULL,
-                                                               // Insert metrics reporting configuration ids
+                                                               metrics_reporting_configuration_id,
                                                                NULL,
                                                                NULL,
                                                                NULL,
                                                                NULL);
-    // Free the memory allocated for prov_sess_type (which is duplicate of provisioning_session_type
-    ogs_free(prov_sess_type);
 
+    // Free the memory allocated for prov_sess_type (which is duplicate of provisioning_session_type)
+    ogs_free(prov_sess_type);
+    // Allocating memory for internal structure "msaf_provisioning_session"
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
+    // Checking if the newly created object is null.
     ogs_assert(msaf_provisioning_session);
+
+    // Fulfilling the newly created object
     msaf_provisioning_session->provisioningSessionId = ogs_strdup(provisioning_session->provisioning_session_id);
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
     msaf_provisioning_session->aspId = (provisioning_session->asp_id)?ogs_strdup(provisioning_session->asp_id):NULL;
     msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
     msaf_provisioning_session->provisioningSessionReceived = time(NULL);
     msaf_provisioning_session->provisioningSessionHash = ogs_strdup(calculate_provisioning_session_hash(provisioning_session));
+    // Expanding provisioning session with Metrics Reporting Configuration
+    msaf_provisioning_session->metricsReportingConfiguration = metrics_reporting_configuration->metricsReportingConfigurationId;
+    msaf_provisioning_session->metricsReportingConfigurationReceived = time(NULL);
+    msaf_provisioning_session->metricsReportingProvisioningHash = ogs_strdup(calculate_metrics_reporting_configuration_hash(metricsReportingConfiguration));
 
+
+    // Expanding fields with Metrics Reporting Configuration fields
+    msaf_provisioning_session.
+
+    // Sets the certificate_map field in msaf_provisioning_session by calling the msaf_certificate_map function
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
 
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
@@ -146,6 +167,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session->provisioning_session_type = msaf_provisioning_session->provisioningSessionType;
         provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
+        // Placeholder for metrics reporting configuration fields
 
         provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
         for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {

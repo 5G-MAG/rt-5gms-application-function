@@ -147,9 +147,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     //***********************POST****************************
 
                     CASE(OGS_SBI_HTTP_METHOD_POST)
-                        // URL check for only 3 components
                         if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
-                            msaf_provisioning_session_t *msaf_provisioning_session;
+
+                            // msaf_provisioning_session_t *msaf_provisioning_session;
 
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration") && !strcmp(message.h.resource.component[3],"purge")) {
                                 ogs_hash_index_t *hi;
@@ -516,7 +516,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     CASE(OGS_SBI_HTTP_METHOD_GET)
                         if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
 
-                            if(!strcmp(message.h.resource.component[2]), "metrics-reporting-configuration"){
+                            /*if(!strcmp(message.h.resource.component[2]), "metrics-reporting-configuration"){
                                 // Handles the READ method
                                 // Further check for ID
                                 /* msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
@@ -525,8 +525,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 // Find specific metrics configuration with ID, passing message.h.resource.component[3]
                                 // Certificate hash mapping
                                 return 0;
-                            }
-
+                            }*/
+certificates
                             // Retrieve "certificates" per provisioning-session-id.
                             if (!strcmp(message.h.resource.component[2],"certificates") ) {
                                 msaf_provisioning_session_t *msaf_provisioning_session;
