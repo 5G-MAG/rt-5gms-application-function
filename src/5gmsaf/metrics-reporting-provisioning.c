@@ -59,3 +59,15 @@ static const char *calculate_metrics_reporting_configuration_hash(OpenAPI_metric
     ogs_free(metrics_reporting_configuration_to_hash);
     return metrics_reporting_configuration_hashed;
 }
+
+msaf_metrics_reporting_configuration_t *
+msaf_provisioning_session_find_by_provisioningSessionId(const char *metricsReportingConfigurationId)
+{
+    if (!msaf_self()->metricsReportingMap) return NULL;
+    return (msaf_metrics_reporting_configuration_t *) ogs_hash_get(msaf_self()->metricsReportingMap, metricsReportingConfigurationId, OGS_HASH_KEY_STRING);
+}
+
+
+
+
+

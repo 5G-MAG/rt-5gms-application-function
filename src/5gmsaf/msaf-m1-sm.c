@@ -119,7 +119,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             message = *(e->message);
 
             SWITCH(message.h.service.name)
-            // Request
+
             CASE("3gpp-m1")
                 if (strcmp(message.h.api.version, "v2") != 0) {
                     char *error;
@@ -140,16 +140,18 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 }
                 
                 SWITCH(message.h.resource.component[0])
-                // Checking first component of the URL
+
                 CASE("provisioning-sessions")
                     SWITCH(message.h.method)
 
-                    //***********************POST****************************
+                     /*
+                     * ============================================================================
+                     * POST
+                     * ============================================================================
+                     */
 
                     CASE(OGS_SBI_HTTP_METHOD_POST)
                         if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
-
-                            // msaf_provisioning_session_t *msaf_provisioning_session;
 
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration") && !strcmp(message.h.resource.component[3],"purge")) {
                                 ogs_hash_index_t *hi;
@@ -238,13 +240,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                         } else if (message.h.resource.component[1] && message.h.resource.component[2] && !message.h.resource.component[3]) {
 
-                            // Handling Metrics Reporting POST
-                            // Operate without ID so 3rd message component is empty
-                            if (!strcmp(message.h.resource.component[2], "metrics-reporting-configuration") && !message.h.resource.component[3]) {
+                            // Placeholder for handling Metrics Reporting POST
+                            // Operates without ID so 3rd message component is empty
+                            /* if (!strcmp(message.h.resource.component[2], "metrics-reporting-configuration") && !message.h.resource.component[3]) {
                                 // PROCESS POST
                                 // Invoking create method
                                 return 0;
-                            }
+                            }*/
 
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
@@ -511,22 +513,21 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                         break;
 
-                    //***********************GET****************************
+
+                        /*
+                        * ============================================================================
+                        * GET request
+                        * ============================================================================
+                        */
 
                     CASE(OGS_SBI_HTTP_METHOD_GET)
                         if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
 
-                            /*if(!strcmp(message.h.resource.component[2]), "metrics-reporting-configuration"){
-                                // Handles the READ method
-                                // Further check for ID
-                                /* msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
-                                msaf_metrics_reporting_configuration = msaf_metrics_reporting_configuration_find_by_configuration_Id */
-                                // Find specific provisioning session with ID, passing message.h.resource.component[1]
-                                // Find specific metrics configuration with ID, passing message.h.resource.component[3]
-                                // Certificate hash mapping
+                            /* Placeholder for handling MRC
+                            if(!strcmp(message.h.resource.component[2]), "metrics-reporting-configuration"){
                                 return 0;
                             }*/
-certificates
+
                             // Retrieve "certificates" per provisioning-session-id.
                             if (!strcmp(message.h.resource.component[2],"certificates") ) {
                                 msaf_provisioning_session_t *msaf_provisioning_session;
@@ -670,7 +671,12 @@ certificates
                         break;
 
 
-                    //***********************PUT****************************
+
+                    /*
+                     * ============================================================================
+                     * PUT request
+                     * ============================================================================
+                     */
                     CASE(OGS_SBI_HTTP_METHOD_PUT)
                         if (message.h.resource.component[1] && message.h.resource.component[2]) {
 
@@ -850,16 +856,21 @@ certificates
 
                         break;
 
-                    //***********************DELETE****************************
+                     /*
+                     * ============================================================================
+                     * DELETE request
+                     * ============================================================================
+                     */
                     CASE(OGS_SBI_HTTP_METHOD_DELETE)
 
-                        if(message.h.resource.component[1]
+                        /* Placeholder for handling MRC
+                        *if(message.h.resource.component[1]
                             && message.h.resource.component[2]
                             && !strcmp(message.h.resource.component[2],"metrics-reporting-configuration")
                             && message.h.resource.component[3]
                             && !message.h.resource.component[4]) {
                             return 0;
-                        }
+                        }*/
 
                         if (message.h.resource.component[1] && message.h.resource.component[2] && !strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3] && !message.h.resource.component[4]) {
                             ogs_sbi_response_t *response;
