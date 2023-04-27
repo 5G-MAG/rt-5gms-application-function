@@ -60,7 +60,7 @@ sudo meson install --no-rebuild
 
 ## Running
 
-The Application Function requires a [5GMS Application Server](https://github.com/5G-MAG/rt-5gms-application-server) (release v1.1.0 or above) to be running. Please follow the [instructions](https://github.com/5G-MAG/rt-5gms-application-server/tree/development#readme) for installing and running the 5GMS Application Server before starting the Application Function.
+The Application Function requires a [5GMS Application Server](https://github.com/5G-MAG/rt-5gms-application-server) (release v1.1.2 or above) to be running. Please follow the [instructions](https://github.com/5G-MAG/rt-5gms-application-server/#readme) for installing and running the 5GMS Application Server before starting the Application Function.
 
 The Application Function can be executed with the command:
 
