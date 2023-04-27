@@ -148,7 +148,7 @@ int msaf_context_parse_config(void)
                         self->config.open5gsIntegration_flag = 1;
                     }
                 } else if (!strcmp(msaf_key, "certificateManager")) {
-                    self->config.certificateManager = ogs_strdup(ogs_yaml_iter_value(&msaf_iter));
+                    self->config.certificateManager = msaf_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "applicationServers")) {
                     ogs_yaml_iter_t as_iter, as_array;
                     ogs_yaml_iter_recurse(&msaf_iter, &as_array);
@@ -169,9 +169,9 @@ int msaf_context_parse_config(void)
                         const char *as_key = ogs_yaml_iter_key(&as_iter);
                         ogs_assert(as_key);
                         if (!strcmp(as_key, "canonicalHostname")) {
-                            canonical_hostname = ogs_strdup(ogs_yaml_iter_value(&as_iter));
+                            canonical_hostname = msaf_strdup(ogs_yaml_iter_value(&as_iter));
                         } else if (!strcmp(as_key, "urlPathPrefixFormat")) {
-                            url_path_prefix_format = ogs_strdup(ogs_yaml_iter_value(&as_iter));
+                            url_path_prefix_format = msaf_strdup(ogs_yaml_iter_value(&as_iter));
                         } else if (!strcmp(as_key, "m3Port")) {
                             m3_port = ascii_to_long(ogs_yaml_iter_value(&as_iter));
                         }

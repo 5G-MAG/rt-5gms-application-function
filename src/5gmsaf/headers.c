@@ -10,6 +10,8 @@
 
 #include "ogs-core.h"
 
+#include "utilities.h"
+
 #include "headers.h"
 
 #ifdef __cplusplus
@@ -66,7 +68,7 @@ int nf_headers_set(nf_headers_t *headers, const char *fieldname, const char *val
         ogs_hash_set(headers->hdrs, nf_headers_iter_fieldname(iter), OGS_HASH_KEY_STRING, NULL);
         nf_headers_iter_free(iter);
     }
-    ogs_hash_set(headers->hdrs, ogs_strdup(fieldname), OGS_HASH_KEY_STRING, ogs_strdup(value));
+    ogs_hash_set(headers->hdrs, msaf_strdup(fieldname), OGS_HASH_KEY_STRING, msaf_strdup(value));
     return 1;
 }
 
@@ -77,7 +79,7 @@ int nf_headers_add(nf_headers_t *headers, const char *fieldname, const char *val
         char *new_value = ogs_msprintf("%s, %s", nf_headers_iter_value(iter), value);
         ogs_hash_set(headers->hdrs, nf_headers_iter_fieldname(iter), OGS_HASH_KEY_STRING, new_value);
     } else {
-        ogs_hash_set(headers->hdrs, ogs_strdup(fieldname), OGS_HASH_KEY_STRING, ogs_strdup(value));
+        ogs_hash_set(headers->hdrs, msaf_strdup(fieldname), OGS_HASH_KEY_STRING, msaf_strdup(value));
     }
     return 1;
 }

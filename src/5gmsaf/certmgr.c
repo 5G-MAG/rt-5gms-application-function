@@ -294,9 +294,7 @@ char *check_in_cert_list(const char *canonical_domain_name)
     ogs_assert(ret == 0);
     ogs_free(current);
 
-    if (!certificate) return NULL;
-
-    return ogs_strdup(certificate);
+    return msaf_strdup(certificate);
 }
 
 static msaf_certificate_t *msaf_certificate_populate(const char *certid, const char *cert, int out_return_code)
@@ -311,7 +309,7 @@ static msaf_certificate_t *msaf_certificate_populate(const char *certid, const c
     msaf_certificate = ogs_calloc(1, sizeof(msaf_certificate_t));
     ogs_assert(msaf_certificate);
 
-    msaf_certificate->id = ogs_strdup(certid);
+    msaf_certificate->id = msaf_strdup(certid);
     msaf_certificate->return_code = out_return_code;
 
     msaf_certificate->headers = nf_headers_new();
@@ -343,7 +341,7 @@ static msaf_certificate_t *msaf_certificate_populate(const char *certid, const c
 	line = eol+1;
     }
 
-    msaf_certificate->certificate = ogs_strdup(line);
+    msaf_certificate->certificate = msaf_strdup(line);
 
     hdr_value = nf_headers_get(msaf_certificate->headers, "Last-Modified");
     if (hdr_value) {
@@ -356,9 +354,7 @@ static msaf_certificate_t *msaf_certificate_populate(const char *certid, const c
     }
 
     hdr_value = nf_headers_get(msaf_certificate->headers, "ETag");
-    if (hdr_value) {
-        msaf_certificate->server_certificate_hash = ogs_strdup(hdr_value);
-    }
+    msaf_certificate->server_certificate_hash = msaf_strdup(hdr_value);
 
     return msaf_certificate;
 }

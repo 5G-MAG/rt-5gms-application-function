@@ -16,6 +16,8 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "openapi/model/service_access_information_resource.h"
 #include "openapi/model/provisioning_session.h"
 #include "openapi/model/provisioning_session_type.h"
+#include "openapi/model/m1_media_entry_point.h"
+#include "openapi/model/m5_media_entry_point.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,8 +72,7 @@ extern void msaf_provisioning_session_certificate_hash_remove(const char *provis
 
 extern int uri_relative_check(const char *entry_point_path);
 
-extern int
-msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session);
+extern int msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session);
 
 extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
 

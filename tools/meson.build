@@ -1,15 +1,18 @@
 pymod = import('python')
 fs = import('fs')
 
+python3 = pymod.find_installation('python3')
+
 support_scripts_dir = get_option('libexecdir') / 'rt-5gms'
 
 scripts = {
-#'python3/m1_client_cli.py': 'm1-client',
-'python3/m1_session_cli.py': 'm1-session'
+  'python3/m1_sync_config.py': 'msaf-configuration',
+  'python3/m1_client_cli.py': 'm1-client',
+  'python3/m1_session_cli.py': 'm1-session'
 }
 
 support_scripts = {
-'bash/certmgr': 'self-signed-certmgr'
+  'bash/certmgr': 'self-signed-certmgr'
 }
 
 self_signed_certmgr_runtime = support_scripts_dir / 'self-signed-certmgr'
@@ -18,7 +21,7 @@ python3_modules = [
   'python3/lib/rt_m1_client',
 ]
 
-scripts_conf_data = configuration_data()
+scripts_conf_data = configuration_data({'python_packages_dir': python3.get_install_dir()})
 script_conf_options = [
   'prefix', 'bindir', 'libdir', 'libexecdir', 'localstatedir', 'sbindir',
   'sysconfdir',
@@ -37,7 +40,6 @@ foreach src, dst : support_scripts
   install_data(scriptfile, install_dir: support_scripts_dir, install_mode: 'rwxr-xr-x')
 endforeach
 
-python3 = pymod.find_installation('python3')
 sh = find_program('sh')
 foreach pm : python3_modules
   mod_files = files(run_command(sh, '-c', 'cd "$MESON_SOURCE_ROOT/$MESON_SUBDIR"; find "' + pm + '" -type f -name "*.py" -print').stdout().strip().split('\n'))

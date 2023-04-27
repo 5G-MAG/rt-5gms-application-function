@@ -323,7 +323,7 @@ class M1Client:
         result = await self.__do_request('DELETE',
                     f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
                                          '', 'application/json')
-        if result['status_code'] == 204:
+        if result['status_code'] == 204 or result['status_code'] == 202:
             return True
         if result['status_code'] == 404:
             return False
@@ -480,7 +480,7 @@ class M1Client:
         result = await self.__do_request('DELETE',
               f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
               '', 'application/octet-stream')
-        if result['status_code'] == 204:
+        if result['status_code'] == 204 or result['status_code'] == 202:
             return True
         self.__default_response(result)
         return False

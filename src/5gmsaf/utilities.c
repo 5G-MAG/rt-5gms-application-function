@@ -95,7 +95,7 @@ char *get_path(const char *file)
         ogs_error("cannot find file with name[%s]: %s", file, strerror(errno));
         return NULL;
     }
-    file_dir = ogs_strdup(dirname(path));
+    file_dir = msaf_strdup(dirname(path));
     return file_dir;
 }
 
@@ -111,7 +111,7 @@ char *rebase_path(const char *base, const char *file)
         return path;
     }
     /* absolute path - return a copy */
-    return ogs_strdup(file);
+    return msaf_strdup(file);
 }
 
 long int ascii_to_long(const char *str)
@@ -137,6 +137,23 @@ uint16_t ascii_to_uint16(const char *str)
         ret = 0;
     }
     return ret;
+}
+
+char *traceable_strdup(const char *str, const char *location)
+{
+    char *ptr = NULL;
+
+    if (str) {
+        ogs_thread_mutex_lock(ogs_mem_get_mutex());
+
+        ptr = talloc_strdup(__ogs_talloc_core, str);
+        ogs_expect(ptr);
+        talloc_set_name_const(ptr, location);
+
+        ogs_thread_mutex_unlock(ogs_mem_get_mutex());
+    }
+
+    return ptr;
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

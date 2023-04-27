@@ -1,15 +1,38 @@
 {
-  "name": "Big Buck Bunny",
-  "entryPointPath": "BigBuckBunny_4s_onDemand_2014_05_09.mpd",
-  "ingestConfiguration": {
-    "pull": true,
-    "protocol": "urn:3gpp:5gms:content-protocol:http-pull-ingest",
-    "baseURL": "https://ftp.itec.aau.at/datasets/DASHDataset2014/BigBuckBunny/4sec/"
-  },
-  "distributionConfigurations": [
-    {},
-    {
-      "certificateId": "@certificate-id@"
-    }
-  ]
+	"name": "AMP Demo Stream: Big Buck Bunny",
+	"ingestConfiguration": {
+		"pull": true,
+		"protocol": "urn:3gpp:5gms:content-protocol:http-pull-ingest",
+		"baseURL": "http://amssamples.streaming.mediaservices.windows.net/622b189f-ec39-43f2-93a2-201ac4e31ce1/BigBuckBunny.ism/"
+	},
+	"distributionConfigurations": [
+		{
+			"entryPoint": {
+				"relativePath": "manifest(format=mpd-time-csf)",
+				"contentType": "application/dash+xml",
+				"profiles": ["urn:mpeg:dash:profile:isoff-live:2011"]
+			}
+		},
+		{
+                        "entryPoint": {
+                                "relativePath": "manifest(format=m3u8-aapl-v3)",
+                                "contentType": "application/vnd.apple.mpegurl"
+                        }
+		},
+		{
+			"certificateId": "@certificate-id@",
+			"entryPoint": {
+				"relativePath": "manifest(format=mpd-time-csf)",
+				"contentType": "application/dash+xml",
+				"profiles": ["urn:mpeg:dash:profile:isoff-live:2011"]
+			}
+		},
+		{
+			"certificateId": "@certificate-id@",
+                        "entryPoint": {
+                                "relativePath": "manifest(format=m3u8-aapl-v3)",
+                                "contentType": "application/vnd.apple.mpegurl"
+                        }
+		}
+	]
 }

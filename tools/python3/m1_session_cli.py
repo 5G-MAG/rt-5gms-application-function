@@ -51,6 +51,8 @@ Syntax:
     m1-session-cli show-certificate -p <provisioning-session-id> -c <certificate-id>
     m1-session-cli set-certificate -h
     m1-session-cli set-certificate -p <provisioning-session-id> -c <certificate-id> [<certificate-PEM-file>]
+    m1-session-cli del-certificate -h
+    m1-session-cli del-certificate -p <provisioning-session-id> -c <certificate-id>
     m1-session-cli check-certificates-renewal -h
     m1-session-cli check-certificates-renewal
     m1-session-cli renew-certificates -h
@@ -92,6 +94,10 @@ from typing import Tuple, List
 
 import json
 import OpenSSL
+
+installed_packages_dir = '@python_packages_dir@'
+if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.path:
+    sys.path.append(installed_packages_dir)
 
 from rt_m1_client.session import M1Session
 from rt_m1_client.exceptions import M1Error
@@ -424,7 +430,7 @@ async def cmd_new_stream(args: argparse.Namespace, config: Configuration) -> int
     app_id = args.app_id or config.get('external_app_id')
     asp_id = args.asp_id or config.get('asp_id')
     domain_name_alias = args.domain_name_alias
-    provisioning_session_id = await session.createNewDownlinkPullStream(args.ingesturl, app_id, args.entrypoint, name=name, ssl=use_ssl, insecure=use_plain, asp_id=asp_id, domain_name_alias=domain_name_alias)
+    provisioning_session_id = await session.createNewDownlinkPullStream(args.ingesturl, app_id, args.entrypoints, name=name, ssl=use_ssl, insecure=use_plain, asp_id=asp_id, domain_name_alias=domain_name_alias)
     print(f'Hosting created as provisioning session {provisioning_session_id}')
     return 0
 
@@ -607,6 +613,7 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     cfg = Configuration()
 
     parser = argparse.ArgumentParser(prog='m1-session', description='M1 Session Tool')
+    parser.add_argument('-D', '--debug', action='store_true', help='Enable debugging mode')
     subparsers = parser.add_subparsers(required=True)
 
     # m1-session-cli configure <cmd> ...
@@ -635,7 +642,7 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_list.add_argument('-v', '--verbose', required=False, action='store_true')
 
     # m1-session-cli new-stream [-e <APPLICATION-ID>] [-a <PROVIDER-ID>] [-n <NAME>] [--with-ssl|--ssl-only] [-d <FQDN>] \
-    #                           <ingest-URL> [<entry-point-path>]
+    #                           <ingest-URL> [<entry-point-path[:profile...]>...]
     parser_newstream = subparsers.add_parser('new-stream', help='Create a new ingest stream')
     parser_newstream.set_defaults(command=cmd_new_stream)
     parser_newstream.add_argument('-n', '--name', metavar='NAME', help='The name of the new stream', required=False)
@@ -646,8 +653,8 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_newstream_ssl_options.add_argument('--ssl-only', action='store_true')
     parser_newstream.add_argument('-d', '--domain-name-alias', dest='domain_name_alias', metavar='FQDN', help='Optional domain name alias for the distribution', required=False)
     parser_newstream.add_argument('ingesturl', metavar='ingest-URL', help='The ingest URL prefix to use')
-    parser_newstream.add_argument('entrypoint', metavar='entry-point-path', nargs='?',
-                                  help='The media player entry point path suffix.')
+    parser_newstream.add_argument('entrypoints', metavar='entry-point-path', nargs='*',
+                                  help='The media player entry point paths.')
 
     # m1-session-cli del-stream -p <provisioning-session-id>
     # m1-session-cli del-stream <ingest-URL> [<entry-point-path>]
@@ -655,9 +662,9 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_delstream.set_defaults(command=cmd_delete_stream)
     parser_delstream_filter = parser_delstream.add_mutually_exclusive_group(required=True)
     parser_delstream_filter.add_argument('-p', '--provisioning-session', help='Delete by provisioning session id')
-    parser_delstream_filter.add_argument('ingesturl', metavar='ingest-URL', nargs='?', help='The ingest URL prefix to use')
+    parser_delstream_filter.add_argument('ingesturl', metavar='ingest-URL', nargs='?', help='The ingest URL prefix to identify the provisioning session.')
     # The entry-point-path should go with ingest-URL, but argparser lacks the ability to do subgroups
-    parser_delstream.add_argument('entrypoint', metavar='entry-point-path', nargs='?', help='The media player entry point suffix.')
+    parser_delstream.add_argument('entrypoint', metavar='entry-point-path', nargs='?', help='The media player entry point suffix to identify the provisioning session.')
 
     # m1-session-cli set-stream -p <provisioning-session-id> <CHC-JSON-FILE>
     parser_set_stream = subparsers.add_parser('set-stream', help='Set the hosting for a provisioning session from a JSON file')
@@ -673,9 +680,10 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_show_stream_filter = parser_show_stream.add_mutually_exclusive_group(required=True)
     parser_show_stream_filter.add_argument('-p', '--provisioning-session', help='The provisioning session id to show',
                                            required=False)
-    parser_show_stream_filter.add_argument('ingesturl', metavar='ingest-URL', nargs='?', help='The ingest URL prefix used')
+    parser_show_stream_filter.add_argument('ingesturl', metavar='ingest-URL', nargs='?',
+                                           help='The ingest URL prefix used to identify the provisioing session')
     parser_show_stream.add_argument('entrypoint', metavar='entry-point-path', nargs='?',
-                                    help='The media player entry point suffix.')
+                                    help='A media player entry point suffix to identify the provisioning session.')
     parser_show_stream.add_argument('-r', '--raw', required=False, action="store_true",
                                     help='Use "raw" output mode to present the ContentHostingConfiguration JSON')
 
@@ -778,7 +786,14 @@ async def main():
             }
     try:
         (args, config) = await parse_args()
-        logging.basicConfig(level=log_levels[config.get('log_level')])
+        if args.debug:
+            log_lvl = logging.DEBUG
+        elif config.get('log_level') in log_levels:
+            log_lvl = log_levels[config.get('log_level')]
+        else:
+            print(f'Warning: Bad logging level "{config.get("log_level")}" in configuration.')
+            log_lvl = logging.INFO
+        logging.basicConfig(level=log_lvl)
         log = logging.getLogger()
         if hasattr(args, 'command'):
             return await args.command(args, config)
@@ -789,7 +804,8 @@ async def main():
         return 2
     except Exception as err:
         print(f'General failure: {err}')
-        #traceback.print_exc() # add in for debugging
+        if args.debug:
+            traceback.print_exc()
         return 2
     return 0
 
