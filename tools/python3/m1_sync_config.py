@@ -196,6 +196,10 @@ def log_info(*args, **kwargs):
     global g_log
     g_log.info(*args, **kwargs)
 
+def log_warn(*args, **kwargs):
+    global g_log
+    g_log.warn(*args, **kwargs)
+
 def log_error(*args, **kwargs):
     global g_log
     g_log.error(*args, **kwargs)
@@ -271,6 +275,10 @@ async def sync_configuration(m1: M1Session, streams: dict) -> dict:
     stream_map = {}
     for ps_id in await m1.provisioningSessionIds():
         chc = await m1.contentHostingConfigurationGet(ps_id)
+        if chc is None:
+            log_warn(f'Provisioning Session {ps_id} has no ContentHostingConfiguration')
+            del_ps_id += [ps_id]
+            continue
         for chk_id, chk_stream in to_check.items():
             if (
                     chk_stream['name'] == chc['name'] and
@@ -285,7 +293,7 @@ async def sync_configuration(m1: M1Session, streams: dict) -> dict:
             del_ps_id += [ps_id]
     # have = already configured, to_check = need to configure, del_ps_id = configuration not found in the configured streams
     for ps_id in del_ps_id:
-        m1.provisioningSessionDestroy(ps_id)
+        await m1.provisioningSessionDestroy(ps_id)
     for cfg_id, cfg in to_check.items():
         chc = { 'name': cfg['name'],
                 'ingestConfiguration': {
@@ -354,22 +362,28 @@ async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict]
     for ps_id in await m1.provisioningSessionIds():
         log_debug("Probing Provisioning Session %s", ps_id)
         chc = await m1.contentHostingConfigurationGet(ps_id)
-        if ps_id not in vod_ps_ids:
-            m8_config['serviceList'] += [{'provisioningSessionId': ps_id, 'name': chc['name']}]
-        for dc in chc['distributionConfigurations']:
-            if 'domainNameAlias' in dc:
-                publish_dirs.add(os.path.join(config.get("af-sync", "docroot"), dc['domainNameAlias']))
+        if chc is not None:
+            if ps_id not in vod_ps_ids:
+                m8_config['serviceList'] += [{'provisioningSessionId': ps_id, 'name': chc['name']}]
+            for dc in chc['distributionConfigurations']:
+                if 'domainNameAlias' in dc:
+                    publish_dirs.add(os.path.join(config.get("af-sync", "docroot"), dc['domainNameAlias']))
+        else:
+            log_error(f"Provisioning Session {ps_id} was not initialised correctly: omitting")
     for vod in vod_streams:
         ps_id = stream_map[vod['stream']]
         chc = await m1.contentHostingConfigurationGet(ps_id)
-        entryPoints = []
-        for vep in vod['entryPoints']:
-            for dc in chc['distributionConfigurations']:
-                ep = {'locator': dc['baseURL'] + vep['relativePath'], 'contentType': vep['contentType']}
-                if 'profiles' in vep:
-                    ep['profiles'] = vep['profiles']
-                entryPoints += [ep]
-        m8_config['serviceList'] += [{'provisioningSessionId': ps_id, 'name': vod['name'], 'entryPoints': entryPoints}]
+        if chc is not None:
+            entryPoints = []
+            for vep in vod['entryPoints']:
+                for dc in chc['distributionConfigurations']:
+                    ep = {'locator': dc['baseURL'] + vep['relativePath'], 'contentType': vep['contentType']}
+                    if 'profiles' in vep:
+                        ep['profiles'] = vep['profiles']
+                    entryPoints += [ep]
+            m8_config['serviceList'] += [{'provisioningSessionId': ps_id, 'name': vod['name'], 'entryPoints': entryPoints}]
+        else:
+            log_error(f"Provisioning Session {ps_id} not initialised correctly: unable to include '{vod['name']}' in M8 data")
     m8_json = json.dumps(m8_config)
     log_debug("m8_json = %r", m8_json)
     log_info("Publishing M8 info to: %s", ', '.join(publish_dirs))

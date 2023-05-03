@@ -92,6 +92,8 @@ import sys
 import traceback
 from typing import Tuple, List
 
+#logging.basicConfig(level=logging.DEBUG)
+
 import json
 import OpenSSL
 
@@ -295,7 +297,11 @@ async def __prettyPrintCertificate(cert: str, indent: int = 0) -> None:
     :param str cert: X509 certificate encoded as PEM data
     :param int indent: The indent to use in the certificate output
     '''
-    x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
+    try:
+        x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
+    except OpenSSL.crypto.Error as err:
+        print(f'{" "*indent} Certificate not understood as PEM data: {err}')
+        return
     serial = x509.get_serial_number()
     subject = x509.get_subject()
     issuer = x509.get_issuer()
@@ -795,6 +801,9 @@ async def main():
             log_lvl = logging.INFO
         logging.basicConfig(level=log_lvl)
         log = logging.getLogger()
+        for lgr in log.manager.loggerDict.values():
+            if isinstance(lgr, logging.Logger):
+                lgr.setLevel(log_lvl)
         if hasattr(args, 'command'):
             return await args.command(args, config)
         else:

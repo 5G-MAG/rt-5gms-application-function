@@ -35,6 +35,7 @@ Function via the interface at reference point M1.
 '''
 import datetime
 import importlib
+import inspect
 import logging
 import re
 from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List, Iterable
@@ -415,7 +416,10 @@ class M1Session:
         cert_id = csr[0]
         csr_pem = csr[1]
         cert_signer = await self.__getCertificateSigner()
-        cert: str = await cert_signer.signCertificate(csr_pem, domain_name_alias=domain_name_alias)
+        cert: Optional[str] = await cert_signer.signCertificate(csr_pem, domain_name_alias=domain_name_alias)
+        if cert is None:
+            self.__log.error('Failed to generate certificate with domainNameAlias')
+            return None
         # Send new cert to the AF
         if not await self.certificateSet(provisioning_session, cert_id, cert):
             self.__log.error('Failed to upload certificate with domainNameAlias')
@@ -694,17 +698,24 @@ class M1Session:
         :return: a `CertificateSigner`
         :raise RuntimeError: if the certificate signer requested is not derived from `CertificateSigner`.
         '''
+        signer_args = {}
         if self.__cert_signer is None:
             self.__cert_signer = 'rt_m1_client.certificates.DefaultCertificateSigner'
         if isinstance(self.__cert_signer, str):
+            if '(' in self.__cert_signer:
+                self.__cert_signer, args_str = self.__cert_signer.split('(',1)
+                args_str = args_str[:-1]
+                signer_args = dict([tuple([p.strip() for p in kv.split('=')]) for kv in args_str.split(',')])
             cert_sign_cls_mod, cert_sign_cls_name = self.__cert_signer.rsplit('.', 1)
             cert_sign_cls_mod = importlib.import_module(cert_sign_cls_mod)
             self.__cert_signer = getattr(cert_sign_cls_mod, cert_sign_cls_name)
         try:
-            if issubclass(self.__cert_signer, CertificateSigner):
-                self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir)
+            if inspect.isclass(self.__cert_signer) and issubclass(self.__cert_signer, CertificateSigner):
+                self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir, **signer_args)
         except TypeError:
             pass
+        if inspect.iscoroutinefunction(self.__cert_signer):
+            self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir, **signer_args)
         if not isinstance(self.__cert_signer, CertificateSigner):
             raise RuntimeError('The certificate signer class given is not derived from CertificateSigner')
         return self.__cert_signer
