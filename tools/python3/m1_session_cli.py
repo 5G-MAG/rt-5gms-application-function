@@ -216,7 +216,11 @@ class Configuration:
         '''
         cfgdir = os.path.dirname(self.__config_filename)
         if not os.path.exists(cfgdir):
-            os.makedirs(cfgdir, mode=0o755)
+            old_umask = os.umask(0)
+            try:
+                os.makedirs(cfgdir, mode=0o755)
+            finally:
+                os.umask(old_umask)
         with open(self.__config_filename, 'w') as cfgout:
             for section in ['DEFAULT'] + self.__config.sections():
                 cfgout.write(f'[{section}]\n')

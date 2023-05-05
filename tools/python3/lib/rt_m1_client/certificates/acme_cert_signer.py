@@ -174,9 +174,13 @@ class ACMECertificateSigner(CertificateSigner):
         async with aiofiles.tempfile.NamedTemporaryFile('wb', delete=False) as f:
             await f.write(acmeReqBytes)
         domain_docroot = os.path.join(self.__docroots, sans[0].decode('utf-8'))
-        await aiofiles.os.makedirs(domain_docroot, mode=0o755, exist_ok=True)
-        if not os.path.lexists(os.path.join(domain_docroot, '.well-known')):
-            await aiofiles.os.symlink(os.path.join(self.__default_docroot, '.well-known'), os.path.join(domain_docroot, '.well-known'), target_is_directory=True)
+        old_umask = os.umask(0)
+        try:
+            await aiofiles.os.makedirs(domain_docroot, mode=0o755, exist_ok=True)
+            if not os.path.lexists(os.path.join(domain_docroot, '.well-known')):
+                await aiofiles.os.symlink(os.path.join(self.__default_docroot, '.well-known'), os.path.join(domain_docroot, '.well-known'), target_is_directory=True)
+        finally:
+            os.umask(old_umask)
         async with aiofiles.tempfile.TemporaryDirectory() as d:
             result, output = await _run_certbot_app(['certonly', '--server', self.__acme_service, '--webroot', '--webroot-path', self.__default_docroot, '--csr', f.name, '--cert-path', os.path.join(d, 'certificate.pem'), '--fullchain-path', os.path.join(d, 'fullchain.pem'), '--chain-path', os.path.join(d, 'chain.pem')])
             certdata = None
