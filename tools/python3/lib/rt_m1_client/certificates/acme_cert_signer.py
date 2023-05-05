@@ -74,12 +74,29 @@ _ip_address_re = re.compile(fr'^(?:{__ipv6_re_str}|{__ipv4_re_str})$')
 
 class ACMECertificateSigner(CertificateSigner):
     '''ACMECertificateSigner class
+
+    Class to perform certificate signing using an ACME certificate signing service.
+
+    Constants
+    =========
+
+    - LetsEncryptService         - URL of the Let's Encrypt live service
+    - LetsEncryptStagingService  - URL of the Let's Encrypt staging (test) service
     '''
 
     LetsEncryptStagingService: str = 'https://acme-staging-v02.api.letsencrypt.org/directory'
     LetsEncryptService: str = 'https://acme-v02.api.letsencrypt.org/directory'
 
     def __init__(self, *args, acme_service: Optional[str] = None, docroots_dir: Optional[str] = None, default_docroot_dir: Optional[str] = None, private_keys_dir: Optional[str] = None, data_store: Optional[DataStore] = None, **kwargs):
+        '''Constructor
+
+        :param acme_service: The URL of the ACME directory service to use for certificate signing.
+        :param docroots_dir: The directory that contains all the document roots for the virtual hosts, each host has a directory
+                             whose name is the FQDN of the virtual host.
+        :param default_docroot_dir: The directory which is the docroot of the default virtual host.
+        :param private_keys_dir: The directory which contains the private key store for the 5GMS Application Function.
+        :param data_store: The persistent data store object to use for data persistence.
+        '''
         errs=[]
         if acme_service is None:
             errs += ['acme_service is None']
@@ -173,10 +190,25 @@ class ACMECertificateSigner(CertificateSigner):
 
     @staticmethod
     def __copy_X509Name(dest: OpenSSL.crypto.X509Name, src: OpenSSL.crypto.X509Name) -> OpenSSL.crypto.X509Name:
+        '''Copy an X509Name into another X509Name
+
+        :param dest: The destination X509Name to be overwritten.
+        :param src: The source X509Name to get values from.
+
+        :return: *dest*
+        '''
         dest.__init__(src)
         return dest
 
     async def __get_private_key_for_public_key(self, pubkey: OpenSSL.crypto.PKey) -> Optional[OpenSSL.crypto.PKey]:
+        '''Find the private key for a given public key
+
+        This will search the *private_keys_dir* directory given in the constructor for a private key which matches the *pubkey* public key.
+
+        :param pubkey: The public key to find the matching private key for.
+
+        :return: the private key or None if the key could not be found.
+        '''
         # search self.__private_keys_dir directory for the private key that matches the public key we have and return it
         if self.__private_keys_dir is None:
             LOGGER.debug('No private keys directory configured, unable to match private key to public key')
@@ -208,6 +240,12 @@ class ACMECertificateSigner(CertificateSigner):
         return None
 
 async def _run_certbot_app(cmd_args: List[str]) -> Tuple[int, bytes]:
+    '''Run `certbot` using the given command line arguments
+
+    :param cmd_args: The command line arguments for `certbot`.
+
+    :return: A tuple of the `certbot` process exit code and STDOUT from `certbot`.
+    '''
     LOGGER.debug('Executing: certbot %s', ' '.join(['\''+s+'\'' for s in cmd_args]))
     proc = await asyncio.create_subprocess_exec('certbot', *cmd_args, stdout=asyncio.subprocess.PIPE)
     await proc.wait()
@@ -216,8 +254,20 @@ async def _run_certbot_app(cmd_args: List[str]) -> Tuple[int, bytes]:
     return (proc.returncode, data)
 
 async def LetsEncryptCertificateSigner(*args, docroots_dir: Optional[str] = None, default_docroot_dir: Optional[str] = None, private_keys_dir: Optional[str] = None, data_store: Optional[DataStore] = None, **kwargs) -> ACMECertificateSigner:
+    '''Let's Encrypt ACMECertificateSigner factory function
+
+    Creates an ACMECertificateSigner with *acme_service* set to the Let's Encrypt live service URL and other parameters passed through.
+
+    :return: a new ACMECertificateSigner which will use Let's Encrypt.
+    '''
     return await ACMECertificateSigner(*args, acme_service=ACMECertificateSigner.LetsEncryptService, docroots_dir=docroots_dir, default_docroot_dir=default_docroot_dir, private_keys_dir=private_keys_dir, data_store=data_store, **kwargs)
 
 async def TestLetsEncryptCertificateSigner(*args, docroots_dir: Optional[str] = None, default_docroot_dir: Optional[str] = None, private_keys_dir: Optional[str] = None, data_store: Optional[DataStore] = None, **kwargs) -> ACMECertificateSigner:
+    '''Let's Encrypt staging (test) service ACMECertificateSigner factory function
+
+    Creates an ACMECertificateSigner with *acme_service* set to the Let's Encrypt staging service URL and other parameters passed through.
+
+    :return: a new ACMECertificateSigner which will use Let's Encrypt staging service.
+    '''
     return await ACMECertificateSigner(*args, acme_service=ACMECertificateSigner.LetsEncryptStagingService, docroots_dir=docroots_dir, default_docroot_dir=default_docroot_dir, private_keys_dir=private_keys_dir, data_store=data_store, **kwargs)
 
