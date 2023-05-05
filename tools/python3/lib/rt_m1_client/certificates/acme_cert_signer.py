@@ -77,7 +77,7 @@ class ACMECertificateSigner(CertificateSigner):
     '''
 
     LetsEncryptStagingService: str = 'https://acme-staging-v02.api.letsencrypt.org/directory'
-    LetsEncryptService: str = 'https://acme-staging-v02.api.letsencrypt.org/directory'
+    LetsEncryptService: str = 'https://acme-v02.api.letsencrypt.org/directory'
 
     def __init__(self, *args, acme_service: Optional[str] = None, docroots_dir: Optional[str] = None, default_docroot_dir: Optional[str] = None, private_keys_dir: Optional[str] = None, data_store: Optional[DataStore] = None, **kwargs):
         errs=[]
