@@ -40,7 +40,8 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     msaf_metrics_reporting_configuration->metrics =metrics_reporting_configuration->metrics;
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
-    // Metrics Provisioning Mapping!
+
+    // Metrics Provisioning Mapping
     ogs_hash_set(msaf_self()->metricsProvisioningMap, ogs_strdup(msaf_metrics_reporting_configuration->metricsReportingConfigurationId), OGS_HASH_KEY_STRING, msaf_metrics_reporting_configuration);
     OpenAPI_metrics_reporting_configuration_free(metrics_reporting_configuration);
 

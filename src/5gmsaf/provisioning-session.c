@@ -78,11 +78,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     OpenAPI_provisioning_session_t *provisioning_session;
     char *prov_sess_type;
 
-    // Instantiating Metrics Reporting Configuration objects!
-    // Mapping MRC to it's ID
-    // OpenAPI_metrics_reporting_configuration_t is class of MRC;
-    // ID is generated in object of structure msaf_metrics_reporting_configuration_t;
-
+    // Instantiating Metrics Reporting Configuration objects
     OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
     msaf_metrics_reporting_configuration_t *metrics_reporting_configuration;
 
@@ -100,7 +96,8 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
                                                                ogs_strdup(external_app_id),
                                                                NULL,
                                                                NULL,
-                                                               // OpenAPI_set_t *metrics_reporting_configuration_ids;
+                                                               // Array of metrics reporting configurations IDs
+                                                               // coming from instantiated object?
                                                                NULL,
                                                                NULL,
                                                                NULL,
@@ -113,7 +110,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     // Checking if the newly created object is null.
     ogs_assert(msaf_provisioning_session);
 
-    // Fulfilling the newly created object
+    // Passing the values into created object
     msaf_provisioning_session->provisioningSessionId = ogs_strdup(provisioning_session->provisioning_session_id);
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
     msaf_provisioning_session->aspId = (provisioning_session->asp_id)?ogs_strdup(provisioning_session->asp_id):NULL;
@@ -143,7 +140,6 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
 }
 
 
-// cJSON lib converts provisioning session object into JSON.
 cJSON *
 msaf_provisioning_session_get_json(const char *provisioning_session_id)
 {
@@ -164,7 +160,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session->provisioning_session_type = msaf_provisioning_session->provisioningSessionType;
         provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
-        // Placeholder for metrics reporting configuration fields
+        // Placeholder for metrics reporting configuration fields?
 
         provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
         for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {

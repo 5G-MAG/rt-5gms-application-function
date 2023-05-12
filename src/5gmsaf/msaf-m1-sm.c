@@ -25,7 +25,7 @@
 #include "openapi/api/M3_ContentHostingProvisioningAPI-info.h"
 #include "openapi/api/TS26512_M1_ContentProtocolsDiscoveryAPI-info.h"
 #include "openapi/api/Maf_ManagementAPI-info.h"
-// include API for MetricsReportingConfiguration
+#include "openapi/api/TS26512_M1_MetricsReportingProvisioningAPI.c"
 
 const nf_server_interface_metadata_t
 m1_provisioningsession_api_metadata = {
@@ -99,6 +99,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     const nf_server_interface_metadata_t *m3_contenthostingprovisioning_api = &m3_contenthostingprovisioning_api_metatdata;
     const nf_server_interface_metadata_t *maf_management_api = &maf_management_api_metadata;
     const nf_server_app_metadata_t *app_meta = &app_metadata;
+    // const nf_server_interface_metadata_t *m1_metricsreportingconfiguration_api = &m1_metricsreportingconfguration_api_metadata;
 
     ogs_assert(s);
 
@@ -241,10 +242,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         } else if (message.h.resource.component[1] && message.h.resource.component[2] && !message.h.resource.component[3]) {
 
                             // Placeholder for handling Metrics Reporting POST
-                            // Operates without ID so 3rd message component is empty
                             /* if (!strcmp(message.h.resource.component[2], "metrics-reporting-configuration") && !message.h.resource.component[3]) {
                                 // PROCESS POST
-                                // Invoking create method
                                 return 0;
                             }*/
 
@@ -523,7 +522,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     CASE(OGS_SBI_HTTP_METHOD_GET)
                         if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
 
-                            /* Placeholder for handling MRC
+                            /* Placeholder for handling Metrics Reporting Configuration
                             if(!strcmp(message.h.resource.component[2]), "metrics-reporting-configuration"){
                                 return 0;
                             }*/
@@ -670,16 +669,19 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         }
                         break;
 
-
-
                     /*
                      * ============================================================================
                      * PUT request
                      * ============================================================================
                      */
                     CASE(OGS_SBI_HTTP_METHOD_PUT)
-                        if (message.h.resource.component[1] && message.h.resource.component[2]) {
 
+                        /* Placeholder for Metrics Reporting Configuration
+                        if (!strcmp(message.h.resource.component[2], "metrics-reporting-configuration") && message.h.resource.component[3] && !message.h.resource.component[4]) {
+                            return 0;
+                        } */
+
+                        if (message.h.resource.component[1] && message.h.resource.component[2]) {
                             ogs_info("PUT: %s", message.h.resource.component[1]);
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
@@ -750,11 +752,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 404, 2, &message, "Failed to update the contentHostingConfiguration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     }
-                                }
-
-                                // Handling UPDATE
-                                if (!strcmp(message.h.resource.component[2], "metrics-reporting-configuration") && message.h.resource.component[3] && !message.h.resource.component[4]) {
-                                    return 0;
                                 }
 
                                 // Checking certificate per provisioning-session-id & certificate-id.
@@ -863,16 +860,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                      */
                     CASE(OGS_SBI_HTTP_METHOD_DELETE)
 
-                        /* Placeholder for handling MRC
-                        *if(message.h.resource.component[1]
-                            && message.h.resource.component[2]
-                            && !strcmp(message.h.resource.component[2],"metrics-reporting-configuration")
-                            && message.h.resource.component[3]
-                            && !message.h.resource.component[4]) {
-                            return 0;
-                        }*/
 
                         if (message.h.resource.component[1] && message.h.resource.component[2] && !strcmp(message.h.resource.component[2],"certificates") && message.h.resource.component[3] && !message.h.resource.component[4]) {
+
                             ogs_sbi_response_t *response;
                             msaf_provisioning_session_t *provisioning_session = NULL;
                             provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
@@ -911,6 +901,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         } else if (message.h.resource.component[1] && message.h.resource.component[2] && !message.h.resource.component[3]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             ogs_sbi_response_t *response;
+
+                            /* Placeholder for Metrics Reporting Configuration
+                            if (!strcmp(message.h.resource.component[2],"metrics-reporting-configuration")) {
+                                return 0;
+                            }*/
+
                             if (!strcmp(message.h.resource.component[2],"content-hosting-configuration")) {
                                 msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message.h.resource.component[1]);
                                 if(msaf_provisioning_session){
@@ -961,9 +957,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 msaf_provisioning_session_hash_remove(message.h.resource.component[1]);
                             }
                         }
-
                         break;
-
 
                     CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
 
@@ -1357,7 +1351,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             if (response->status == 201) {
 
-                                ogs_debug("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
+                                ogs_debug("[%s] Method [%s] with Response [%d] received for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
 
                                 resource_id_node_t *content_hosting_configuration;
                                 ogs_list_for_each(&as_state->upload_content_hosting_configurations,content_hosting_configuration) {
