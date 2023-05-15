@@ -18,8 +18,55 @@ patch_cmd=`which patch`
 
 if ! grep -q '/\* rt-5gms-applicatiopn-function patch applied \*/' "$open5gs_src/lib/sbi/server.c"; then
     (cd "$open5gs_src"; "$patch_cmd" -p1 <<EOF
+diff --git a/lib/sbi/meson.build b/lib/sbi/meson.build
+index 67a1badc7..573582c2e 100644
+--- a/lib/sbi/meson.build
++++ b/lib/sbi/meson.build
+@@ -46,6 +46,8 @@ libsbi_sources = files('''
+ libsbi_inc = include_directories('.')
+
+ sbi_cc_flags = ['-DOGS_SBI_COMPILATION']
++sbi_h1_flag = ['-DSBI_USE_HTTP_1']
++sbi_h1_cc_flags = sbi_cc_flags + sbi_h1_flag
+
+ libgnutls_dep = dependency('gnutls', required : true)
+ libssl_dep = dependency('libssl', required : true)
+@@ -83,3 +85,33 @@ libsbi_dep = declare_dependency(
+                     libnghttp2_dep,
+                     libmicrohttpd_dep,
+                     libcurl_dep])
++
++libsbih1 = library('ogssbih1',
++    sources : libsbi_sources,
++    version : libogslib_version,
++    c_args : sbi_h1_cc_flags,
++    include_directories : [libsbi_inc, libinc],
++    dependencies : [libcrypt_dep,
++                    libapp_dep,
++                    libsbi_openapi_dep,
++                    libgnutls_dep,
++                    libssl_dep,
++                    libcrypto_dep,
++                    libnghttp2_dep,
++                    libmicrohttpd_dep,
++                    libcurl_dep],
++    install_rpath : libdir,
++    install : true)
++
++libsbih1_dep = declare_dependency(
++    link_with : libsbih1,
++    include_directories : [libsbi_inc, libinc],
++    dependencies : [libcrypt_dep,
++                    libapp_dep,
++                    libsbi_openapi_dep,
++                    libgnutls_dep,
++                    libssl_dep,
++                    libcrypto_dep,
++                    libnghttp2_dep,
++                    libmicrohttpd_dep,
++                    libcurl_dep])
 diff --git a/lib/sbi/server.c b/lib/sbi/server.c
-index 79789d0c9..3348a1798 100644
+index af5cb8aad..5a20728a9 100644
 --- a/lib/sbi/server.c
 +++ b/lib/sbi/server.c
 @@ -30,9 +30,9 @@ static OGS_POOL(server_pool, ogs_sbi_server_t);
@@ -27,17 +74,17 @@ index 79789d0c9..3348a1798 100644
  {
      if (ogs_sbi_server_actions_initialized == false) {
 -#if 1 /* Use HTTP2 */
-+#if 0 /* Use HTTP2 */ /* rt-5gms-applicatiopn-function patch applied */
++#ifndef SBI_USE_HTTP_1 /* Use HTTP2 */ /* rt-5gms-applicatiopn-function patch applied */
          ogs_sbi_server_actions = ogs_nghttp2_server_actions;
 -#else
 +#else /* Use HTTP/1.1 */
          ogs_sbi_server_actions = ogs_mhd_server_actions;
  #endif
      }
-diff --git a/lib/sbi/support/20210629/openapi-generator/templates/model-header.mustache b/lib/sbi/support/20210629/openapi-generator/templates/model-header.mustache
-index 1f32ae27e..5e5af2155 100644
---- a/lib/sbi/support/20210629/openapi-generator/templates/model-header.mustache
-+++ b/lib/sbi/support/20210629/openapi-generator/templates/model-header.mustache
+diff --git a/lib/sbi/support/r17-20230301-openapitools-6.4.0/openapi-generator/templates/model-header.mustache b/lib/sbi/support/r17-20230301-openapitools-6.4.0/openapi-generator/templates/model-header.mustache
+index d702deb6d..50e9e1fb1 100644
+--- a/lib/sbi/support/r17-20230301-openapitools-6.4.0/openapi-generator/templates/model-header.mustache
++++ b/lib/sbi/support/r17-20230301-openapitools-6.4.0/openapi-generator/templates/model-header.mustache
 @@ -16,6 +16,10 @@
  #include "{{{.}}}.h"
  {{/imports}}
@@ -50,10 +97,10 @@ index 1f32ae27e..5e5af2155 100644
  extern "C" {
  #endif
 diff --git a/src/meson.build b/src/meson.build
-index d53fce06b..b512110eb 100644
+index d313b6932..2e25dbd93 100644
 --- a/src/meson.build
 +++ b/src/meson.build
-@@ -29,6 +29,8 @@ version_conf = configuration_data()
+@@ -33,6 +33,8 @@ version_conf = configuration_data()
  version_conf.set_quoted('OPEN5GS_VERSION', package_version)
  configure_file(output : 'version.h', configuration : version_conf)
 
