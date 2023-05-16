@@ -2,7 +2,7 @@
 #include "metrics-reporting-provisioning.h"
 #include "ogs-core.h"
 
-// Function that takes new metrics_reporting_configuration and assigns ID value
+// Function that creates MRC and assigns ID value
 msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create()
 {
     // Generating Metrics Reporting ID
@@ -11,6 +11,7 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     ogs_uuid_get(&uuid);
     ogs_uuid_format(metricsReportingConfigurationId, &uuid);
 
+    // Invoking related OpenAPI function
     OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration = OpenAPI_metrics_reporting_configuration_create(
             ogs_strdup(metricsReportingConfigurationId),
             ogs_strdup(scheme),
@@ -70,5 +71,10 @@ msaf_provisioning_session_find_by_provisioningSessionId(const char *metricsRepor
 
 
 
+// This access CRC for provisioning session
+msaf_self()->provisioningSessions_map[provisioning_session_id]->contentHostingConfiguration
+// This will access MRC for provisioning session
 
+
+msaf_provisioning_session_find_by_provisioningSessionId()
 

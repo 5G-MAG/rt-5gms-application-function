@@ -127,6 +127,8 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
+    msaf_provisioning_session->metrics_reporting_map = ogs_hash_make();
+
 #if 0 /* TODO: Remove when content hosting configuration is available via M1 interface */
     msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
     media_player_entry = media_player_entry_create(msaf_provisioning_session->provisioningSessionId, msaf_provisioning_session->contentHostingConfiguration);
@@ -138,6 +140,22 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
 
     return msaf_provisioning_session;
 }
+
+void msaf_add_metrics_reporting_configuration_to_provisioning_session(
+        msaf_provisioning_session_t *provisioning_session,
+        const char *metrics_reporting_id,
+        OpenAPI_metrics_reporting_configuration_t *mrc
+) {
+    ogs_hash_set(provisioning_session->metrics_reporting_map, ogs_strdup(metrics_reporting_id), OGS_HASH_KEY_STRING, mrc);
+}
+
+void msaf_remove_metrics_reporting_configuration_from_provisioning_session(
+        msaf_provisioning_session_t *provisioning_session,
+        const char *metrics_reporting_id
+) {
+    ogs_hash_set(provisioning_session->metrics_reporting_map, metrics_reporting_id, OGS_HASH_KEY_STRING, NULL);
+}
+
 
 
 cJSON *

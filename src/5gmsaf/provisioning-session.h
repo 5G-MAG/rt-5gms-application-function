@@ -33,6 +33,7 @@ typedef struct msaf_provisioning_session_s {
     OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
     time_t metricsReportingConfigurationReceived;
     char *metricsReportingProvisioningHash;
+    ogs_hash_t *metrics_reporting_map;
 
     time_t provisioningSessionReceived;
     char *provisioningSessionHash;

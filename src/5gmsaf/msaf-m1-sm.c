@@ -25,7 +25,7 @@
 #include "openapi/api/M3_ContentHostingProvisioningAPI-info.h"
 #include "openapi/api/TS26512_M1_ContentProtocolsDiscoveryAPI-info.h"
 #include "openapi/api/Maf_ManagementAPI-info.h"
-#include "openapi/api/TS26512_M1_MetricsReportingProvisioningAPI.c"
+#include "openapi/api/TS26512_M1_MetricsReportingProvisioningAPI-info.h"
 
 const nf_server_interface_metadata_t
 m1_provisioningsession_api_metadata = {
