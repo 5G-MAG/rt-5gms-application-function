@@ -41,10 +41,8 @@ static const char *calculate_service_access_information_hash(OpenAPI_service_acc
 
 /***** Public functions *****/
 
-OpenAPI_content_hosting_configuration_t *
-msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session)
+OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session)
 {
-
     ogs_assert(provisioning_session);
     OpenAPI_content_hosting_configuration_t *chc_with_af_unique_cert_id = NULL;
     OpenAPI_lnode_t *dist_config_node = NULL;
@@ -72,16 +70,15 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
                                  const char *asp_id,
                                  const char *external_app_id)
 {
+    OpenAPI_provisioning_session_t *provisioning_session;
     msaf_provisioning_session_t *msaf_provisioning_session;
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
-    OpenAPI_provisioning_session_t *provisioning_session;
     char *prov_sess_type;
 
     // Instantiating Metrics Reporting Configuration objects
     OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
     msaf_metrics_reporting_configuration_t *metrics_reporting_configuration;
-
 
     // Duplication of provisioning session type
     prov_sess_type = ogs_strdup(provisioning_session_type);
@@ -105,7 +102,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
 
     // Free the memory allocated for prov_sess_type (which is duplicate of provisioning_session_type)
     ogs_free(prov_sess_type);
-    // Allocating memory for internal structure "msaf_provisioning_session"
+    // Allocating memory for internal model "msaf_provisioning_session"
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
     // Checking if the newly created object is null.
     ogs_assert(msaf_provisioning_session);
@@ -122,12 +119,9 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     msaf_provisioning_session->metricsReportingConfigurationReceived = time(NULL);
     msaf_provisioning_session->metricsReportingProvisioningHash = ogs_strdup(calculate_metrics_reporting_configuration_hash(metricsReportingConfiguration));
 
-
     // Sets the certificate_map field in msaf_provisioning_session by calling the msaf_certificate_map function
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
-
-    msaf_provisioning_session->metrics_reporting_map = ogs_hash_make();
 
 #if 0 /* TODO: Remove when content hosting configuration is available via M1 interface */
     msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
@@ -157,11 +151,9 @@ void msaf_remove_metrics_reporting_configuration_from_provisioning_session(
 }
 
 
-
 cJSON *
 msaf_provisioning_session_get_json(const char *provisioning_session_id)
 {
-
     msaf_provisioning_session_t *msaf_provisioning_session;
     cJSON *provisioning_session_json = NULL;
 
