@@ -8,7 +8,7 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
 {
     // OpenAPI model used to communicate over M1
     OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
-    // Internal model for application context which will store list of certificates!
+    // Internal model for application context
     msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
 
     // Generating Metrics Reporting ID and formatting as character array.
@@ -45,10 +45,6 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     msaf_metrics_reporting_configuration->samplePercentage = metrics_reporting_configuration->sample_percentage;
     msaf_metrics_reporting_configuration->urlFilters = metrics_reporting_configuration->url_filters;
     msaf_metrics_reporting_configuration->metrics =metrics_reporting_configuration->metrics;
-
-    msaf_metrics_reporting_configuration->certificate_map = msaf_certificate_map();
-    ogs_hash_set(msaf_self()->metricsReportingConfiguration_map, ogs_strdup(msaf_metrics_reporting_configuration->metrics_reporting_configuration_id), OGS_HASH_KEY_STRING, msaf_provisioning_session);
-    msaf_metrics_reporting_configuration->
 
     OpenAPI_provisioning_session_free(metrics_reporting_configuration);
     return msaf_metrics_reporting_configuration;

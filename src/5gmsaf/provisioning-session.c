@@ -76,10 +76,6 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
     char *prov_sess_type;
 
-    // Instantiating Metrics Reporting Configuration objects
-    OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
-    msaf_metrics_reporting_configuration_t *metrics_reporting_configuration;
-
     // Duplication of provisioning session type
     prov_sess_type = ogs_strdup(provisioning_session_type);
     // Generating UUID
@@ -115,13 +111,17 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     msaf_provisioning_session->provisioningSessionReceived = time(NULL);
     msaf_provisioning_session->provisioningSessionHash = ogs_strdup(calculate_provisioning_session_hash(provisioning_session));
     // Expanding provisioning session with Metrics Reporting Configuration
-    msaf_provisioning_session->metricsReportingConfiguration = metrics_reporting_configuration->metricsReportingConfigurationId;
+    msaf_provisioning_session->metricsReportingConfiguration = msaf_metrics_reporting_configuration->metricsReportingConfigurationId;
     msaf_provisioning_session->metricsReportingConfigurationReceived = time(NULL);
     msaf_provisioning_session->metricsReportingProvisioningHash = ogs_strdup(calculate_metrics_reporting_configuration_hash(metricsReportingConfiguration));
 
     // Sets the certificate_map field in msaf_provisioning_session by calling the msaf_certificate_map function
-    msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
+
+    // MRC mapping
+    msaf_metrics_reporting_configuration->certificate_map = msaf_certificate_map();
+    ogs_hash_set(msaf_self()->metricsReportingConfiguration_map, ogs_strdup(msaf_metrics_reporting_configuration->metrics_reporting_configuration_id), OGS_HASH_KEY_STRING, msaf_metrics_reporting_configuration);
+
 
 #if 0 /* TODO: Remove when content hosting configuration is available via M1 interface */
     msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);

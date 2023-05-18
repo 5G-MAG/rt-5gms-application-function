@@ -17,24 +17,26 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "openapi/model/provisioning_session.h"
 #include "openapi/model/provisioning_session_type.h"
 #include "openapi/model/metrics_reporting_configuration.h."
+#include "metrics-reporting-provisioning.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct msaf_metrics_reporting_configuration_s {
+    OpenAPI_metrics_reporting_configuration_t *configuration;
+    time_t received_time;
+    char *etag;
+} msaf_metrics_reporting_configuration_t;
+
 typedef struct msaf_provisioning_session_s {
+    ogs_hash_t metrics_reporting_map; /* maps a metrics reporting id (char*) to a metrics configuration value (msaf_metrics_reporting_configuration_t*) */
     char *provisioningSessionId;
     OpenAPI_provisioning_session_type_e provisioningSessionType;
     char *aspId;
     char *externalApplicationId;
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
     OpenAPI_service_access_information_resource_t *serviceAccessInformation;
-
-    OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
-    time_t metricsReportingConfigurationReceived;
-    char *metricsReportingProvisioningHash;
-    ogs_hash_t *metrics_reporting_map;
-
     time_t provisioningSessionReceived;
     char *provisioningSessionHash;
     time_t contentHostingConfigurationReceived;
