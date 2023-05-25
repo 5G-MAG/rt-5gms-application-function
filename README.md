@@ -11,7 +11,7 @@ ETSI TS 126.501. A 5GMSd Application Function (AF), which can be deployed in the
 
 This AF uses the [Open5GS](https://open5gs.org/) framework to implement the network function.
 
-## Specifications
+### Specifications
 
 A list of specification related to this repository is available in the [Standards Wiki](https://github.com/5G-MAG/Standards/wiki/5G-Downlink-Media-Streaming-Architecture-(5GMSd):-Relevant-Specifications).
 
