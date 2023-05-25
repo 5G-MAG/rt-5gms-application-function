@@ -1,17 +1,19 @@
-# 5G-MAG Reference Tools: 5GMS Application Function
+# 5G-MAG Reference Tools: 5GMSd Application Function
 
-This repository holds the 5GMS Application Function implementation for the 5G-MAG Reference Tools.
+This repository holds the 5GMSd Application Function implementation for the 5G-MAG Reference Tools.
 
 ## Introduction
 
-The 5GMS application function (AF) is a Network Function that forms part of the 5G Media Streaming framework as defined
-in ETSI TS 126.501.
+The 5GMSd application function (AF) is a Network Function that forms part of the 5G Media Services framework as defined in
+ETSI TS 126.501. A 5GMSd Application Function (AF), which can be deployed in the 5G Core Network or in an External Data Network, is responsible for managing the 5GMSd System. The AF is a logical function which embodies the control plane aspects of the system, including provisioning, configuration, and reporting, among others. A 5GMSd Application Provider provisions 5GMS functions using a RESTful HTTP-based provisioning interface at reference point M1d. Another RESTful HTTP-based configuration and reporting interface is exposed to UE-based 5GMS clients at reference point M5d.
+
+### About the implementation
 
 This AF uses the [Open5GS](https://open5gs.org/) framework to implement the network function.
 
 ## Specifications
 
-A list of specification related to this repository is available [here](https://github.com/5G-MAG/Standards/wiki/5G-Media-Streaming-Architecture-(5GMS\):-Relevant-Specifications).
+A list of specification related to this repository is available in the [Standards Wiki](https://github.com/5G-MAG/Standards/wiki/5G-Downlink-Media-Streaming-Architecture-(5GMSd):-Relevant-Specifications).
 
 ## Install dependencies
 
@@ -35,11 +37,11 @@ cd rt-5gms-application-function
 git submodule update
 ```
 
-## Build the 5GMS Application Function
+## Build the 5GMSd Application Function
 
 The build process requires a working Internet connection as the API files are retrieved at build time.
 
-To build the 5GMS Application Function from the source:
+To build the 5GMSd Application Function from the source:
 
 ```bash
 cd ~/rt-5gms-application-function
@@ -60,7 +62,7 @@ sudo meson install --no-rebuild
 
 ## Running
 
-The Application Function requires a [5GMS Application Server](https://github.com/5G-MAG/rt-5gms-application-server) (release v1.1.2 or above) to be running. Please follow the [instructions](https://github.com/5G-MAG/rt-5gms-application-server/#readme) for installing and running the 5GMS Application Server before starting the Application Function.
+The Application Function requires a [5GMSd Application Server](https://github.com/5G-MAG/rt-5gms-application-server) (release v1.1.2 or above) to be running. Please follow the [instructions](https://github.com/5G-MAG/rt-5gms-application-server/#readme) for installing and running the 5GMSd Application Server before starting the Application Function.
 
 The Application Function can be executed with the command:
 
