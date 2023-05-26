@@ -7,13 +7,15 @@ This repository holds the 5GMSd Application Function implementation for the 5G-M
 The 5GMSd application function (AF) is a Network Function that forms part of the 5G Media Services framework as defined in
 ETSI TS 126.501. A 5GMSd Application Function (AF), which can be deployed in the 5G Core Network or in an External Data Network, is responsible for managing the 5GMSd System. The AF is a logical function which embodies the control plane aspects of the system, including provisioning, configuration, and reporting, among others. A 5GMSd Application Provider provisions 5GMS functions using a RESTful HTTP-based provisioning interface at reference point M1d. Another RESTful HTTP-based configuration and reporting interface is exposed to UE-based 5GMS clients at reference point M5d.
 
+### Specifications
+
+A list of specification related to this repository is available in the [Standards Wiki](https://github.com/5G-MAG/Standards/wiki/5G-Downlink-Media-Streaming-Architecture-(5GMSd):-Relevant-Specifications).
+
 ### About the implementation
 
 This AF uses the [Open5GS](https://open5gs.org/) framework to implement the network function.
 
-### Specifications
-
-A list of specification related to this repository is available in the [Standards Wiki](https://github.com/5G-MAG/Standards/wiki/5G-Downlink-Media-Streaming-Architecture-(5GMSd):-Relevant-Specifications).
+A list of currently supported features is available [here](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Feature-Matrix).
 
 ## Install dependencies
 
