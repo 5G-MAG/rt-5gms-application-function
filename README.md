@@ -1,4 +1,4 @@
-# 5G-MAG Reference Tools: 5GMSd Application Function
+# 5GMSd Application Function
 
 This repository holds the 5GMSd Application Function implementation for the 5G-MAG Reference Tools.
 
