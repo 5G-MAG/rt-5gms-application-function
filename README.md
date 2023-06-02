@@ -42,7 +42,7 @@ cd rt-5gms-application-function
 git submodule update
 ```
 
-## Build the 5GMS Application Function
+## Building
 
 The build process requires a working Internet connection as the API files are retrieved at build time.
 
