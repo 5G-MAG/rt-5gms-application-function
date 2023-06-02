@@ -8,7 +8,7 @@ Note that currently this implementation only supports downlink media streaming.
 The 5GMS Application Function (AF) is a Network Function that forms part of the 5G Media Services framework as defined in ETSI TS 126.501.
 
 ### 5GMS Downlink Application Function
-A 5GMSd Application Function (AF), which can be deployed in the 5G Core Network or in an External Data Network, is responsible for managing the 5GMSd System. The AF is a logical function which embodies the control plane aspects of the system, including provisioning, configuration, and reporting, among others. A 5GMSd Application Provider provisions 5GMS functions using a RESTful HTTP-based provisioning interface at reference point M1d. Another RESTful HTTP-based configuration and reporting interface is exposed to UE-based 5GMSd clients at reference point M5d.
+A 5GMSd Application Function (AF), which can be deployed in the 5G Core Network or in an External Data Network, is responsible for managing the 5GMSd System. The AF is a logical function which embodies the control plane aspects of the system, including provisioning, configuration, and reporting, among others. A 5GMSd Application Provider provisions 5GMS functions using a RESTful HTTP-based provisioning interface at reference point M1d. Another RESTful HTTP-based configuration and reporting interface is exposed to UE-based 5GMSd Clients at reference point M5d.
 
 #### Specifications
 
