@@ -132,7 +132,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 break;
 
             CASE("3gpp-m1")
-                if(check_event_addresses(e, msaf_self()->config.m1_server_sockaddr, msaf_self()->config.m1_server_sockaddr_v6)){
+                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M1].ipv4, msaf_self()->config.servers[MSAF_SVR_M1].ipv6)){
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
@@ -145,13 +145,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 break;
             
             CASE("5gmag-rt-management")
-                if(!msaf_self()->config.maf_mgmt_server_sockaddr && !msaf_self()->config.maf_mgmt_server_sockaddr_v6) {
-                    if(check_event_addresses(e, msaf_self()->config.m1_server_sockaddr, msaf_self()->config.m1_server_sockaddr_v6)){
-                        e->message = message;
-                        message = NULL;
-                        ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
-                    }
-                } else if(check_event_addresses(e, msaf_self()->config.maf_mgmt_server_sockaddr, msaf_self()->config.maf_mgmt_server_sockaddr_v6)){
+                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv4, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv6)){
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_maf_mgmt_sm, e);
@@ -165,11 +159,10 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 break;   
 
             CASE("3gpp-m5")
-                if(check_event_addresses(e, msaf_self()->config.m5_server_sockaddr, msaf_self()->config.m5_server_sockaddr_v6)){
+                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M5].ipv4, msaf_self()->config.servers[MSAF_SVR_M5].ipv6)){
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
-
                 } else {
                     char *error;
                     error = ogs_msprintf("Resource [%s] not found.", request->h.uri);

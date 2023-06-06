@@ -96,17 +96,6 @@ static void msaf_main(void *data)
 
     ogs_fsm_init(&msaf_sm, msaf_state_initial, msaf_state_final, 0);
     
-    /*
-    ogs_fsm_init(&msaf_self()->msaf_fsm.msaf_m1_sm, msaf_m1_state_initial, msaf_m1_state_final, 0);
-    ogs_fsm_init(&msaf_self()->msaf_fsm.msaf_m5_sm, msaf_m5_state_initial, msaf_m5_state_final, 0);
-    if(msaf_self()->config.sbi_server_sockaddr || msaf_self()->config.sbi_server_sockaddr_v6) {
-        ogs_fsm_init(&msaf_self()->msaf_fsm.msaf_sbi_sm, msaf_sbi_state_initial, msaf_sbi_state_final, 0);
-    }
-    if(msaf_self()->config.maf_mgmt_server_sockaddr || msaf_self()->config.maf_mgmt_server_sockaddr_v6) {
-        ogs_fsm_init(&msaf_self()->msaf_fsm.msaf_maf_mgmt_sm, msaf_maf_mgmt_state_initial, msaf_maf_mgmt_state_final, 0);
-    }
-    */
-
     for ( ;; ) {
         ogs_pollset_poll(ogs_app()->pollset,
                 ogs_timer_mgr_next(ogs_app()->timer_mgr));
@@ -128,21 +117,7 @@ static void msaf_main(void *data)
             ogs_assert(e);
 
             ogs_fsm_dispatch(&msaf_sm, e);
-            /*
-            rv = get_server_type_from_event(e);
-            if (rv == MSAF_M1_SERVER) {
-                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
-            }
-            if (rv == MSAF_M5_SERVER) {
-                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
-            } 
-            if(rv == MSAF_MAF_MGMT_SERVER) {
-                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_maf_mgmt_sm, e);
-            }            
-            if (rv == MSAF_SBI_SERVER) {
-                ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_sbi_sm, e);
-            }
-            */
+
             ogs_event_free(e);
         }
     }

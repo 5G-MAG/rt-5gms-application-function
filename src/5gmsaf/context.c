@@ -226,8 +226,8 @@ int msaf_context_parse_config(void)
                             const char *hostname[OGS_MAX_NUM_OF_HOSTNAME];
                             int num_of_advertise = 0;
                             const char *advertise[OGS_MAX_NUM_OF_HOSTNAME];
-                            const char *key = NULL;
-                            const char *pem = NULL;
+                            //const char *key = NULL;
+                            //const char *pem = NULL;
 
                             //uint16_t port = self->sbi_port;
 
@@ -310,9 +310,9 @@ int msaf_context_parse_config(void)
                                         ogs_assert(tls_key);
 
                                         if (!strcmp(tls_key, "key")) {
-                                            key = ogs_yaml_iter_value(&tls_iter);
+                                            //key = ogs_yaml_iter_value(&tls_iter);
                                         } else if (!strcmp(tls_key, "pem")) {
-                                            pem = ogs_yaml_iter_value(&tls_iter);
+                                            //pem = ogs_yaml_iter_value(&tls_iter);
                                         } else
                                             ogs_warn("unknown key `%s`", tls_key);
                                     }
@@ -362,14 +362,9 @@ int msaf_context_parse_config(void)
                                 int i;
                                 int matches = 0;
                                 ogs_sbi_server_t *server;
-                                ogs_sockaddr_t *check_addrs[] = {
-                                    self->config.sbi_server_sockaddr,
-                                    self->config.m1_server_sockaddr,
-                                    self->config.m5_server_sockaddr,
-                                    self->config.maf_mgmt_server_sockaddr
-                                };
-                                for (i=0; i<(sizeof(check_addrs)/sizeof(*check_addrs)); i++) {
-                                    if (check_addrs[i] && ogs_sockaddr_is_equal(node->addr, check_addrs[i])) {
+                                for (i=0; i<MSAF_SVR_NUM_IFCS; i++) {
+                                    if (self->config.servers[i].ipv4 && ogs_sockaddr_is_equal(node->addr, self->config.servers[i].ipv4)) {
+                                        server = self->config.servers[i].server_v4;
                                         matches = 1;
                                         break;
                                     }
@@ -388,37 +383,34 @@ int msaf_context_parse_config(void)
                                     if (pem) server->tls.pem = pem;
                                 */
                                 }
-
                                 if (!strcmp(msaf_key, "sbi")) {
-
-                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.sbi_server_sockaddr, server->node.addr));
-                                    if(!self->config.m1_server_sockaddr){
-                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m1_server_sockaddr, server->node.addr));
+                                    for (i=0; i<MSAF_SVR_NUM_IFCS; i++) {
+                                        if (i == MSAF_SVR_SBI || !self->config.servers[i].ipv4) {
+                                            ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.servers[i].ipv4, server->node.addr));
+                                            self->config.servers[i].server_v4 = server;
+                                        }
                                     }
-                                    if(!self->config.m5_server_sockaddr){
-                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m5_server_sockaddr, server->node.addr));
+                                } else if (!strcmp(msaf_key, "m1")) {
+                                    if(self->config.servers[MSAF_SVR_M1].ipv4){
+                                        ogs_freeaddrinfo(self->config.servers[MSAF_SVR_M1].ipv4);
+                                        self->config.servers[MSAF_SVR_M1].ipv4 = NULL;
                                     }
-                                    if(!self->config.maf_mgmt_server_sockaddr){
-                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.maf_mgmt_server_sockaddr, server->node.addr));
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.servers[MSAF_SVR_M1].ipv4, server->node.addr));
+                                    self->config.servers[MSAF_SVR_M1].server_v4 = server;
+                                } else if (!strcmp(msaf_key, "m5")) {
+                                    if(self->config.servers[MSAF_SVR_M5].ipv4){
+                                        ogs_freeaddrinfo(self->config.servers[MSAF_SVR_M5].ipv4);
+                                        self->config.servers[MSAF_SVR_M5].ipv4 = NULL;
                                     }
-                                }
-                                if (!strcmp(msaf_key, "m1")) {
-                                    if(self->config.m1_server_sockaddr){
-                                        ogs_freeaddrinfo(self->config.m1_server_sockaddr);
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.servers[MSAF_SVR_M5].ipv4, server->node.addr));
+                                    self->config.servers[MSAF_SVR_M5].server_v4 = server;
+                                } else if (!strcmp(msaf_key, "maf")) {
+                                    if(self->config.servers[MSAF_SVR_MSAF].ipv4){
+                                        ogs_freeaddrinfo(self->config.servers[MSAF_SVR_MSAF].ipv4);
+                                        self->config.servers[MSAF_SVR_MSAF].ipv4 = NULL;
                                     }
-                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m1_server_sockaddr, server->node.addr));
-                                }
-                                if (!strcmp(msaf_key, "m5")) {
-                                    if(self->config.m5_server_sockaddr){
-                                        ogs_freeaddrinfo(self->config.m5_server_sockaddr);
-                                    }
-                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m5_server_sockaddr, server->node.addr));
-                                }
-                                if (!strcmp(msaf_key, "maf")) {
-                                    if(self->config.maf_mgmt_server_sockaddr){
-                                           ogs_freeaddrinfo(self->config.maf_mgmt_server_sockaddr);
-                                    }
-                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.maf_mgmt_server_sockaddr, server->node.addr));
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.servers[MSAF_SVR_MSAF].ipv4, server->node.addr));
+                                    self->config.servers[MSAF_SVR_MSAF].server_v4 = server;
                                 }
                             }
                             node6 = ogs_list_first(&list6);
@@ -426,60 +418,54 @@ int msaf_context_parse_config(void)
                                 int i;
                                 int matches = 0;
                                 ogs_sbi_server_t *server;
-                                ogs_sockaddr_t *check_addrs[] = {
-                                    self->config.sbi_server_sockaddr_v6,
-                                    self->config.m1_server_sockaddr_v6,
-                                    self->config.m5_server_sockaddr_v6,
-                                    self->config.maf_mgmt_server_sockaddr_v6
-                                };
-                                for (i=0; i<(sizeof(check_addrs)/sizeof(*check_addrs)); i++) {
-                                    if (check_addrs[i] && ogs_sockaddr_is_equal(node->addr, check_addrs[i])) {
+                                for (i=0; i<MSAF_SVR_NUM_IFCS; i++) {
+                                    if (self->config.servers[i].ipv6 && ogs_sockaddr_is_equal(node->addr, self->config.servers[i].ipv6)) {
+                                        server = self->config.servers[i].server_v6;
                                         matches = 1;
                                         break;
                                     }
                                 }
                                 if(!matches) {
                                     server = ogs_sbi_server_add(
-                                            node6->addr, is_option ? &option : NULL);
+                                            node->addr, is_option ? &option : NULL);
                                     ogs_assert(server);
-
+                                
                                     if (addr && ogs_app()->parameter.no_ipv6 == 0)
                                         ogs_sbi_server_set_advertise(
                                                 server, AF_INET6, addr);
-                                    /*
+                                /*
                                     if (key) server->tls.key = key;
                                     if (pem) server->tls.pem = pem;
-                                    */
-                                    if (!strcmp(msaf_key, "sbi")) {
-                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.sbi_server_sockaddr_v6, server->node.addr));
-                                        if(!self->config.m1_server_sockaddr_v6){
-                                            ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m1_server_sockaddr_v6, server->node.addr));
-                                        }
-                                        if(!self->config.m5_server_sockaddr_v6){
-                                            ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m5_server_sockaddr_v6, server->node.addr));
-                                        }
-                                        if(!self->config.maf_mgmt_server_sockaddr_v6){
-                                            ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.maf_mgmt_server_sockaddr_v6, server->node.addr));
+                                */
+                                }
+                                if (!strcmp(msaf_key, "sbi")) {
+                                    for (i=0; i<MSAF_SVR_NUM_IFCS; i++) {
+                                        if (i == MSAF_SVR_SBI || !self->config.servers[i].ipv6) {
+                                            ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.servers[i].ipv6, server->node.addr));
+                                            self->config.servers[i].server_v6 = server;
                                         }
                                     }
-                                    if (!strcmp(msaf_key, "m1")) {
-                                        if(self->config.m1_server_sockaddr_v6){
-                                            ogs_freeaddrinfo(self->config.m1_server_sockaddr_v6);
-                                        }
-                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m1_server_sockaddr_v6, server->node.addr));
+                                } else if (!strcmp(msaf_key, "m1")) {
+                                    if(self->config.servers[MSAF_SVR_M1].ipv6){
+                                        ogs_freeaddrinfo(self->config.servers[MSAF_SVR_M1].ipv6);
+                                        self->config.servers[MSAF_SVR_M1].ipv6 = NULL;
                                     }
-                                    if (!strcmp(msaf_key, "m5")) {
-                                        if(self->config.m5_server_sockaddr_v6){
-                                            ogs_freeaddrinfo(self->config.m5_server_sockaddr_v6);
-                                        }
-                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.m5_server_sockaddr_v6, server->node.addr));
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.servers[MSAF_SVR_M1].ipv6, server->node.addr));
+                                    self->config.servers[MSAF_SVR_M1].server_v6 = server;
+                                } else if (!strcmp(msaf_key, "m5")) {
+                                    if(self->config.servers[MSAF_SVR_M5].ipv6){
+                                        ogs_freeaddrinfo(self->config.servers[MSAF_SVR_M5].ipv6);
+                                        self->config.servers[MSAF_SVR_M5].ipv6 = NULL;
                                     }
-                                    if (!strcmp(msaf_key, "maf")) {
-                                        if(self->config.maf_mgmt_server_sockaddr_v6){
-                                            ogs_freeaddrinfo(self->config.maf_mgmt_server_sockaddr_v6);
-                                        }
-                                        ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.maf_mgmt_server_sockaddr_v6, server->node.addr));
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.servers[MSAF_SVR_M5].ipv6, server->node.addr));
+                                    self->config.servers[MSAF_SVR_M5].server_v6 = server;
+                                } else if (!strcmp(msaf_key, "maf")) {
+                                    if(self->config.servers[MSAF_SVR_MSAF].ipv6){
+                                        ogs_freeaddrinfo(self->config.servers[MSAF_SVR_MSAF].ipv6);
+                                        self->config.servers[MSAF_SVR_MSAF].ipv6 = NULL;
                                     }
+                                    ogs_assert(OGS_OK == ogs_copyaddrinfo(&self->config.servers[MSAF_SVR_MSAF].ipv6, server->node.addr));
+                                    self->config.servers[MSAF_SVR_MSAF].server_v6 = server;
                                 }
                             }
 
@@ -646,14 +632,11 @@ static void msaf_context_application_server_state_remove_all(void) {
 }
 
 static void msaf_context_server_sockaddr_remove(void){
-    if(self->config.sbi_server_sockaddr) ogs_freeaddrinfo(self->config.sbi_server_sockaddr);
-    if(self->config.m1_server_sockaddr) ogs_freeaddrinfo(self->config.m1_server_sockaddr);
-    if(self->config.m5_server_sockaddr) ogs_freeaddrinfo(self->config.m5_server_sockaddr);
-    if(self->config.maf_mgmt_server_sockaddr) ogs_freeaddrinfo(self->config.maf_mgmt_server_sockaddr);
-    if(self->config.sbi_server_sockaddr_v6) ogs_freeaddrinfo(self->config.sbi_server_sockaddr_v6);
-    if(self->config.m1_server_sockaddr_v6) ogs_freeaddrinfo(self->config.m1_server_sockaddr_v6);
-    if(self->config.m5_server_sockaddr_v6) ogs_freeaddrinfo(self->config.m5_server_sockaddr_v6);
-    if(self->config.maf_mgmt_server_sockaddr_v6) ogs_freeaddrinfo(self->config.maf_mgmt_server_sockaddr_v6);
+    int i;
+    for (i=0; i<MSAF_SVR_NUM_IFCS; i++) {
+        if(self->config.servers[i].ipv4) ogs_freeaddrinfo(self->config.servers[i].ipv4);
+        if(self->config.servers[i].ipv6) ogs_freeaddrinfo(self->config.servers[i].ipv6);
+    }
 }
 
 static int msaf_context_prepare(void)

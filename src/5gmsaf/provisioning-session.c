@@ -342,7 +342,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_node_t *msaf_as = NULL;
     char *content_hosting_config_to_hash = NULL;
-    OpenAPI_list_t *media_entry_point_list;
+    OpenAPI_list_t *media_entry_point_list = NULL;
     OpenAPI_list_t *media_entry_point_profiles_list = NULL;
     OpenAPI_m5_media_entry_point_t *entry_point;
     char *locator_absolute_path;

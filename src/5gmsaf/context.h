@@ -42,20 +42,30 @@ extern int __msaf_log_domain;
 #undef OGS_LOG_DOMAIN
 #define OGS_LOG_DOMAIN __msaf_log_domain
 
+typedef struct msaf_configuration_server_s {
+    ogs_sockaddr_t *ipv4;
+    ogs_sockaddr_t *ipv6;
+    ogs_sbi_server_t *server_v4;
+    ogs_sbi_server_t *server_v6;
+} msaf_configuration_server_t;
+
+typedef enum msaf_configuration_server_ifc_e {
+    MSAF_SVR_SBI = 0,
+    MSAF_SVR_M1,
+    MSAF_SVR_M5,
+    MSAF_SVR_MSAF,
+
+    MSAF_SVR_NUM_IFCS
+} msaf_configuration_server_ifc_t;
+
 typedef struct msaf_configuration_s {
     int open5gsIntegration_flag;
     ogs_list_t applicationServers_list;
     ogs_list_t server_addr_list; // Nodes for this list are of type msaf_sbi_addr_t *
     char *certificateManager;
+
+    msaf_configuration_server_t servers[MSAF_SVR_NUM_IFCS];
     
-    ogs_sockaddr_t *m1_server_sockaddr;
-    ogs_sockaddr_t *m5_server_sockaddr;
-    ogs_sockaddr_t *maf_mgmt_server_sockaddr;
-    ogs_sockaddr_t *sbi_server_sockaddr;
-    ogs_sockaddr_t *sbi_server_sockaddr_v6;
-    ogs_sockaddr_t *m1_server_sockaddr_v6;
-    ogs_sockaddr_t *m5_server_sockaddr_v6;
-    ogs_sockaddr_t *maf_mgmt_server_sockaddr_v6;
     msaf_server_response_cache_control_t *server_response_cache_control;
     int  number_of_application_servers;
 } msaf_configuration_t;
