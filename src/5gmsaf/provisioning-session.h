@@ -17,7 +17,6 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "openapi/model/provisioning_session.h"
 #include "openapi/model/provisioning_session_type.h"
 #include "openapi/model/metrics_reporting_configuration.h."
-#include "metrics-reporting-provisioning.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,7 +33,7 @@ typedef struct msaf_provisioning_session_s {
     OpenAPI_provisioning_session_type_e provisioningSessionType;
     char *aspId;
     char *externalApplicationId;
-    ogs_hash_t metrics_reporting_map;
+    ogs_hash_t *metrics_reporting_map; /* maps a metrics reporting id (char*) to a metrics configuration value (msaf_metrics_reporting_configuration_t*) */
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
     OpenAPI_service_access_information_resource_t *serviceAccessInformation;
     time_t provisioningSessionReceived;
@@ -56,7 +55,6 @@ typedef struct msaf_application_server_state_ref_node_s {
 
 extern msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id);
 extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
-extern msaf_provisioning_session_t *msaf_metrics_reporting_configuration_find_by_metricsReportingConfigurationId(const char *metricsReportingConfigurationId);
 extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
@@ -71,7 +69,6 @@ extern ogs_list_t *msaf_retrieve_certificates_from_map(msaf_provisioning_session
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session);
 
 extern void msaf_delete_content_hosting_configuration(const char *provisioning_session_id);
-extern void msaf_delete_metrics_reporting_configuration(const char *provisioning_session_id);
 
 extern void msaf_delete_certificates(const char *provisioning_session_id);
 
@@ -85,7 +82,6 @@ extern int
 msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session);
 
 extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
-extern cJSON *msaf_get_metrics_reporting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
 
 extern char *enumerate_provisioning_sessions(void);
 

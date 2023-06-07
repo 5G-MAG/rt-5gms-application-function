@@ -123,7 +123,7 @@ class M1Client:
                 'externalApplicationId': external_application_id
                 }
         if asp_id is not None:
-            send['aspId'] = asp_id
+            send['aspId'] = asp_idprovisioning
         result = await self.__do_request('POST', '/provisioning-sessions', json.dumps(send),
                                          'application/json')
         if result['status_code'] == 201:
@@ -552,7 +552,6 @@ class M1Client:
     #async def retrieveMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> MetricsReportingConfigurationResponse:
     #async def updateMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, metrics_reporting_config: MetricsReportingConfiguration) -> bool:
     #async def patchMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, patch: str) -> MetricsReportingConfigurationResponse:
-    #sync def destroyMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> bool:
     async def destroyMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> bool:
         '''
         Destroy a metrics configuration on the 5GMS Application Function
