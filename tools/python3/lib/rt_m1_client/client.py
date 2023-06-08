@@ -550,8 +550,34 @@ class M1Client:
         return False
 
     #async def retrieveMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> MetricsReportingConfigurationResponse:
-    #async def updateMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, metrics_reporting_config: MetricsReportingConfiguration) -> bool:
-    #async def patchMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, patch: str) -> MetricsReportingConfigurationResponse:
+    async def retrieveMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> MetricsReportingConfigurationResponse:
+        '''
+        Fetch the metrics reporting configuration for a provisioning session
+        :param ResourceId provisioning_session_id: The provisioning session to fetch the current metrics reporting configuration for.
+
+        :return: None if the provisioning session does not exist, also returns None if the
+        provisioning session exists but does not have a metrics reporting configuration,
+        otherwise returns a MetricsReportingConfigurationResponse.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+
+        result = await.self.__do_request('GET',
+                                     f'/provisioning-sessions/{provisioning_session_id}/metrics-reporting-configuration',
+                                     '', 'application/json')
+        if result['status_code'] == 200:
+            ret: MetricsReportingConfigurationResponse = self.__tag_and_date(result)
+            ret.update({
+                'ProvisioningSessionId': provisioning_session_id,
+                'MetricsReportingConfiguration': MetricsReportingConfiguration.fromJSON(result['body'])
+            })
+            return ret
+        if result['status_code'] == 404:
+            return None;
+        self.__default_response(result)
+        return None
+
     async def destroyMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> bool:
         '''
         Destroy a metrics configuration on the 5GMS Application Function
@@ -566,6 +592,8 @@ class M1Client:
         self.__default_response(result)
         return False
 
+    #async def updateMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, metrics_reporting_config: MetricsReportingConfiguration) -> bool:
+    #async def patchMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, patch: str) -> MetricsReportingConfigurationResponse:
 
     # TS26512_M1_ConsumptionReportingProvisioning
     #async def activateConsumptionReporting(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> Optional[ResourceId]:

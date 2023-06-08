@@ -145,6 +145,23 @@ class M1Session:
         chc = chc_resp['ContentHostingConfiguration']
         return chc
 
+    async def provisioningSessionMetricsReportingConfiguration (self, provisioning_session_id: ResourceId) -> Optional[MetricsReportingConfiguration]:
+        ''' Get the MetricsReportingConfiguration associated with the provisioning session
+            :param ResourceId provisioning_session_id: The provisioning session id to get the `MetricsReportingConfiguration` for.
+            :return: ``None`` if the provisioning session does not exist or if there is no `MetricsReportingConfiguration` associated
+                 with the provisioning session, otherwise return the `MetricsReportingConfiguration`.
+        '''
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return None
+        await self.__cacheMetricsReportingConfiguration(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        mrc_resp = ps['metrics-reporting-configuration']
+        if mrc_resp is None:
+            # Nothing got cached from the AF, probably an error, but no MRC found
+            return None
+        mrc = mrc_resp['MetricsReportingConfiguration']
+        return mrc
+
     async def provisioningSessionDestroy(self, provisioning_session_id: ResourceId) -> Optional[bool]:
         '''Destroy a provisioning session
 

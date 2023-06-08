@@ -24,7 +24,7 @@ extern "C" {
 
 typedef struct msaf_metrics_reporting_configuration_s {
     OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
-    time_t received_time;
+    time_t metrics_provisioning_received_time;
     char *etag;
 } msaf_metrics_reporting_configuration_t;
 
@@ -33,7 +33,7 @@ typedef struct msaf_provisioning_session_s {
     OpenAPI_provisioning_session_type_e provisioningSessionType;
     char *aspId;
     char *externalApplicationId;
-    ogs_hash_t *metrics_reporting_map; /* maps a metrics reporting id (char*) to a metrics configuration value (msaf_metrics_reporting_configuration_t*) */
+    ogs_hash_t *metrics_reporting_map;
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
     OpenAPI_service_access_information_resource_t *serviceAccessInformation;
     time_t provisioningSessionReceived;

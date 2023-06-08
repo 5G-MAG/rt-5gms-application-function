@@ -53,14 +53,6 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     OpenAPI_metrics_reporting_configuration_free(metrics_reporting_configuration);
     return msaf_metrics_reporting_configuration;
 }
-
-msaf_metrics_reporting_configuration_t *
-msaf_metrics_reporting_configuration_find_by_metricsReportingConfigurationId(const char *metricsReportingConfigurationId)
-{
-    if (!msaf_self()->metrics_reporting_map) return NULL;
-    return (msaf_metrics_reporting_configuration_t *) ogs_hash_get(msaf_self()->metrics_reporting_map, metricsReportingConfigurationId, OGS_HASH_KEY_STRING);
-}
-
 void
 msaf_delete_metrics_reporting_configuration(const char *provisioning_session_id)
 {
@@ -95,6 +87,15 @@ msaf_delete_metrics_reporting_configuration(const char *provisioning_session_id)
         next_action_for_application_server(as_state);
     }
 }
+
+msaf_metrics_reporting_configuration_t *
+msaf_metrics_reporting_configuration_find_by_metricsReportingConfigurationId(const char *metricsReportingConfigurationId)
+{
+    if (!msaf_self()->metrics_reporting_map) return NULL;
+    return (msaf_metrics_reporting_configuration_t *) ogs_hash_get(msaf_self()->metrics_reporting_map, metricsReportingConfigurationId, OGS_HASH_KEY_STRING);
+}
+
+/* Auxiliary functions */
 
 static const char *calculate_metrics_reporting_configuration_hash(OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration)
 {

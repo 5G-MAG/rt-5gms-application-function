@@ -101,6 +101,8 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
     msaf_provisioning_session->provisioningSessionReceived = time(NULL);
     msaf_provisioning_session->provisioningSessionHash = ogs_strdup(calculate_provisioning_session_hash(provisioning_session));
+    msaf_provisioning_session->metrics_provisioning_received_time = time(NULL);
+
 
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
@@ -116,7 +118,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     return msaf_provisioning_session;
 }
 
-// Function that adds related Metrics Reporting Configuration to the Provisioning session
+/* Auxiliary function to add related Metrics Reporting Configuration to the Provisioning session */
 void msaf_provisioning_session_add_metrics_reporting_configuration(
         msaf_provisioning_session_t *prov_session,
         const char *metrics_reporting_configuration_id) {
@@ -152,6 +154,12 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
 
+        /* Function that will iterate over metrics reporting map and include existing MRC resources into provisioning session */
+        provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
+        for (mrc_node = ogs_hash_first(msaf_provisioning_session->metrics_reporting_map); mrc_node; mrc_node = ogs_hash_next(mrc_node)) {
+            ogs_debug("msaf_provisioning_session_get_json: Add MRC %s", (const char *)ogs_hash_this_key(mrc_node));
+            OpenAPI_list_add(provisioning_session->metrics_reporting_configurations, openapi_mrc);
+        }
 
         provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
         for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {

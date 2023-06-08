@@ -599,10 +599,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     CASE(OGS_SBI_HTTP_METHOD_GET)
                         if (message.h.resource.component[1] && message.h.resource.component[2] && message.h.resource.component[3] && !message.h.resource.component[4]) {
 
-                            /*Placeholder for handling Metrics Reporting Configuration
+
                             if(!strcmp(message.h.resource.component[2]), "metrics-reporting-configuration"){
+                                /* Handling the retrieval
                                 return 0;
-                            }*/
+                                */
+                            }
 
                             // Retrieve "certificates" per provisioning-session-id.
                             if (!strcmp(message.h.resource.component[2],"certificates") ) {
@@ -1481,7 +1483,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         CASE(OGS_SBI_HTTP_METHOD_PUT)
                             if(response->status == 200 || response->status == 204) {
 
-                                ogs_debug("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
+                                ogs_debug("[%s] Method [%s] with Response [%d] received for Content Hosting Configuration [%s]", message.h.resource.component[0], message.h.method, response->status, message.h.resource.component[1]);
                                 resource_id_node_t *content_hosting_configuration;
                                 ogs_list_for_each(&as_state->upload_content_hosting_configurations,content_hosting_configuration){
                                     if(!strcmp(content_hosting_configuration->state, message.h.resource.component[1]))
