@@ -10,6 +10,10 @@
 
 
 #include "ogs-sbi.h"
+
+#include "bsf-service-consumer.h"
+#include "pcf-service-consumer.h"
+
 #include "sbi-path.h"
 #include "context.h"
 #include "certmgr.h"
@@ -51,6 +55,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     ogs_sbi_xact_t *sbi_xact = NULL;
 
     msaf_sm_debug(e);
+
+    if (bsf_process_event(&e->h)) return;
+    if (pcf_session_process_event(&e->h)) return;
 
     message = ogs_calloc(1, sizeof(*message));
     msaf_context_server_name_set();
@@ -204,13 +211,30 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                 SWITCH(message->h.resource.component[0])
                 CASE(OGS_SBI_RESOURCE_NAME_NF_INSTANCES)
+		    cJSON *nf_profile;
+                    OpenAPI_nf_profile_t *nfprofile;
+
                     nf_instance = e->h.sbi.data;
                     ogs_assert(nf_instance);
+
+		    if (response->http.content_length && response->http.content){
+                       ogs_debug( "response: %s", response->http.content);
+                       nf_profile = cJSON_Parse(response->http.content);
+                       nfprofile = OpenAPI_nf_profile_parseFromJSON(nf_profile);
+                       message->NFProfile = nfprofile;
+
+                       if (!message->NFProfile) {
+                           ogs_error("No nf_profile");
+                       }
+                       cJSON_Delete(nf_profile);
+                    }
+
                     ogs_assert(OGS_FSM_STATE(&nf_instance->sm));
 
                     e->h.sbi.message = message;
-                    message = NULL;
+                    //message = NULL;
                     ogs_fsm_dispatch(&nf_instance->sm, e);
+		    ogs_sbi_response_free(response);
                     break;
 
                 CASE(OGS_SBI_RESOURCE_NAME_SUBSCRIPTIONS)

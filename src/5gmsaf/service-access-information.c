@@ -35,6 +35,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     msaf_api_service_access_information_resource_streaming_access_t *streaming_access;
     //msaf_configuration_t *config = &msaf_self()->config;
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
+    msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points = NULL;
 
     /* streaming entry points */
@@ -94,6 +95,17 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
         ogs_assert(ccrc);
     }
 
+    /* Network Assistance Configuration */
+    if (config->offerNetworkAssistance) {
+	OpenAPI_list_t *na_svr_list;
+
+	na_svr_list = OpenAPI_list_create();
+	ogs_assert(na_svr_list);
+	OpenAPI_list_add(na_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
+	nac = msaf_api_service_access_information_resource_network_assistance_configuration_create(na_svr_list);
+	ogs_assert(nac);
+    }
+
     /* Create SAI */
     service_access_information = msaf_api_service_access_information_resource_create(
                 msaf_strdup(provisioning_session->provisioningSessionId),
@@ -102,8 +114,9 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 ccrc /* client_consumption_reporting_configuration */,
                 NULL /* dynamic_policy */,
                 NULL /* client_metrics_reporting */,
-                NULL /* network_assistance_configuration */,
+                nac  /* network_assistance_configuration */,
                 NULL /* client_edge_resources */);
+
     ogs_assert(service_access_information);
 
     return service_access_information;

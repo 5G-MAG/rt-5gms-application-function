@@ -104,7 +104,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             strncmp(request->h.uri,"https:",6)==0,
                                             ogs_hash_get(request->http.headers, "Host", OGS_HASH_KEY_STRING));
 
-                        if(!sai_entry) {
+                        if (!sai_entry) {
                             char *err = NULL;
                             err = ogs_msprintf("Provisioning Session [%s] not found.", message->h.resource.component[1]);
                             ogs_error("%s", err);

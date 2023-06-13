@@ -29,7 +29,7 @@ scriptdir=`cd "$scriptdir"; pwd`
 
 # Command line option defaults
 default_branch='REL-17'
-default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery TS26512_M1_ConsumptionReportingProvisioning TS26512_M1_PolicyTemplatesProvisioning M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation TS26512_M5_ConsumptionReporting Maf_Management"
+default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery TS26512_M1_ConsumptionReportingProvisioning TS26512_M1_PolicyTemplatesProvisioning M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation TS26512_M5_ConsumptionReporting TS26512_M5_NetworkAssistance Maf_Management"
 
 # Parse command line arguments
 ARGS=`getopt -n "$scriptname" -o 'a:b:hM:' -l 'api:,branch:,help,model-deps:' -s sh -- "$@"`
@@ -147,6 +147,18 @@ if ! "$scriptdir/../../subprojects/rt-common-shared/5gms/scripts/generate_openap
 fi
  
 ln -s ../include/set.h "$scriptdir/openapi/model/msaf_api_set.h"
+
+# Delete any model file already in the Open5GS SBI library to avoid clashes
+for f in "$scriptdir/openapi/model"/*.[ch]; do
+    b=`basename "$f"`
+    if [ -e "$scriptdir/../../subprojects/open5gs/lib/sbi/openapi/model/$b" ]; then
+	rm "$f"
+    fi
+done
+
+if [ -n "$MODEL_DEPS" ]; then
+    (cd "$scriptdir"; echo openapi/model/*.[ch] > "$MODEL_DEPS")
+fi
 
 # Delete any model file already in the Open5GS SBI library to avoid clashes
 for f in "$scriptdir/openapi/model"/*.[ch]; do

@@ -13,6 +13,8 @@ srcinc = open5gs_project.get_variable('srcinc')
 test_msaf_sources = files('''
     abts-main.c
 
+    pcf-cache-test.c
+    pcf-cache-test.h
     sai-cache-test.c
     sai-cache-test.h
 

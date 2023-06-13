@@ -19,6 +19,9 @@ mkdir_p = open5gs_project.get_variable('mkdir_p')
 install_conf = open5gs_project.get_variable('install_conf')
 sbi_openapi_inc = open5gs_project.get_variable('libsbi_openapi_model_inc')
 
+libscbsf_dep = svc_consumers_project.get_variable('libscbsf_dep')
+libscpcf_dep = svc_consumers_project.get_variable('libscpcf_dep')
+
 latest_apis = get_option('latest_apis')
 fiveg_api_approval = get_option('fiveg_api_approval')
 fiveg_api_release = get_option('fiveg_api_release')
@@ -51,10 +54,12 @@ libmsaf_dist_sources = files('''
     msaf-mgmt-sm.c
     msaf-sm.h
     msaf-sm.c
-    response-cache-control.h
-    response-cache-control.c
+    pcf-cache.c
+    pcf-cache.h
     provisioning-session.h
     provisioning-session.c
+    response-cache-control.h
+    response-cache-control.c
     sai-cache.h
     sai-cache.c
     sbi-path.h
@@ -70,6 +75,8 @@ libmsaf_dist_sources = files('''
 msaf_test_sources = files('''
     hash.c
     hash.h
+    pcf-cache.c
+    pcf-cache.h
     sai-cache.c
     sai-cache.h
 '''.split())
@@ -116,6 +123,8 @@ libmsaf = static_library('msaf',
     dependencies : [libsbi_dep,
                     libsbi_openapi_dep,
                     libapp_dep,
+                    libscbsf_dep,
+                    libscpcf_dep,
                     libcrypt_dep],
     install : false)
 
@@ -124,6 +133,8 @@ libmsaf_dep = declare_dependency(
     dependencies : [libsbi_dep,
                     libsbi_openapi_dep,
                     libapp_dep,
+                    libscbsf_dep,
+                    libscpcf_dep,
                     libcrypt_dep])
 
 msaf_sources = files('''

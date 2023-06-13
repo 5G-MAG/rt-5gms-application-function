@@ -12,7 +12,11 @@
 
 /* MSAF includes */
 #include "sai-cache.h"
+<<<<<<< HEAD
 #include "openapi/model/msaf_api_service_access_information_resource.h"
+=======
+#include "openapi/model/service_access_information_resource.h"
+>>>>>>> 0404890 (Offer Network Assistance over interface M5 (issue #63))
 
 /* Test includes */
 #include "sai-cache-test.h"

@@ -24,11 +24,11 @@ index 67a1badc7..573582c2e 100644
 +++ b/lib/sbi/meson.build
 @@ -46,6 +46,8 @@ libsbi_sources = files('''
  libsbi_inc = include_directories('.')
-
+ 
  sbi_cc_flags = ['-DOGS_SBI_COMPILATION']
 +sbi_h1_flag = ['-DSBI_USE_HTTP_1']
 +sbi_h1_cc_flags = sbi_cc_flags + sbi_h1_flag
-
+ 
  libgnutls_dep = dependency('gnutls', required : true)
  libssl_dep = dependency('libssl', required : true)
 @@ -83,3 +85,33 @@ libsbi_dep = declare_dependency(
@@ -100,7 +100,7 @@ index d702deb6d..50e9e1fb1 100644
 @@ -16,6 +16,10 @@
  #include "{{{.}}}.h"
  {{/imports}}
-
+ 
 +#define OpenAPI_{{classVarName}}_info_title "{{appName}}"
 +#define OpenAPI_{{classVarName}}_info_version "{{appVersion}}"
 +#define OpenAPI_{{classVarName}}_info_description "{{appDescription}}"
@@ -115,7 +115,7 @@ index d313b6932..2e25dbd93 100644
 @@ -33,6 +33,8 @@ version_conf = configuration_data()
  version_conf.set_quoted('OPEN5GS_VERSION', package_version)
  configure_file(output : 'version.h', configuration : version_conf)
-
+ 
 +app_main_c = files(['main.c'])
 +
  subdir('mme')

@@ -12,6 +12,7 @@
 #include "af/sbi-path.h"
 
 /* Unit test includes */
+#include "pcf-cache-test.h"
 #include "sai-cache-test.h"
 
 #include "tests.h"
@@ -19,6 +20,7 @@
 static struct {
     abts_suite *(*func)(abts_suite *suite);
 } alltests[] = {
+    {test_pcf_cache},
     {test_sai_cache}
 };
 

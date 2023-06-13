@@ -8,6 +8,8 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
+#include "bsf-service-consumer.h"
+
 #include "context.h"
 #include "sbi-path.h"
 #include "init.h"
@@ -42,6 +44,12 @@ int msaf_initialize()
         ogs_error("Consistency checks failed, aborting");
         return OGS_ERROR;
     }
+
+    rv = bsf_parse_config("bsf", "bsf-service-consumer");
+    if (rv != OGS_OK) return rv;
+
+    /*rv = pcf_initialize();
+    if (rv != OGS_OK) return rv;*/
 
     rv = ogs_log_config_domain(ogs_app()->logger.domain, ogs_app()->logger.level);
     if (rv != OGS_OK) return rv;
