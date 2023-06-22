@@ -34,6 +34,7 @@ typedef struct msaf_provisioning_session_s {
     char *aspId;
     char *externalApplicationId;
     ogs_hash_t *metrics_reporting_map;
+    OpenAPI_set_t *metrics_reporting_configuration_ids;
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
     OpenAPI_service_access_information_resource_t *serviceAccessInformation;
     time_t provisioningSessionReceived;

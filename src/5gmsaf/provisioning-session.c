@@ -79,6 +79,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
 
+
     provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id),
                                                                OpenAPI_provisioning_session_type_FromString(prov_sess_type),
                                                                (asp_id)?ogs_strdup(asp_id):NULL,
@@ -102,6 +103,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     msaf_provisioning_session->provisioningSessionReceived = time(NULL);
     msaf_provisioning_session->provisioningSessionHash = ogs_strdup(calculate_provisioning_session_hash(provisioning_session));
     msaf_provisioning_session->metrics_provisioning_received_time = time(NULL);
+    msaf_provisioning_session->metrics_reporting_configuration_ids = OpenAPI_set_create();
 
 
     ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
@@ -118,14 +120,14 @@ msaf_provisioning_session_create(const char *provisioning_session_type,
     return msaf_provisioning_session;
 }
 
-/* Auxiliary function to add related Metrics Reporting Configuration to the Provisioning session */
+/* Auxiliary function for adding related Metrics Reporting Configuration to particular provisioning session */
 void msaf_provisioning_session_add_metrics_reporting_configuration(
-        msaf_provisioning_session_t *prov_session,
+        msaf_provisioning_session_t *provisioning_session,
         const char *metrics_reporting_configuration_id) {
     msaf_metrics_reporting_configuration_t *mrc;
     mrc = msaf_metrics_reporting_configuration_find_by_metricsReportingConfigurationId(metrics_reporting_configuration_id);
     if (mrc) {
-        ogs_hash_set(prov_session->metrics_reporting_map,
+        ogs_hash_set(provisioning_session->metrics_reporting_map,
                      ogs_strdup(mrc->metricsReportingConfigurationId),
                      OGS_HASH_KEY_STRING,
                      mrc);

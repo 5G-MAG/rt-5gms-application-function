@@ -1,13 +1,21 @@
+/*
+License: 5G-MAG Public License (v1.0)
+Author: Vuk Stojkovic
+Copyright: (C) 2023 Fraunhofer FOKUS
+For full license terms please see the LICENSE file distributed with this
+program. If this file is missing then the license can be retrieved from
+https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+*/
 
 #include "metrics-reporting-provisioning.h"
 #include "ogs-core.h"
 #include "provisioning-session.h"
 
-msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(masf_provisioning_session_t *prov_session) {
+msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(masf_provisioning_session_t *provisioning_session) {
 
     // OpenAPI model used to communicate over M1
     OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
-    // "internal" model for application context
+    // Internal model for application context
     msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
 
     // Generating Metrics Reporting ID and formatting as character array.
@@ -45,7 +53,7 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     msaf_metrics_reporting_configuration->urlFilters = metrics_reporting_configuration->url_filters;
     msaf_metrics_reporting_configuration->metrics = metrics_reporting_configuration->metrics;
 
-    ogs_hash_set(prov_session->metrics_reporting_map,
+    ogs_hash_set(provisioning_session->metrics_reporting_map,
                  ogs_strdup(msaf_metrics_reporting_configuration->metricsReportingConfigurationId),
                  OGS_HASH_KEY_STRING,
                  msaf_metrics_reporting_configuration);

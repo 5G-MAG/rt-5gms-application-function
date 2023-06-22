@@ -16,7 +16,7 @@ typedef struct msaf_metrics_reporting_configuration_s {
 } msaf_metrics_reporting_configuration_t;
 
 // Functions declarations
-msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create();
+msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(masf_provisioning_session_t *provisioning_session);
 void msaf_delete_metrics_reporting_configuration(const char *provisioning_session_id);
 msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_find_by_metricsReportingConfigurationId(const char *metricsReportingConfigurationId);
 cJSON *msaf_get_metrics_reporting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
