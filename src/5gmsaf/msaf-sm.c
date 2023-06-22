@@ -54,7 +54,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     message = ogs_calloc(1, sizeof(*message));
     msaf_context_server_name_set();
-    char *nf_name = ogs_msprintf("5GMSdAF-%s", msaf_self()->server_name);
+    char *nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
     const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
     const nf_server_app_metadata_t *app_meta = &app_metadata;
 

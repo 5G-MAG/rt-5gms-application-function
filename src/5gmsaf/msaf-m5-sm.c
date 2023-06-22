@@ -49,7 +49,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     msaf_sm_debug(e);
 
-    char *nf_name = ogs_msprintf("5GMSdAF-%s", msaf_self()->server_name);
+    char *nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
     const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
     const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
     const nf_server_app_metadata_t *app_meta = &app_metadata;
