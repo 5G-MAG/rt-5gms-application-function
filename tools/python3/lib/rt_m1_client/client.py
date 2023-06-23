@@ -36,7 +36,7 @@ should be performed outside of this class.
 import datetime
 import json
 import logging
-from typing import Optional, Union, Tuple, Dict, Any, TypedDict
+from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List
 
 import httpx
 
@@ -357,16 +357,19 @@ class M1Client:
 
     # TS26512_M1_ServerCertificatesProvisioning
 
-    async def createOrReserveServerCertificate(self, provisioning_session_id: ResourceId, csr=False) -> Optional[ServerCertificateSigningRequestResponse]:
+    async def createOrReserveServerCertificate(self, provisioning_session_id: ResourceId, extra_domain_names: Optional[List[str]] = None, csr: bool = False) -> Optional[ServerCertificateSigningRequestResponse]:
         '''Create or reserve a server certificate for a provisioing session
 
         :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
+        :param extra_domain_names: An optional list of extra domain names to include a CSR as SubjectAltName entries.
         :param bool csr: Whether to reserve a certificate and return the CSR PEM data.
 
         If *csr* is ``True`` then this will reserve the certificate and request the CSR PEM data be returned along side the Id
-        of the newly reserved certificate.
+        of the newly reserved certificate. The *extra_domain_names* parameter may contain a list of extra domain names to include
+        in the SubjectAltNames extension.
 
-        If *csr* is ``False`` or not provided then create a new certificate and just return the new certificate Id.
+        If *csr* is ``False`` or not provided then create a new certificate and just return the new certificate Id. The
+        *extra_domain_names* must be an empty list or ``None``.
 
         :return: a `ServerCertificateSigningRequestResponse` containing the certificate id and metadata optionally with CSR PEM
                  data if *csr* was ``True``.
@@ -377,7 +380,12 @@ class M1Client:
         url = f'/provisioning-sessions/{provisioning_session_id}/certificates'
         if csr:
             url += '?csr=true'
-        result = await self.__do_request('POST', url, '', 'application/octet-stream')
+        elif extra_domain_names is not None and len(extra_domain_names) > 0:
+            raise M1ClientError(reason = f'Extra domain names cannot be specified when not generating a CSR', status_code = 400)
+        body=''
+        if len(extra_domain_names) > 0:
+            body = json.dumps(extra_domain_names)
+        result = await self.__do_request('POST', url, body, 'application/json')
         if result['status_code'] == 200:
             certificate_id = result['headers'].get('Location','').rsplit('/',1)[1]
             ret: ServerCertificateSigningRequestResponse = self.__tag_and_date(result)
@@ -405,17 +413,18 @@ class M1Client:
         result = await self.createOrReserveServerCertificate(provisioning_session_id, csr=False)
         return result
 
-    async def reserveServerCertificate(self, provisioning_session_id: ResourceId) -> ServerCertificateSigningRequestResponse:
+    async def reserveServerCertificate(self, provisioning_session_id: ResourceId, extra_domain_names: Optional[List[str]] = None) -> ServerCertificateSigningRequestResponse:
         '''Reserve a certificate for a provisioning session and get the CSR PEM
 
         :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
+        :param extra_domain_names: An optional list of extra domain names to include as Subject Alt Names.
 
         :return: a `ServerCertificateSigningRequestResponse` containing the CSR as a PEM string plus metadata for the reserved
                  certificate.
         :raise M1ClientError: if there was a problem with the request.
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
-        result = await self.createOrReserveServerCertificate(provisioning_session_id, csr=True)
+        result = await self.createOrReserveServerCertificate(provisioning_session_id, extra_domain_names=extra_domain_names, csr=True)
         if result is None or 'CertificateSigningRequestPEM' not in result:
             raise M1ClientError(reason = f'Failed to retrieve CSR for session {provisioning_session_id}', status_code = 200)
         return result

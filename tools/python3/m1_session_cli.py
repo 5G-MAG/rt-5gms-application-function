@@ -46,7 +46,7 @@ Syntax:
     m1-session-cli set-stream -h
     m1-session-cli set-stream -p <provisioning-session-id> <ContentHostingConfiguration-JSON>
     m1-session-cli new-certificate -h
-    m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name> | --csr]
+    m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name>...] [--csr]
     m1-session-cli show-certificate -h
     m1-session-cli show-certificate -p <provisioning-session-id> -c <certificate-id>
     m1-session-cli set-certificate -h
@@ -69,6 +69,7 @@ Parameters:
     -p ID   --provisioning-session-id ID  The provisioning session id to use.
             --ssl-only                    Provide HTTPS only.
             --with-ssl                    Provide both HTTPS and HTTP.
+            --csr                         When reserving a cetrificate, pass back the CSR.
 
 Arguments:
     certificate-PEM-file              The file path of a PEM holding a public certificate.
@@ -524,7 +525,7 @@ async def cmd_new_certificate(args: argparse.Namespace, config: Configuration) -
     '''
     session = await get_session(config)
     if args.csr:
-        result = await session.certificateNewSigningRequest(args.provisioning_session)
+        result = await session.certificateNewSigningRequest(args.provisioning_session, extra_domain_names=args.domain_name_alias)
         if result is None:
             print('Failed to reserve certificate')
             return 1
@@ -532,7 +533,7 @@ async def cmd_new_certificate(args: argparse.Namespace, config: Configuration) -
         print(f'certificate_id={cert_id}')
         print(csr)
         return 0
-    cert_id = await session.createNewCertificate(args.provisioning_session, domain_name_alias=args.domain_name_alias)
+    cert_id = await session.createNewCertificate(args.provisioning_session, extra_domain_names=args.domain_name_alias)
     if cert_id is None:
         print('Failed to create certificate')
         return 1
@@ -596,6 +597,7 @@ async def cmd_check_all_renewal(args: argparse.Namespace, config: Configuration)
         #     change id in chc and remember old cert ids
         # if any cert ids changed in chc upload replacement chc
         # delete old certs
+    sys.stderr.write('check-all-renewal not yet implemented\n')
     return 1
 
 async def cmd_renew_certs(args: argparse.Namespace, config: Configuration) -> int:
@@ -612,6 +614,7 @@ async def cmd_renew_certs(args: argparse.Namespace, config: Configuration) -> in
     #   change ids in chc for new cert id
     # upload replacement chc
     # delete old certs
+    sys.stderr.write('renew-certs not yet implemented\n')
     return 1
 
 async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
@@ -712,16 +715,15 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_protocols.add_argument('-p', '--provisioning-session',
                                   help='Provisioning session id to list the upload and download protocols for')
 
-    # m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name> | --csr]
+    # m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name>...] [--csr]
     parser_new_certificate = subparsers.add_parser('new-certificate', help='Create a new certificate')
     parser_new_certificate.set_defaults(command=cmd_new_certificate)
     parser_new_certificate.add_argument('-p', '--provisioning-session',
                                         help='Provisioning session id to create the new certificate for')
-    parser_new_certificate_extras = parser_new_certificate.add_mutually_exclusive_group(required=False)
-    parser_new_certificate_extras.add_argument('-d', '--domain-name-alias', dest='domain_name_alias',
+    parser_new_certificate.add_argument('-d', '--domain-name-alias', dest='domain_name_alias', nargs='*', metavar='FQDN',
                                                help='FQDN to add as an extra domain name to the certificate')
-    parser_new_certificate_extras.add_argument('--csr', action='store_true',
-                                               help='Return a CSR to be signed externally and returned using set-certificate')
+    parser_new_certificate.add_argument('--csr', action='store_true',
+                                               help='Return a CSR to be signed externally and published using set-certificate')
 
     # m1-session-cli show-certificate -p <provisioning-session-id> -c <certificate-id>
     parser_show_certificate = subparsers.add_parser('show-certificate', help='Retrieve a public certificate')

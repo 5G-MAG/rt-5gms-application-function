@@ -31,7 +31,7 @@ Syntax:
     m1-client provisioning show [-h] <address:port> <provisioning-session-id>
     m1-client provisioning delete [-h] <address:port> <provisioning-session-id>
     m1-client protocols [-h] <address:port> <provisioning-session-id>
-    m1-client certificates create [-h] <address:port> <provisioning-session-id> [--csr]
+    m1-client certificates create [-h] <address:port> <provisioning-session-id> [--csr [<fqdn>...]]
     m1-client certificates upload [-h] <address:port> <provisioning-session-id> <certificate-id> <PEM-file>
     m1-client certificates show [-h] <address:port> <provisioning-session-id> <certificate-id> [--info]
     m1-client certificates delete [-h] <address:port> <provisioning-session-id> <certificate-id>
@@ -108,8 +108,9 @@ async def cmd_protocols(args: argparse.Namespace) -> int:
 async def cmd_certificates_create(args: argparse.Namespace) -> int:
     client = await getClient(args)
     provisioning_session_id = args.provisioning_session_id
-    csr = args.csr
-    resp: Optional[ServerCertificateSigningRequestResponse] = await client.createOrReserveServerCertificate(provisioning_session_id, csr=csr)
+    csr = args.csr is not None
+    fqdns = args.csr
+    resp: Optional[ServerCertificateSigningRequestResponse] = await client.createOrReserveServerCertificate(provisioning_session_id, extra_domain_names=fqdns, csr=csr)
     if resp is None:
         print('Failed to create a server certificate in the provisioning session')
         return 1
@@ -451,7 +452,7 @@ async def parse_args() -> argparse.Namespace:
     parser_certificates_create = certificates_subparsers.add_parser('create', parents=[parent_addr_prov],
                                                                     help='Create or reserve a new certificate')
     parser_certificates_create.set_defaults(command=cmd_certificates_create)
-    parser_certificates_create.add_argument('--csr', action='store_true', help='Reserve a certificate and return the CSR')
+    parser_certificates_create.add_argument('--csr', metavar='FQDN', nargs='*', help='Reserve a certificate and return the CSR, provide optional extra domain names')
 
     # m1-client certificates upload [-h] <address:port> <provisioning-session-id> <certificate-id> <PEM-file>
     parser_certificates_upload = certificates_subparsers.add_parser('upload', parents=[parent_addr_prov],

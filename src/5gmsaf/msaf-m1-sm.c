@@ -356,7 +356,54 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         msaf_certificate_t *csr_cert;
                                         char *location;
                                         int m1_server_certificates_response_max_age;
-                                        csr_cert = server_cert_new("newcsr", canonical_domain_name);
+                                        ogs_list_t extra_domains_list;
+                                        fqdn_list_node_t *node, *next;
+
+                                        ogs_list_init(&extra_domains_list);
+
+                                        if (request->http.content && strlen(request->http.content) > 0) {
+                                            cJSON *json;
+                                            cJSON *fqdn_json;
+                                            json = cJSON_Parse(request->http.content);
+
+                                            if (!json || !cJSON_IsArray(json)) {
+                                                char *err;
+                                                err = msaf_strdup("Body does not contain a valid JSON array.");
+                                                ogs_error("%s", err);
+                                                ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Invalid content", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                                ogs_free(err);
+                                                if (json) cJSON_Delete(json);
+                                                break;
+                                            }
+
+                                            cJSON_ArrayForEach(fqdn_json, json) {
+                                                char *fqdn;
+                                                if (!cJSON_IsString(fqdn_json)) {
+                                                    char *err;
+                                                    err = msaf_strdup("Body does not contain a valid JSON array.");
+                                                    ogs_error("%s", err);
+                                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Invalid content", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                                    ogs_free(err);
+                                                    if (json) cJSON_Delete(json);
+                                                    break;
+                                                }
+                                                fqdn = msaf_strdup(cJSON_GetStringValue(fqdn_json));
+                                                node = ogs_calloc(1,sizeof(*node));
+                                                node->fqdn = fqdn;
+                                                ogs_list_add(&extra_domains_list, &node->node);
+                                            }
+
+                                            cJSON_Delete(json);
+                                        }
+
+                                        csr_cert = server_cert_new("newcsr", canonical_domain_name, &extra_domains_list);
+
+                                        ogs_list_for_each_safe(&extra_domains_list, next, node) {
+                                            ogs_free(node->fqdn);
+                                            ogs_list_remove(&extra_domains_list, node);
+                                            ogs_free(node);
+                                        }
+
                                         ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(csr_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(csr_cert->id));
                                         ogs_sbi_response_t *response;
                                         location = ogs_msprintf("%s/%s", request->h.uri, csr_cert->id);
@@ -395,7 +442,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         int m1_server_certificates_response_max_age;
                                         ogs_sbi_response_t *response;
                                         char *location;
-                                        new_cert = server_cert_new("newcert", canonical_domain_name);
+                                        new_cert = server_cert_new("newcert", canonical_domain_name, NULL);
                                         ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(new_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(new_cert->id));
                                      
                                         location = ogs_msprintf("%s/%s", request->h.uri, new_cert->id);

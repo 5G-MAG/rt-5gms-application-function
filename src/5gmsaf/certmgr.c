@@ -193,22 +193,17 @@ int server_cert_set(const char *cert_id, const char *cert)
     return out_return_code;
 }
 
-
-msaf_certificate_t *server_cert_new(const char *operation, const char *operation_params)
+msaf_certificate_t *server_cert_new(const char *operation, const char *common_name, ogs_list_t *extra_fqdns)
 {
     const char *commandLine[OGS_ARG_MAX];
     ogs_proc_t *current = NULL;
     FILE *out = NULL;
     char buf[OGS_HUGE_LEN];
     char *cert;
-    int ret = 0, out_return_code = 0;
-    char *canonical_domain_name;
+    int ret = 0, out_return_code = 0, n = 0;
     msaf_certificate_t *msaf_certificate = NULL;
     size_t cert_size = 0;
     size_t cert_reserved = 0;
-    msaf_application_server_node_t *msaf_as = NULL;
-    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
-    canonical_domain_name = msaf_as->canonicalHostname;
 
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
@@ -216,12 +211,26 @@ msaf_certificate_t *server_cert_new(const char *operation, const char *operation
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
 
-    commandLine[0] =  msaf_self()->config.certificateManager;
-    commandLine[1] = "-c";
-    commandLine[2] = operation;
-    commandLine[3] = id;
-    commandLine[4] = canonical_domain_name;
-    commandLine[5] = NULL;
+    commandLine[n++] = msaf_self()->config.certificateManager;
+    commandLine[n++] = "-c";
+    commandLine[n++] = operation;
+    commandLine[n++] = id;
+    commandLine[n++] = common_name;
+
+    if (extra_fqdns) {
+        fqdn_list_node_t *node;
+
+        ogs_list_for_each(extra_fqdns, node) {
+            if (n >= OGS_ARG_MAX-1) {
+                n = OGS_ARG_MAX-1;
+                ogs_error("Too many extra domain names for certificate %s, only using first %i extra domain names", id, OGS_ARG_MAX-6);
+                break;
+            }
+            commandLine[n++] = node->fqdn;
+        }
+    }
+
+    commandLine[n] = NULL;
 
     current = (ogs_proc_t*)ogs_calloc(1, sizeof(*current));
     ret = ogs_proc_create(commandLine,
@@ -367,3 +376,6 @@ void msaf_certificate_free(msaf_certificate_t *cert)
     if (cert->id) ogs_free(cert->id);
     ogs_free(cert);
 }
+
+/* vim:ts=8:sts=4:sw=4:expandtab:
+ */

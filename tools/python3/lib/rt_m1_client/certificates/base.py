@@ -58,11 +58,10 @@ class CertificateSigner:
         '''
         return self
 
-    async def signCertificate(self, csr: str, *args, domain_name_alias: Optional[str] = None, **kwargs) -> Optional[str]:
+    async def signCertificate(self, csr: str, *args, **kwargs) -> Optional[str]:
         '''Sign a CSR in PEM format and return the public X509 Certificate in PEM format
 
         :param str csr: A CSR in PEM format.
-        :param str domain_name_alias: Optional domain name to add to the subjectAltNames in the final certificate.
 
         :return: a public X509 certificate in PEM format.
         '''

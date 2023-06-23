@@ -312,7 +312,7 @@ async def sync_configuration(m1: M1Session, streams: dict) -> dict:
             for dc in chc['distributionConfigurations']:
                 if 'certificateId' in dc:
                     if dc['certificateId'] not in certs:
-                        cert_id = await m1.createNewCertificate(ps_id, domain_name_alias = dc.get('domainNameAlias', None))
+                        cert_id = await m1.createNewCertificate(ps_id, extra_domain_names=dc.get('domainNameAlias', None))
                         if cert_id is None:
                             log_error("Failed to create certificate for Provisioning Session %s, skipping %r", ps_id, cfg)
                             chc = None

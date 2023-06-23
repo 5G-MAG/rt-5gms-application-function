@@ -461,7 +461,7 @@ cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const c
     {
        content_hosting_configuration_json = OpenAPI_content_hosting_configuration_convertToJSON(msaf_provisioning_session->contentHostingConfiguration);
     } else {
-        ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
+        ogs_error("Unable to retrieve ContentHostingConfiguration for Provisioning Session [%s]", provisioning_session_id);
     }
     return content_hosting_configuration_json;
 }
