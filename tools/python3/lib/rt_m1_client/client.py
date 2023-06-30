@@ -378,6 +378,8 @@ class M1Client:
         '''
 
         url = f'/provisioning-sessions/{provisioning_session_id}/certificates'
+        if extra_domain_names is not None and not isinstance(extra_domain_names,list):
+            raise M1ServerError(reason = f'Bad parameter passed during certificate creation', status_code = 500)
         if csr:
             url += '?csr=true'
         elif extra_domain_names is not None and len(extra_domain_names) > 0:

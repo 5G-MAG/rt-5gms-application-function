@@ -129,7 +129,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 }
                 if (!message->h.resource.component[0]) {
                     const char *error = "Protocol on M1 requires a resource";
-                    ogs_error(error);
+                    ogs_error("%s", error);
                     ogs_assert(true == nf_server_send_error(stream, 404, 1, NULL, "No resource given", error, NULL, NULL, app_meta));
                     break;
                 }
@@ -497,20 +497,20 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             prov_sess = cJSON_Parse(request->http.content);
                             if (!prov_sess) {
                                 const char *err = "createProvisioningSession: Could not parse request body as JSON";
-                                ogs_error(err);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
                             entry = cJSON_GetObjectItemCaseSensitive(prov_sess, "provisioningSessionType");
                             if (!entry) {
                                 const char *err = "createProvisioningSession: \"provisioningSessionType\" is not present";
-                                ogs_error(err);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
                             if (!cJSON_IsString(entry)) {
                                 const char *err = "createProvisioningSession: \"provisioningSessionType\" is not a string";
-                                ogs_error(err);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
@@ -519,13 +519,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             entry = cJSON_GetObjectItemCaseSensitive(prov_sess, "externalApplicationId");
                             if (!entry) {
                                 const char *err = "createProvisioningSession: \"externalApplicationId\" is not present";
-                                ogs_error(err);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
                             if (!cJSON_IsString(entry)) {
                                 const char *err = "createProvisioningSession: \"externalApplicationId\" is not a string";
-                                ogs_error(err);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
@@ -535,7 +535,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             if (entry) {
                                 if (!cJSON_IsString(entry)) {
                                     const char *err = "createProvisioningSession: \"aspId\" is not a string";
-                                    ogs_error(err);
+                                    ogs_error("%s", err);
                                     ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                                     break;
                                 }
@@ -563,7 +563,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 cJSON_Delete(provisioning_session);
                             } else {
                                 const char *err = "Creation of the Provisioning session failed.";
-                                ogs_error(err);
+                                ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                             }
                             if (prov_sess) cJSON_Delete(prov_sess);
@@ -1136,7 +1136,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 }              
                 if (!message->h.resource.component[0]) {
                     const char *error = "Resource required for Management interface";
-                    ogs_error(error);
+                    ogs_error("%s", error);
                     ogs_assert(true == nf_server_send_error(stream, 404, 1, NULL, "Resource name required", error, NULL, maf_management_api, app_meta));
                     break;
                 }

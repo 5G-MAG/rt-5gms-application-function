@@ -151,6 +151,11 @@ int msaf_context_parse_config(void)
                     self->config.certificateManager = msaf_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "applicationServers")) {
                     ogs_yaml_iter_t as_iter, as_array;
+                    char *canonical_hostname = NULL;
+                    char *url_path_prefix_format = NULL;
+                    int m3_port = 80;
+                    char *m3_host = NULL;
+
                     ogs_yaml_iter_recurse(&msaf_iter, &as_array);
                     if (ogs_yaml_iter_type(&as_array) == YAML_MAPPING_NODE) {
                         memcpy(&as_iter, &as_array, sizeof(ogs_yaml_iter_t));
@@ -160,11 +165,9 @@ int msaf_context_parse_config(void)
                         ogs_yaml_iter_recurse(&as_array, &as_iter);
                     } else if (ogs_yaml_iter_type(&as_array) == YAML_SCALAR_NODE) {
                         break;
-                    } else
+                    } else {
                         ogs_assert_if_reached();
-                    char *canonical_hostname = NULL;
-                    char *url_path_prefix_format = NULL;
-                    int m3_port = 80;
+                    }
                     while (ogs_yaml_iter_next(&as_iter)) {
                         const char *as_key = ogs_yaml_iter_key(&as_iter);
                         ogs_assert(as_key);
@@ -174,9 +177,11 @@ int msaf_context_parse_config(void)
                             url_path_prefix_format = msaf_strdup(ogs_yaml_iter_value(&as_iter));
                         } else if (!strcmp(as_key, "m3Port")) {
                             m3_port = ascii_to_long(ogs_yaml_iter_value(&as_iter));
+                        } else if (!strcmp(as_key, "m3Host")) {
+                            m3_host = msaf_strdup(ogs_yaml_iter_value(&as_iter));
                         }
                     }
-                    msaf_application_server_add(canonical_hostname, url_path_prefix_format, m3_port);
+                    msaf_application_server_add(canonical_hostname, url_path_prefix_format, m3_port, m3_host);
                 } else if (!strcmp(msaf_key, "serverResponseCacheControl")) {
                     ogs_yaml_iter_t cc_iter, cc_array;
                     ogs_yaml_iter_recurse(&msaf_iter, &cc_array);

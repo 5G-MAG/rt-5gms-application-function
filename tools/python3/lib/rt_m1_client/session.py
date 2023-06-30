@@ -406,6 +406,13 @@ class M1Session:
         :return: The certificate id of the newly created certificate or ``None`` if the certificate could not be created.
         '''
         # simple case just create the certificate
+        if extra_domain_names is not None and isinstance(extra_domain_names, bytes):
+            extra_domain_names = extra_domain_names.decode('utf-8')
+        if extra_domain_names is not None and isinstance(extra_domain_names, str):
+            if len(extra_domain_names) > 0:
+                extra_domain_names = [extra_domain_names]
+            else:
+                extra_domain_names = None
         if extra_domain_names is not None and len(extra_domain_names) == 0:
             extra_domain_names = None
         if extra_domain_names is None:
