@@ -31,6 +31,43 @@ logger:
 logger:
 #    file: /home/ubuntu/af/open5gs/build/log/msaf.log
 #
+
+# sbi:
+#   Global SBI parameters
+#
+# o No Server TLS - Client connection can use TLS without certificates
+#   server:
+#     no_tls: true
+#   client:
+#     no_tls: true
+#
+# o Server TLS used - Client connection can use TLS without certificates
+#   server:
+#     no_tls: false
+#     cacert: /path/to/tls/trusted/ca.crt
+#     key: /path/to/tls/private/testserver.key
+#     cert: /path/to/tls/public/testserver.crt
+#   client:
+#     no_tls: true
+#
+# o Server TLS used - Client TLS certificates used
+#   server:
+#     no_tls: false
+#     cacert: /path/to/tls/trusted/ca.crt
+#     key: /path/to/tls/private/testserver.key
+#     cert: /path/to/tls/public/testserver.crt
+#   client:
+#     no_tls: false
+#     cacert: /path/to/tls/trusted/ca.crt
+#     key: /path/to/tls/private/testclient.key
+#     cert: /path/to/tls/public/testclient.crt
+#
+sbi:
+  server:
+    no_tls: true
+  client:
+    no_tls: true
+
 # udm:
 #
 #  <SBI Server>
