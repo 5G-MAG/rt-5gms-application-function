@@ -1015,8 +1015,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                        */
                                 } else {
                                     char *err = NULL;
-                                    int number_of_components;
-                                    const nf_server_interface_metadata_t *interface;
+                                    int number_of_components = 0;
+                                    const nf_server_interface_metadata_t *interface = NULL;
                                     if (message->h.resource.component[2]){
                                         if (!strcmp(message->h.resource.component[2],"certificates")) {
                                             number_of_components = 2;
@@ -1411,7 +1411,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                 ogs_debug("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message->h.resource.component[0], message->h.method, response->status,message->h.resource.component[1]);
 
-                                resource_id_node_t *content_hosting_configuration, *next = NULL;
+                                resource_id_node_t *content_hosting_configuration = NULL, *next = NULL;
                                 resource_id_node_t *delete_content_hosting_configuration, *node = NULL;
 
                                 if(as_state->current_content_hosting_configurations) {
@@ -1651,8 +1651,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                 ogs_debug("[%s] Method [%s] with Response [%d] recieved for Certificate [%s]", message->h.resource.component[0], message->h.method, response->status,message->h.resource.component[1]);
 
-                                resource_id_node_t *certificate, *next = NULL;
-                                resource_id_node_t *delete_certificate, *node = NULL;
+                                resource_id_node_t *certificate = NULL, *next = NULL;
+                                resource_id_node_t *delete_certificate = NULL, *node = NULL;
 
                                 if(as_state->current_certificates) {
                                     ogs_list_for_each_safe(as_state->current_certificates, next, certificate){
