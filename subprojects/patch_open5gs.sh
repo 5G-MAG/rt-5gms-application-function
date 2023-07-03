@@ -65,6 +65,18 @@ index 67a1badc7..573582c2e 100644
 +                    libnghttp2_dep,
 +                    libmicrohttpd_dep,
 +                    libcurl_dep])
+diff --git a/lib/sbi/openapi/meson.build b/lib/sbi/openapi/meson.build
+index b3a507bd3..5f6388a0f 100644
+--- a/lib/sbi/openapi/meson.build
++++ b/lib/sbi/openapi/meson.build
+@@ -1370,6 +1370,7 @@ libsbi_openapi_sources = files('''
+ '''.split())
+
+ libsbi_openapi_inc = include_directories('.')
++libsbi_openapi_model_inc = include_directories('model')
+
+ sbi_openapi_cc_flags = ['-DOGS_SBI_COMPILATION']
+
 diff --git a/lib/sbi/server.c b/lib/sbi/server.c
 index af5cb8aad..5a20728a9 100644
 --- a/lib/sbi/server.c
