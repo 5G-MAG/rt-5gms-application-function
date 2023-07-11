@@ -10,13 +10,11 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include <time.h>
 #include "application-server-context.h"
-#include "media-player-entry.h"
 #include "certmgr.h"
 #include "context.h"
 #include "utilities.h"
 #include "hash.h"
 #include "provisioning-session.h"
-#include "metrics-reporting-provisioning.h"
 
 typedef struct free_ogs_hash_provisioning_session_s {
     const char *provisioning_session;
@@ -35,13 +33,15 @@ static int free_ogs_hash_provisioning_session(void *rec, const void *key, int kl
 static int free_ogs_hash_provisioning_session_certificate(void *rec, const void *key, int klen, const void *value);
 static char* url_path_create(const char* macro, const char* session_id, const msaf_application_server_node_t *msaf_as);
 static void tidy_relative_path_re(void);
-static const char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
-static const char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
+static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
+static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
 
 /***** Public functions *****/
 
-OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session)
+OpenAPI_content_hosting_configuration_t *
+msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session)
 {
+
     ogs_assert(provisioning_session);
     OpenAPI_content_hosting_configuration_t *chc_with_af_unique_cert_id = NULL;
     OpenAPI_lnode_t *dist_config_node = NULL;
@@ -64,81 +64,120 @@ OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_with
     return chc_with_af_unique_cert_id;
 }
 
-msaf_provisioning_session_t *
-msaf_provisioning_session_create(const char *provisioning_session_type,
-                                 const char *asp_id,
-                                 const char *external_app_id)
+msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id)
 {
-    OpenAPI_provisioning_session_t *provisioning_session;
     msaf_provisioning_session_t *msaf_provisioning_session;
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
+    OpenAPI_provisioning_session_t *provisioning_session;
     char *prov_sess_type;
 
-    prov_sess_type = ogs_strdup(provisioning_session_type);
+    prov_sess_type = msaf_strdup(provisioning_session_type);
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
-
-
-    provisioning_session = OpenAPI_provisioning_session_create(ogs_strdup(id),
+    provisioning_session = OpenAPI_provisioning_session_create(msaf_strdup(id),
                                                                OpenAPI_provisioning_session_type_FromString(prov_sess_type),
-                                                               (asp_id)?ogs_strdup(asp_id):NULL,
-                                                               ogs_strdup(external_app_id),
+                                                               msaf_strdup(asp_id),
+                                                               msaf_strdup(external_app_id),
                                                                NULL,
                                                                NULL,
-                                                               OpenAPI_set_t *metrics_reporting_configuration_ids,
                                                                NULL,
                                                                NULL,
                                                                NULL,
                                                                NULL);
-
     ogs_free(prov_sess_type);
+
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
     ogs_assert(msaf_provisioning_session);
-
-    msaf_provisioning_session->provisioningSessionId = ogs_strdup(provisioning_session->provisioning_session_id);
+    msaf_provisioning_session->provisioningSessionId = msaf_strdup(provisioning_session->provisioning_session_id);
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
-    msaf_provisioning_session->aspId = (provisioning_session->asp_id)?ogs_strdup(provisioning_session->asp_id):NULL;
-    msaf_provisioning_session->externalApplicationId = ogs_strdup(provisioning_session->external_application_id);
+    msaf_provisioning_session->aspId = msaf_strdup(provisioning_session->asp_id);
+    msaf_provisioning_session->externalApplicationId = msaf_strdup(provisioning_session->external_application_id);
     msaf_provisioning_session->provisioningSessionReceived = time(NULL);
-    msaf_provisioning_session->provisioningSessionHash = ogs_strdup(calculate_provisioning_session_hash(provisioning_session));
-    msaf_provisioning_session->metrics_provisioning_received_time = time(NULL);
-    msaf_provisioning_session->metrics_reporting_configuration_ids = OpenAPI_set_create();
+    msaf_provisioning_session->provisioningSessionHash = calculate_provisioning_session_hash(provisioning_session);
 
+    msaf_provisioning_session->certificate_map = msaf_certificate_map();
+    msaf_provisioning_session->metrics_reporting_map = msaf_metrics_reporting_map();
 
-    ogs_hash_set(msaf_self()->provisioningSessions_map, ogs_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
-
-    #if 0 /* TODO: Remove when content hosting configuration is available via M1 interface */
-        msaf_provisioning_session->contentHostingConfiguration = msaf_content_hosting_configuration_create(msaf_provisioning_session);
-        media_player_entry = media_player_entry_create(msaf_provisioning_session->provisioningSessionId, msaf_provisioning_session->contentHostingConfiguration);
-        ogs_assert(media_player_entry);
-        msaf_provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(msaf_provisioning_session->provisioningSessionId, media_player_entry);
-    #endif
+    ogs_hash_set(msaf_self()->provisioningSessions_map,
+                 msaf_strdup(msaf_provisioning_session->provisioningSessionId),
+                 OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
     OpenAPI_provisioning_session_free(provisioning_session);
-
     return msaf_provisioning_session;
 }
 
-/* Auxiliary function for adding related Metrics Reporting Configuration to particular provisioning session */
-void msaf_provisioning_session_add_metrics_reporting_configuration(
-        msaf_provisioning_session_t *provisioning_session,
-        const char *metrics_reporting_configuration_id) {
-    msaf_metrics_reporting_configuration_t *mrc;
-    mrc = msaf_metrics_reporting_configuration_find_by_metricsReportingConfigurationId(metrics_reporting_configuration_id);
-    if (mrc) {
-        ogs_hash_set(provisioning_session->metrics_reporting_map,
-                     ogs_strdup(mrc->metricsReportingConfigurationId),
-                     OGS_HASH_KEY_STRING,
-                     mrc);
+msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t* provisioning_session,
+                                                                                    const char *metrics_reporting_configuration_id,
+                                                                                    const char *scheme,
+                                                                                    const char *data_network_name,
+                                                                                    const bool is_reporting_interval,
+                                                                                    const int reporting_interval,
+                                                                                    const bool is_sample_percentage,
+                                                                                    const double sample_percentage,
+                                                                                    const OpenAPI_list_t *url_filters,
+                                                                                    const OpenAPI_list_t *metrics)
+{
+    msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
+    ogs_uuid_t uuid;
+    char id[OGS_UUID_FORMATTED_LENGTH + 1];
+    OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
+
+    ogs_uuid_get(&uuid);
+    ogs_uuid_format(id, &uuid);
+
+    metrics_reporting_configuration = OpenAPI_metrics_reporting_configuration_create(msaf_strdup(id),
+                                                                                     ogs_strdup(scheme),
+                                                                                     ogs_strdup(data_network_name),
+                                                                                     true,
+                                                                                     reporting_interval,
+                                                                                     true,
+                                                                                     sample_percentage,
+                                                                                     url_filters,
+                                                                                     metrics);
+
+    msaf_metrics_reporting_configuration = ogs_calloc(1, sizeof(msaf_metrics_reporting_configuration_t));
+    ogs_assert(msaf_metrics_reporting_configuration);
+
+    msaf_metrics_reporting_configuration->metrics_reporting_configuration_id = msaf_strdup(metrics_reporting_configuration->metrics_reporting_configuration_id);
+    msaf_metrics_reporting_configuration->metrics_reporting_configuration = metrics_reporting_configuration;
+    msaf_metrics_reporting_configuration->received_time = time(NULL);
+    msaf_metrics_reporting_configuration->etag = NULL;
+
+    ogs_hash_set(provisioning_session->metrics_reporting_map,
+                 msaf_strdup(msaf_metrics_reporting_configuration->metrics_reporting_configuration_id),
+                 OGS_HASH_KEY_STRING,
+                 msaf_metrics_reporting_configuration);
+    return msaf_metrics_reporting_configuration;
+}
+
+ogs_hash_t *
+msaf_metrics_reporting_map(void)
+{
+    ogs_hash_t *metrics_reporting_map = ogs_hash_make();
+    return metrics_reporting_map;
+}
+
+cJSON *msaf_get_metrics_reporting_configuration_by_provisioning_session_id(const char *provisioning_session_id) {
+    msaf_provisioning_session_t *msaf_provisioning_session;
+    cJSON *metrics_reporting_configuration_json;
+
+    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
+
+    if(msaf_provisioning_session && msaf_provisioning_session->metrics_reporting_configuration)
+    {
+        metrics_reporting_configuration_json = OpenAPI_metrics_reporting_configuration_convertToJSON(msaf_provisioning_session->metrics_reporting_configuration);
     } else {
-        ogs_error("Unable to retrieve Metrics Reporting Configuration");
+        ogs_error("Unable to retrieve Provisioning Session");
+        return NULL;
     }
+    return metrics_reporting_configuration_json;
 }
 
 cJSON *
 msaf_provisioning_session_get_json(const char *provisioning_session_id)
 {
+
     msaf_provisioning_session_t *msaf_provisioning_session;
     cJSON *provisioning_session_json = NULL;
 
@@ -147,6 +186,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
     if (msaf_provisioning_session) {
         OpenAPI_provisioning_session_t *provisioning_session;
         ogs_hash_index_t *cert_node;
+        ogs_hash_index_t *metrics_node;
 
         provisioning_session = ogs_calloc(1,sizeof(OpenAPI_provisioning_session_t));
         ogs_assert(provisioning_session);
@@ -156,25 +196,26 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
 
-        /* Function that will iterate over metrics reporting map and include existing MRC resources into provisioning session */
-        provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
-        for (mrc_node = ogs_hash_first(msaf_provisioning_session->metrics_reporting_map); mrc_node; mrc_node = ogs_hash_next(mrc_node)) {
-            ogs_debug("msaf_provisioning_session_get_json: Add MRC %s", (const char *)ogs_hash_this_key(mrc_node));
-            OpenAPI_list_add(provisioning_session->metrics_reporting_configurations, openapi_mrc);
-        }
-
         provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
         for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {
             ogs_debug("msaf_provisioning_session_get_json: Add cert %s", (const char *)ogs_hash_this_key(cert_node));
             OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
         }
 
+        // Storing metrics configuration UUIDs into set
+        provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
+        for (metrics_node=ogs_hash_first(msaf_provisioning_session->metrics_reporting_map); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
+            ogs_debug("msaf_provisioning_session_get_json: Add metric reporting configuration %s", (const char *)ogs_hash_this_key(metrics_node));
+            OpenAPI_list_add(provisioning_session->metrics_reporting_configuration_ids, (void*)ogs_hash_this_key(metrics_node));
+        }
+
+
         provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
 
         OpenAPI_list_free(provisioning_session->server_certificate_ids);
         ogs_free(provisioning_session);
     } else {
-        ogs_error("Unable to retrieve Provisioning Session");
+        ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
     }
     return provisioning_session_json;
 }
@@ -226,7 +267,7 @@ msaf_delete_certificates(const char *provisioning_session_id)
             ogs_list_for_each_safe(as_state->current_certificates, next, certificate){
                 char *cert_id;
                 char *provisioning_session;
-                char *current_cert_id = ogs_strdup(certificate->state);
+                char *current_cert_id = msaf_strdup(certificate->state);
 
                 provisioning_session = strtok_r(current_cert_id,":",&cert_id);
 
@@ -235,7 +276,7 @@ msaf_delete_certificates(const char *provisioning_session_id)
                     resource_id_node_t *delete_cert;
                     delete_cert = ogs_calloc(1, sizeof(resource_id_node_t));
                     ogs_assert(delete_cert);
-                    delete_cert->state = ogs_strdup(certificate->state);
+                    delete_cert->state = msaf_strdup(certificate->state);
                     ogs_list_add(&as_state->delete_certificates, delete_cert);
                 }
 
@@ -247,7 +288,7 @@ msaf_delete_certificates(const char *provisioning_session_id)
         /* remove entries from upload queue and try to delete just to be safe */
         ogs_list_for_each_safe(&as_state->upload_certificates, next_node, upload_certificate) {
             char *cert_id;
-            char *upload_cert_id = ogs_strdup(upload_certificate->state);
+            char *upload_cert_id = msaf_strdup(upload_certificate->state);
             char *provisioning_session = strtok_r(upload_cert_id,":",&cert_id);
 
             if (!strcmp(provisioning_session, provisioning_session_id)) {
@@ -283,7 +324,7 @@ msaf_delete_content_hosting_configuration(const char *provisioning_session_id)
             if (content_hosting_configuration) {
                 delete_chc = ogs_calloc(1, sizeof(resource_id_node_t));
                 ogs_assert(delete_chc);
-                delete_chc->state = ogs_strdup(content_hosting_configuration->state);
+                delete_chc->state = msaf_strdup(content_hosting_configuration->state);
                 ogs_list_add(&as_state->delete_content_hosting_configurations, delete_chc);
 
             }
@@ -380,13 +421,17 @@ int
 msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session)
 {
     OpenAPI_lnode_t *dist_config_node = NULL;
+    OpenAPI_lnode_t *media_entry_point_profile_node = NULL;
     OpenAPI_distribution_configuration_t *dist_config = NULL;
     char *url_path;
     char *domain_name;
-    char *media_player_entry;
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_node_t *msaf_as = NULL;
     char *content_hosting_config_to_hash = NULL;
+    OpenAPI_list_t *media_entry_point_list;
+    OpenAPI_list_t *media_entry_point_profiles_list = NULL;
+    OpenAPI_m5_media_entry_point_t *entry_point;
+    char *locator_absolute_path;
 
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
 
@@ -394,22 +439,43 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
             = OpenAPI_content_hosting_configuration_parseFromJSON(content_hosting_config);
-    if(!uri_relative_check(content_hosting_configuration->entry_point_path)) {
-        cJSON_Delete(content_hosting_config);
-        ogs_free(url_path);
-        if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
-        return 0;
-    }
 
     if (content_hosting_configuration->distribution_configurations) {
+        media_entry_point_list = OpenAPI_list_create();
         OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
             char *protocol = "http";
 
             dist_config = (OpenAPI_distribution_configuration_t*)dist_config_node->data;
 
-            if(dist_config->canonical_domain_name) ogs_free(dist_config->canonical_domain_name);
+            if(dist_config->entry_point && !uri_relative_check(dist_config->entry_point->relative_path)) {
+                OpenAPI_lnode_t *node;
+                ogs_error("distributionConfiguration.entryPoint.relativePath malformed for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
+                cJSON_Delete(content_hosting_config);
+                ogs_free(url_path);
+                OpenAPI_list_for_each(media_entry_point_list, node) {
+                    OpenAPI_m5_media_entry_point_free(node->data);
+                }
+                OpenAPI_list_free(media_entry_point_list);
+                if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
+                return 0;
+            }
 
-            dist_config->canonical_domain_name = ogs_strdup(msaf_as->canonicalHostname);
+            if (dist_config->entry_point && dist_config->entry_point->profiles && dist_config->entry_point->profiles->first == NULL) {
+                OpenAPI_lnode_t *node;
+                ogs_error("distributionConfiguration.entryPoint.profiles present but empty for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
+                cJSON_Delete(content_hosting_config);
+                ogs_free(url_path);
+                OpenAPI_list_for_each(media_entry_point_list, node) {
+                    OpenAPI_m5_media_entry_point_free(node->data);
+                }
+                OpenAPI_list_free(media_entry_point_list);
+                if (content_hosting_configuration) OpenAPI_content_hosting_configuration_free(content_hosting_configuration);
+                return 0;
+            }
+
+            if (dist_config->canonical_domain_name) ogs_free(dist_config->canonical_domain_name);
+
+            dist_config->canonical_domain_name = msaf_strdup(msaf_as->canonicalHostname);
 
             if (dist_config->certificate_id) {
                 protocol = "https";
@@ -425,41 +491,55 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 
             dist_config->base_url = ogs_msprintf("%s://%s%s", protocol, domain_name, url_path);
 
-            ogs_info("dist_config->base_url: %s",dist_config->base_url);
+            if (dist_config->entry_point) {
+                locator_absolute_path = ogs_msprintf("%s%s", dist_config->base_url, dist_config->entry_point->relative_path);
+                if(dist_config->entry_point->profiles){
+                    media_entry_point_profiles_list = OpenAPI_list_create();
+                    OpenAPI_list_for_each(dist_config->entry_point->profiles, media_entry_point_profile_node) {
+                        OpenAPI_list_add(media_entry_point_profiles_list, msaf_strdup((char *)media_entry_point_profile_node->data));
+                    }
+                } else {
+                    media_entry_point_profiles_list = NULL;
+                }
+
+                entry_point = OpenAPI_m5_media_entry_point_create(locator_absolute_path, msaf_strdup(dist_config->entry_point->content_type), media_entry_point_profiles_list);
+                OpenAPI_list_add(media_entry_point_list, entry_point);
+            }
         }
     } else {
-        ogs_error("The Content Hosting Configuration has no Distribution Configuration");
+        ogs_error("The Content Hosting Configuration has no distributionConfigurations for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
     }
-    if (content_hosting_configuration->entry_point_path) {
 
-        media_player_entry = ogs_msprintf("%s%s", dist_config->base_url, content_hosting_configuration->entry_point_path);
-    } else {
-        ogs_debug("The contentHostingConfiguration has no entryPointPath");
-    }
-    if(media_player_entry) {
+    if (provisioning_session->serviceAccessInformation)
+        OpenAPI_service_access_information_resource_free(provisioning_session->serviceAccessInformation);
+    provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_entry_point_list);
+    provisioning_session->serviceAccessInformationCreated = time(NULL);
+    if (provisioning_session->serviceAccessInformationHash)
+        ogs_free(provisioning_session->serviceAccessInformationHash);
+    provisioning_session->serviceAccessInformationHash = calculate_service_access_information_hash(provisioning_session->serviceAccessInformation);
 
-        provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_player_entry);
-        provisioning_session->serviceAccessInformationCreated = time(NULL);
-        provisioning_session->serviceAccessInformationHash = ogs_strdup(calculate_service_access_information_hash(provisioning_session->serviceAccessInformation));
-    } else {
-        ogs_debug("Couldn't formulate serviceAccessInformation as media Player Entry is not formulated");
-    }
-    provisioning_session->contentHostingConfiguration =  content_hosting_configuration;
-    if(provisioning_session->contentHostingConfiguration)
+    if (provisioning_session->contentHostingConfiguration)
+        OpenAPI_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
+    provisioning_session->contentHostingConfiguration = content_hosting_configuration;
+    if (provisioning_session->contentHostingConfiguration)
     {
         content_hosting_config_to_hash = cJSON_Print(content_hosting_config);
         provisioning_session->contentHostingConfigurationReceived = time(NULL);
 
-        provisioning_session->contentHostingConfigurationHash = ogs_strdup(calculate_hash(content_hosting_config_to_hash));
+        if (provisioning_session->contentHostingConfigurationHash)
+            ogs_free(provisioning_session->contentHostingConfigurationHash);
+        provisioning_session->contentHostingConfigurationHash = calculate_hash(content_hosting_config_to_hash);
+        cJSON_free(content_hosting_config_to_hash);
     }
     ogs_free(url_path);
+    cJSON_Delete(content_hosting_config);
 
     return 1;
 }
 
 cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const char *provisioning_session_id) {
     msaf_provisioning_session_t *msaf_provisioning_session;
-    cJSON *content_hosting_configuration_json;
+    cJSON *content_hosting_configuration_json = NULL;
 
     msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
 
@@ -467,9 +547,7 @@ cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const c
     {
         content_hosting_configuration_json = OpenAPI_content_hosting_configuration_convertToJSON(msaf_provisioning_session->contentHostingConfiguration);
     } else {
-        ogs_error("Unable to retrieve Provisioning Session");
-        return NULL;
-
+        ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
     }
     return content_hosting_configuration_json;
 }
@@ -569,29 +647,29 @@ char *enumerate_provisioning_sessions(void)
 
 }
 
-static const char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
+static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
 {
     cJSON *provisioning_sess = NULL;
     char *provisioning_session_to_hash;
-    const char *provisioning_session_hashed = NULL;
+    char *provisioning_session_hashed = NULL;
     provisioning_sess = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
     provisioning_session_to_hash = cJSON_Print(provisioning_sess);
     cJSON_Delete(provisioning_sess);
-    provisioning_session_hashed =  calculate_hash(provisioning_session_to_hash);
-    ogs_free(provisioning_session_to_hash);
+    provisioning_session_hashed = calculate_hash(provisioning_session_to_hash);
+    cJSON_free(provisioning_session_to_hash);
     return provisioning_session_hashed;
 }
 
-static const char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information)
+static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information)
 {
     cJSON *service_access_info = NULL;
     char *service_access_information_to_hash;
-    const char *service_access_information_hashed = NULL;
+    char *service_access_information_hashed = NULL;
     service_access_info = OpenAPI_service_access_information_resource_convertToJSON(service_access_information);
     service_access_information_to_hash = cJSON_Print(service_access_info);
     cJSON_Delete(service_access_info);
     service_access_information_hashed = calculate_hash(service_access_information_to_hash);
-    ogs_free(service_access_information_to_hash);
+    cJSON_free(service_access_information_to_hash);
     return service_access_information_hashed;
 }
 
@@ -678,4 +756,3 @@ tidy_relative_path_re(void)
 
 /* vim:ts=8:sts=4:sw=4:expandtab:
  */
-

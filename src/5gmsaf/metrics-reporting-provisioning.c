@@ -11,11 +11,9 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "ogs-core.h"
 #include "provisioning-session.h"
 
-msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(masf_provisioning_session_t *provisioning_session) {
+msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(void) {
 
-    // OpenAPI model used to communicate over M1
     OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
-    // Internal model for application context
     msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
 
     // Generating Metrics Reporting ID and formatting as character array.
@@ -23,8 +21,6 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
-
-    // Fetching the fields from M1
     metrics_reporting_configuration = OpenAPI_metrics_reporting_configuration_create(
             ogs_strdup(id),
             ogs_strdup(scheme),
@@ -42,7 +38,6 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     // Checking if the newly created object is null.
     ogs_assert(msaf_metrics_reporting_configuration);
 
-    // Fulfilling newly created object
     msaf_metrics_reporting_configuration->metricsReportingConfigurationId = ogs_strdup(metrics_reporting_configuration->metrics_reporting_configuration_id);
     msaf_metrics_reporting_configuration->scheme = metrics_reporting_configuration->scheme;
     msaf_metrics_reporting_configuration->dataNetworkName = metrics_reporting_configuration->data_network_name;

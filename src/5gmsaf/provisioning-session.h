@@ -16,25 +16,16 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "openapi/model/service_access_information_resource.h"
 #include "openapi/model/provisioning_session.h"
 #include "openapi/model/provisioning_session_type.h"
-#include "openapi/model/metrics_reporting_configuration.h."
+#include "openapi/model/metrics_reporting_configuration.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct msaf_metrics_reporting_configuration_s {
-    OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
-    time_t metrics_provisioning_received_time;
-    char *etag;
-} msaf_metrics_reporting_configuration_t;
-
 typedef struct msaf_provisioning_session_s {
     char *provisioningSessionId;
     OpenAPI_provisioning_session_type_e provisioningSessionType;
     char *aspId;
     char *externalApplicationId;
-    ogs_hash_t *metrics_reporting_map;
-    OpenAPI_set_t *metrics_reporting_configuration_ids;
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
     OpenAPI_service_access_information_resource_t *serviceAccessInformation;
     time_t provisioningSessionReceived;
@@ -46,7 +37,20 @@ typedef struct msaf_provisioning_session_s {
     ogs_hash_t *certificate_map;
     ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t *
     int marked_for_deletion;
+    ogs_hash_t *metrics_reporting_map;
+    OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
+
+    time_t metricsReportingConfigurationReceived;
+    char *metricsReportingConfigurationHash;
+
 } msaf_provisioning_session_t;
+
+typedef struct msaf_metrics_reporting_configuration_s {
+    char *metrics_reporting_configuration_id;
+    OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
+    time_t received_time;
+    char *etag;
+} msaf_metrics_reporting_configuration_t;
 
 typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;
 typedef struct msaf_application_server_state_ref_node_s {
@@ -58,12 +62,25 @@ extern msaf_provisioning_session_t *msaf_provisioning_session_create(const char 
 extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
 extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 
+extern msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t *provisioning_session,
+                                                                                           const char *metrics_reporting_configuration_id,
+                                                                                           const char *scheme,
+                                                                                           const char *data_network_name,
+                                                                                           const bool is_reporting_interval,
+                                                                                           const int reporting_interval,
+                                                                                           const bool is_sample_percentage,
+                                                                                           const double sample_percentage,
+                                                                                           const OpenAPI_list_t *url_filters,
+                                                                                           const OpenAPI_list_t *metrics);
+
+
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
 
 extern int msaf_content_hosting_configuration_certificate_check(msaf_provisioning_session_t *provisioning_session);
 extern int msaf_distribution_certificate_check(void);
 
 extern ogs_hash_t *msaf_certificate_map();
+extern ogs_hash_t *msaf_metrics_reporting_map();
 extern const char *msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id);
 extern ogs_list_t *msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session);
 
@@ -83,6 +100,7 @@ extern int
 msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session);
 
 extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
+extern cJSON *msaf_get_metrics_reporting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
 
 extern char *enumerate_provisioning_sessions(void);
 
