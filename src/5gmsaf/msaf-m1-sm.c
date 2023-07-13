@@ -285,8 +285,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             }
 
                             // Parsing the data from request body
-                            // Retrieves string value and stores it in the proper variable
-
                             cJSON *json_metrics_reporting_configuration_id = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics_reporting_configuration_id");
                             const char *metrics_reporting_configuration_id = NULL;
                             if (json_metrics_reporting_configuration_id) metrics_reporting_configuration_id = cJSON_GetStringValue(json_metrics_reporting_configuration_id);
@@ -325,7 +323,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 for (i = 0; i < size; i++) {
                                     cJSON *item = cJSON_GetArrayItem(json_url_filters, i);
                                     if (item && cJSON_IsString(item)) {
-                                        OpenAPI_list_add(url_filters, ogs_strdup_or_assert(item->valuestring));
+                                        char* new_string = strdup(item->valuestring);
+                                        if(new_string == NULL) {
+                                            // handle memory allocation error
+                                        }
+                                        OpenAPI_list_add(url_filters, new_string);
                                     }
                                 }
                             }
@@ -339,10 +341,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 for (i = 0; i < size; i++) {
                                     cJSON *item = cJSON_GetArrayItem(json_metrics, i);
                                     if (item && cJSON_IsString(item)) {
-                                        OpenAPI_list_add(metrics, ogs_strdup_or_assert(item->valuestring));
+                                        char* new_string = strdup(item->valuestring);
+                                        if(new_string == NULL) {
+                                            // handle memory allocation error
+                                        }
+                                        OpenAPI_list_add(metrics, new_string);
                                     }
                                 }
                             }
+
 
 
                             rv = msaf_metrics_reporting_configuration_create(msaf_provisioning_session,
@@ -369,7 +376,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                           "application/json",
                                                                           msaf_provisioning_session->metricsReportingConfigurationReceived,
                                                                           msaf_provisioning_session->metricsReportingConfigurationHash,
-                                                                          msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configurations_response_max_age,
+                                                                          NULL,
                                                                           NULL,
                                                                           m1_metricsreportingprovisioning_api,
                                                                           app_meta);

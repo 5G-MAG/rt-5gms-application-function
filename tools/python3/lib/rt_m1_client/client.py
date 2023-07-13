@@ -524,6 +524,7 @@ class M1Client:
     #async def patchMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, patch: str) -> MetricsReportingConfigurationResponse:
     #sync def destroyMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> bool:
 
+
     # TS26512_M1_ConsumptionReportingProvisioning
     #async def activateConsumptionReporting(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> Optional[ResourceId]:
     #async def retrieveConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_id: ResourceId) -> ConsumptionReportingConfigurationResponse:

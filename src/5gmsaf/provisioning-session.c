@@ -15,6 +15,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "utilities.h"
 #include "hash.h"
 #include "provisioning-session.h"
+#include "openapi/model/metrics_reporting_configuration.c"
 
 typedef struct free_ogs_hash_provisioning_session_s {
     const char *provisioning_session;

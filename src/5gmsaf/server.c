@@ -13,26 +13,32 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "utilities.h"
 #include "msaf-version.h"
 
-static bool nf_server_send_problem(ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem,
-        const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app);
+static bool nf_server_send_problem(
+        ogs_sbi_stream_t *stream, OpenAPI_problem_details_t *problem, const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app);
 
-static ogs_sbi_response_t *nf_build_response(ogs_sbi_message_t *message, int status,
-        const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app);
+static ogs_sbi_response_t *nf_build_response(
+        ogs_sbi_message_t *message, int status, const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app);
 
-static bool nf_build_content(ogs_sbi_http_message_t *http, ogs_sbi_message_t *message);
+static bool nf_build_content(
+        ogs_sbi_http_message_t *http, ogs_sbi_message_t *message);
 
 static char *nf_build_json(ogs_sbi_message_t *message);
 
-ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, time_t last_modified, char *etag,
-        int cache_control, char *allow_methods, const nf_server_interface_metadata_t *interface,
-        const nf_server_app_metadata_t *app)
+ogs_sbi_response_t *nf_server_new_response(char *location,
+                                           char *content_type,
+                                           time_t last_modified,
+                                           char *etag,
+                                           int cache_control,
+                                           char *allow_methods,
+                                           const nf_server_interface_metadata_t *interface,
+                                           const nf_server_app_metadata_t *app)
 {
     ogs_sbi_response_t *response = NULL;
     char *server_api_info = ((char*)"");
-    char *server = NULL;
+    char *server = NULL;    
 
     response = ogs_sbi_response_new();
-    ogs_expect(response);
+    ogs_expect_or_return_val(response, NULL);
 
     if(content_type)
     {
@@ -46,7 +52,7 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
 
     if(last_modified)
     {
-
+    
         ogs_sbi_header_set(response->http.headers, "Last-Modified", get_time(last_modified));
     }
 
@@ -60,24 +66,24 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
     {
         char *response_cache_control;
         response_cache_control = ogs_msprintf("max-age=%d", cache_control);
-        ogs_sbi_header_set(response->http.headers, "Cache-Control", response_cache_control);    	
-        ogs_free(response_cache_control);
+        ogs_sbi_header_set(response->http.headers, "Cache-Control", response_cache_control);    	    
+	    ogs_free(response_cache_control);
     }
 
     if(allow_methods)
     {
-
+    
         ogs_sbi_header_set(response->http.headers, "Allow", allow_methods);
     }
 
-
+     
     if (interface) {
         server_api_info = ogs_msprintf(" (info.title=%s; info.version=%s)", interface->api_title, interface->api_version);
     }
     server = ogs_msprintf("%s/%s%s %s/%s",app->server_name, FIVEG_API_RELEASE, server_api_info, app->app_name, app->app_version);
     if (interface) {
-        ogs_free(server_api_info);
-    }
+       ogs_free(server_api_info);
+    }    
     ogs_sbi_header_set(response->http.headers, "Server", server);
     ogs_free(server);
     return response;
@@ -105,7 +111,7 @@ static bool nf_server_send_problem(
 
     memset(&message, 0, sizeof(message));
 
-    message.http.content_type = "application/problem+json";
+    message.http.content_type = (char*)"application/problem+json";
     message.ProblemDetails = problem;
 
     response = nf_build_response(&message, problem->status, interface, app);
@@ -130,33 +136,33 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
 
     if(problem_detail) {
         problem_details = OpenAPI_problem_details_parseFromJSON(problem_detail);
-        problem.invalid_params = problem_details->invalid_params;
-
+        problem.invalid_params = problem_details->invalid_params;    
+    
     }
+	    
 
     if (message) {
-        int i;
-        problem.type = ogs_msprintf("/%s/%s",
+	    int i; 
+	    problem.type = ogs_msprintf("/%s/%s",
                 message->h.service.name, message->h.api.version);
-        ogs_expect(problem.type);
+        ogs_expect_or_return_val(problem.type, false);
 
         problem.instance = ogs_msprintf("/%s", message->h.resource.component[0]);
 
-        for (i = 1; i <= number_of_components; i++)
-        {
-            char *instance;
-            instance = ogs_msprintf("%s/%s", problem.instance, message->h.resource.component[i]);
+	    for (i = 1; i <= number_of_components; i++)
+	    {
             ogs_free(problem.instance);
-            problem.instance = instance;
-        }
-        ogs_expect(problem.instance);
+ 	        problem.instance = ogs_msprintf("%s/%s", problem.instance, message->h.resource.component[i]);
+
+	    }
+        ogs_expect_or_return_val(problem.instance, NULL);
     }
     if (status) {
         problem.is_status = true;
         problem.status = status;
     }
-    if (title) problem.title = msaf_strdup(title);
-    if (detail) problem.detail = msaf_strdup(detail);
+    problem.title = (char*)title;
+    problem.detail = (char*)detail;
 
     nf_server_send_problem(stream, &problem, interface, app);
 
@@ -164,18 +170,14 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
         ogs_free(problem.type);
     if (problem.instance)
         ogs_free(problem.instance);
-    if (problem.title)
-        ogs_free(problem.title);
-    if (problem.detail)
-        ogs_free(problem.detail);
-    if (problem_details)
+    if (problem.invalid_params)    
         OpenAPI_problem_details_free(problem_details);
 
     return true;
 }
 
-static ogs_sbi_response_t *nf_build_response(ogs_sbi_message_t *message, int status,
-        const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app)
+ogs_sbi_response_t *nf_build_response(
+        ogs_sbi_message_t *message, int status, const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app)
 {
     ogs_sbi_response_t *response = NULL;
 
@@ -183,13 +185,14 @@ static ogs_sbi_response_t *nf_build_response(ogs_sbi_message_t *message, int sta
 
     response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, interface, app);
 
-    ogs_expect(response);
+    //response = ogs_sbi_response_new();
+    ogs_expect_or_return_val(response, NULL);
 
     response->status = status;
 
     if (response->status != OGS_SBI_HTTP_STATUS_NO_CONTENT) {
-        ogs_expect(true ==
-                nf_build_content(&response->http, message));
+        ogs_expect_or_return_val(true ==
+            nf_build_content(&response->http, message), NULL);
     }
 
     if (message->http.location) {
@@ -209,17 +212,17 @@ static bool nf_build_content(
     ogs_assert(message);
     ogs_assert(http);
 
-    http->content = nf_build_json(message);
-    if (http->content) {
-        http->content_length = strlen(http->content);
-        if (message->http.content_type) {
-            ogs_sbi_header_set(http->headers,
-                    OGS_SBI_CONTENT_TYPE, message->http.content_type);
-        } else {
-            ogs_sbi_header_set(http->headers,
-                    OGS_SBI_CONTENT_TYPE, OGS_SBI_CONTENT_JSON_TYPE);
+        http->content = nf_build_json(message);
+        if (http->content) {
+            http->content_length = strlen(http->content);
+            if (message->http.content_type) {
+                ogs_sbi_header_set(http->headers,
+                        OGS_SBI_CONTENT_TYPE, message->http.content_type);
+            } else {
+                ogs_sbi_header_set(http->headers,
+                        OGS_SBI_CONTENT_TYPE, OGS_SBI_CONTENT_JSON_TYPE);
+            }
         }
-    }
 
     return true;
 }
@@ -245,5 +248,3 @@ static char *nf_build_json(ogs_sbi_message_t *message)
     return content;
 }
 
-/* vim:ts=8:sts=4:sw=4:expandtab:
-*/
