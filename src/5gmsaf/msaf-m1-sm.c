@@ -289,6 +289,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             const char *metrics_reporting_configuration_id = NULL;
                             if (json_metrics_reporting_configuration_id) metrics_reporting_configuration_id = cJSON_GetStringValue(json_metrics_reporting_configuration_id);
 
+
                             cJSON *json_scheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
                             const char *scheme = NULL;
                             if (json_scheme) scheme = cJSON_GetStringValue(json_scheme);
@@ -366,9 +367,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             if(rv){
                                 ogs_debug("Metrics Reporting Configuration created successfully");
                                 if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
-                                    mrc_json = msaf_get_metrics_reporting_configuration_by_provisioning_session_id(
-                                            message->h.resource.component[1]);
-                                    if (mrc_json != NULL) {
+                                    OpenAPI_metrics_reporting_configuration_t *new_mrc = msaf_provisioning_session->metrics_reporting_configuration;
+                                    if (new_mrc != NULL) {
+                                        cJSON *mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(new_mrc);
                                         char *text;
                                         msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
                                                 message->h.resource.component[1]);
