@@ -243,9 +243,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             } else if (message->h.resource.component[1] && message->h.resource.component[2] &&
                        !message->h.resource.component[3]) {
                 msaf_provisioning_session_t *msaf_provisioning_session;
-                if (!strcmp(message->h.resource.component[2], "metrics-reporting-configuration")) {
-                    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
-                            message->h.resource.component[1]);
+                if (!strcmp(message->h.resource.component[2], "metrics-reporting-configurations")) {
+
+                    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
 
                     if (msaf_provisioning_session) {
                         int rv;
@@ -277,7 +277,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                     app_meta));
                             ogs_free(err);
 
-                        } else {
+                        }
+
+                        else {
                             if(msaf_provisioning_session->metrics_reporting_configuration) {
                                 OpenAPI_metrics_reporting_configuration_free(
                                         msaf_provisioning_session->metrics_reporting_configuration);
@@ -285,11 +287,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             }
 
                             // Parsing the data from request body
-                            cJSON *json_metrics_reporting_configuration_id = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics_reporting_configuration_id");
+                            /*cJSON *json_metrics_reporting_configuration_id = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics_reporting_configuration_id");
                             const char *metrics_reporting_configuration_id = NULL;
-                            if (json_metrics_reporting_configuration_id) metrics_reporting_configuration_id = cJSON_GetStringValue(json_metrics_reporting_configuration_id);
+                            if (json_metrics_reporting_configuration_id) metrics_reporting_configuration_id = cJSON_GetStringValue(json_metrics_reporting_configuration_id);*/
 
 
+                            /* Parsing particular variable from body of POST */
                             cJSON *json_scheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
                             const char *scheme = NULL;
                             if (json_scheme) scheme = cJSON_GetStringValue(json_scheme);
@@ -317,6 +320,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             cJSON *json_url_filters = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "url_filters");
                             OpenAPI_list_t *url_filters = NULL;
+
                             if (json_url_filters && cJSON_IsArray(json_url_filters)) {
                                 int size = cJSON_GetArraySize(json_url_filters);
                                 url_filters = OpenAPI_list_create();
@@ -326,7 +330,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     if (item && cJSON_IsString(item)) {
                                         char* new_string = strdup(item->valuestring);
                                         if(new_string == NULL) {
-                                            // handle memory allocation error
+                                            ogs_error("Failed to allocate memory for new string.");
+                                            // Free the list and return an error status
+                                            OpenAPI_list_free(url_filters);
+                                            url_filters = NULL;
+                                            return OGS_ERROR;
                                         }
                                         OpenAPI_list_add(url_filters, new_string);
                                     }
@@ -344,17 +352,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     if (item && cJSON_IsString(item)) {
                                         char* new_string = strdup(item->valuestring);
                                         if(new_string == NULL) {
-                                            // handle memory allocation error
+                                            ogs_error("Failed to allocate memory for new string.");
+                                            OpenAPI_list_free(metrics);
+                                            metrics = NULL;
+                                            return OGS_ERROR;
                                         }
                                         OpenAPI_list_add(metrics, new_string);
                                     }
                                 }
                             }
 
-
-
                             rv = msaf_metrics_reporting_configuration_create(msaf_provisioning_session,
-                                                                             metrics_reporting_configuration_id,
                                                                              scheme,
                                                                              data_network_name,
                                                                              is_reporting_interval,
@@ -366,12 +374,20 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             if(rv){
                                 ogs_debug("Metrics Reporting Configuration created successfully");
+
                                 if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
-                                    OpenAPI_metrics_reporting_configuration_t *new_mrc = msaf_provisioning_session->metrics_reporting_configuration;
+
+                                    msaf_provisioning_session = msaf_get_metrics_reporting_configuration_by_provisioning_session_id(
+                                            message->h.resource.component[1]);
+
+                                    msaf_metrics_reporting_configuration_t *new_mrc = msaf_provisioning_session->metrics_reporting_configuration;
+
                                     if (new_mrc != NULL) {
-                                        cJSON *mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(new_mrc);
+                                        msaf_metrics_reporting_configuration_t *new_mrc = msaf_get_metrics_reporting_configuration_by_provisioning_session_id(
+                                                message->h.resource.component[1]);
+
                                         char *text;
-                                        msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
+                                        msaf_provisioning_session = msaf_get_metrics_reporting_configuration_by_provisioning_session_id(
                                                 message->h.resource.component[1]);
                                         response = nf_server_new_response(request->h.uri,
                                                                           "application/json",
@@ -383,6 +399,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                           app_meta);
                                         ogs_assert(response);
                                         text = cJSON_Print(mrc_json);
+                                        ogs_debug("Generated response: %s", text);
                                         nf_server_populate_response(response, strlen(text), text, 201);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                         response = NULL;

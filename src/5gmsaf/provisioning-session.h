@@ -37,9 +37,10 @@ typedef struct msaf_provisioning_session_s {
     ogs_hash_t *certificate_map;
     ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t *
     int marked_for_deletion;
+
+    char *metrics_reporting_configuration_id;
     ogs_hash_t *metrics_reporting_map;
     OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
-
     time_t metricsReportingConfigurationReceived;
     char *metricsReportingConfigurationHash;
 
@@ -47,9 +48,10 @@ typedef struct msaf_provisioning_session_s {
 
 typedef struct msaf_metrics_reporting_configuration_s {
     char *metrics_reporting_configuration_id;
-    OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
     time_t received_time;
     char *etag;
+    OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration;
+    char *metricsReportingConfigurationHash;
 } msaf_metrics_reporting_configuration_t;
 
 typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;
@@ -63,7 +65,7 @@ extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioni
 extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 
 extern msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t *provisioning_session,
-                                                                                           const char *metrics_reporting_configuration_id,
+        //const char *metrics_reporting_configuration_id,
                                                                                            const char *scheme,
                                                                                            const char *data_network_name,
                                                                                            const bool is_reporting_interval,
