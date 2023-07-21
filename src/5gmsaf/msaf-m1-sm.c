@@ -264,7 +264,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         // If parsing fails
                         if (!metrics_reporting_config) {
                             char *err = NULL;
-                            err = ogs_msprintf("Unable to parse Metrics Reporting Configuration as JSON for the Provisioning Session [%s].", message->h.resource.component[1]);
+                            err = ogs_msprintf("Unable to parse Metrics Reporting Configuration as JSON for the Provisioning Session [%s].",
+                                               message->h.resource.component[1]);
                             ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream,
                                                                     400,
@@ -280,75 +281,75 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         }
 
                         else {
-                            if(msaf_provisioning_session->metrics_reporting_configuration) {
+                            if(msaf_provisioning_session->metricsReportingConfiguration) {
                                 OpenAPI_metrics_reporting_configuration_free(
-                                        msaf_provisioning_session->metrics_reporting_configuration);
-                                msaf_provisioning_session->metrics_reporting_configuration = NULL;
+                                        msaf_provisioning_session->metricsReportingConfiguration);
+                                msaf_provisioning_session->metricsReportingConfiguration = NULL;
                             }
 
                             // Parsing the data from request body
-                            /*cJSON *json_metrics_reporting_configuration_id = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics_reporting_configuration_id");
+                            /*cJSON *jsonMetrics_reporting_configuration_id = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics_reporting_configuration_id");
                             const char *metrics_reporting_configuration_id = NULL;
-                            if (json_metrics_reporting_configuration_id) metrics_reporting_configuration_id = cJSON_GetStringValue(json_metrics_reporting_configuration_id);*/
+                            if (jsonMetrics_reporting_configuration_id) metrics_reporting_configuration_id = cJSON_GetStringValue(jsonMetrics_reporting_configuration_id);*/
 
 
                             /* Parsing particular variable from body of POST */
-                            cJSON *json_scheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
+                            cJSON *jsonScheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
                             const char *scheme = NULL;
-                            if (json_scheme) scheme = cJSON_GetStringValue(json_scheme);
+                            if (jsonScheme) scheme = cJSON_GetStringValue(jsonScheme);
 
-                            cJSON *json_data_network_name = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "data_network_name");
-                            const char *data_network_name = NULL;
-                            if (json_data_network_name) data_network_name = cJSON_GetStringValue(json_data_network_name);
+                            cJSON *jsonDataNetworkName = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "dataNetworkName");
+                            const char *dataNetworkName = NULL;
+                            if (jsonDataNetworkName) dataNetworkName = cJSON_GetStringValue(jsonDataNetworkName);
 
-                            cJSON *json_is_reporting_interval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "is_reporting_interval");
-                            bool is_reporting_interval = false;
-                            if (json_is_reporting_interval) is_reporting_interval = cJSON_IsTrue(json_is_reporting_interval);
+                            cJSON *jsonIsReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isReportingInterval");
+                            bool isReportingInterval = false;
+                            if (jsonIsReportingInterval) isReportingInterval = cJSON_IsTrue(jsonIsReportingInterval);
 
-                            cJSON *json_reporting_interval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "reporting_interval");
-                            int reporting_interval = 0;
-                            if (json_reporting_interval) reporting_interval = json_reporting_interval->valueint;
+                            cJSON *jsonReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "reportingInterval");
+                            int reportingInterval = 0;
+                            if (jsonReportingInterval) reportingInterval = jsonReportingInterval->valueint;
 
-                            cJSON *json_is_sample_percentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "is_sample_percentage");
-                            bool is_sample_percentage = false;
-                            if (json_is_sample_percentage) is_sample_percentage = cJSON_IsTrue(json_is_sample_percentage);
+                            cJSON *jsonIsSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isSamplePercentage");
+                            bool isSamplePercentage = false;
+                            if (jsonIsSamplePercentage) isSamplePercentage = cJSON_IsTrue(jsonIsSamplePercentage);
 
-                            cJSON *json_sample_percentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "sample_percentage");
-                            double sample_percentage = 0;
-                            if (json_sample_percentage) sample_percentage = json_sample_percentage->valuedouble;
+                            cJSON *jsonSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplePercentage");
+                            double samplePercentage = 0;
+                            if (jsonSamplePercentage) samplePercentage = jsonSamplePercentage->valuedouble;
 
 
-                            cJSON *json_url_filters = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "url_filters");
-                            OpenAPI_list_t *url_filters = NULL;
+                            cJSON *jsonUrlFilters = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "urlFilters");
+                            OpenAPI_list_t *urlFilters = NULL;
 
-                            if (json_url_filters && cJSON_IsArray(json_url_filters)) {
-                                int size = cJSON_GetArraySize(json_url_filters);
-                                url_filters = OpenAPI_list_create();
+                            if (jsonUrlFilters && cJSON_IsArray(jsonUrlFilters)) {
+                                int size = cJSON_GetArraySize(jsonUrlFilters);
+                                urlFilters = OpenAPI_list_create();
                                 int i;
                                 for (i = 0; i < size; i++) {
-                                    cJSON *item = cJSON_GetArrayItem(json_url_filters, i);
+                                    cJSON *item = cJSON_GetArrayItem(jsonUrlFilters, i);
                                     if (item && cJSON_IsString(item)) {
                                         char* new_string = strdup(item->valuestring);
                                         if(new_string == NULL) {
                                             ogs_error("Failed to allocate memory for new string.");
                                             // Free the list and return an error status
-                                            OpenAPI_list_free(url_filters);
-                                            url_filters = NULL;
+                                            OpenAPI_list_free(urlFilters);
+                                            urlFilters = NULL;
                                             return OGS_ERROR;
                                         }
-                                        OpenAPI_list_add(url_filters, new_string);
+                                        OpenAPI_list_add(urlFilters, new_string);
                                     }
                                 }
                             }
 
-                            cJSON *json_metrics = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics");
+                            cJSON *jsonMetrics = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics");
                             OpenAPI_list_t *metrics = NULL;
-                            if (json_metrics && cJSON_IsArray(json_metrics)) {
-                                int size = cJSON_GetArraySize(json_metrics);
+                            if (jsonMetrics && cJSON_IsArray(jsonMetrics)) {
+                                int size = cJSON_GetArraySize(jsonMetrics);
                                 metrics = OpenAPI_list_create();
                                 int i;
                                 for (i = 0; i < size; i++) {
-                                    cJSON *item = cJSON_GetArrayItem(json_metrics, i);
+                                    cJSON *item = cJSON_GetArrayItem(jsonMetrics, i);
                                     if (item && cJSON_IsString(item)) {
                                         char* new_string = strdup(item->valuestring);
                                         if(new_string == NULL) {
@@ -364,12 +365,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             rv = msaf_metrics_reporting_configuration_create(msaf_provisioning_session,
                                                                              scheme,
-                                                                             data_network_name,
-                                                                             is_reporting_interval,
-                                                                             reporting_interval,
-                                                                             is_sample_percentage,
-                                                                             sample_percentage,
-                                                                             url_filters,
+                                                                             dataNetworkName,
+                                                                             isReportingInterval,
+                                                                             reportingInterval,
+                                                                             isSamplePercentage,
+                                                                             samplePercentage,
+                                                                             urlFilters,
                                                                              metrics);
 
                             if(rv){
@@ -380,7 +381,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     msaf_provisioning_session = msaf_get_metrics_reporting_configuration_by_provisioning_session_id(
                                             message->h.resource.component[1]);
 
-                                    msaf_metrics_reporting_configuration_t *new_mrc = msaf_provisioning_session->metrics_reporting_configuration;
+                                    msaf_metrics_reporting_configuration_t *new_mrc = msaf_provisioning_session->metricsReportingConfiguration;
 
                                     if (new_mrc != NULL) {
                                         msaf_metrics_reporting_configuration_t *new_mrc = msaf_get_metrics_reporting_configuration_by_provisioning_session_id(
