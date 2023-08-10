@@ -349,53 +349,41 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
 
 
-                            rv = msaf_metrics_reporting_configuration_create(msaf_provisioning_session,
-                                                                             scheme,
-                                                                             dataNetworkName,
-                                                                             isReportingInterval,
-                                                                             reportingInterval,
-                                                                             isSamplePercentage,
-                                                                             samplePercentage,
-                                                                             urlFilters,
-                                                                             metrics);
+                            msaf_metrics_reporting_configuration_t *new_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session,
+                                                                                                                          scheme,
+                                                                                                                          dataNetworkName,
+                                                                                                                          isReportingInterval,
+                                                                                                                          reportingInterval,
+                                                                                                                          isSamplePercentage,
+                                                                                                                          samplePercentage,
+                                                                                                                          urlFilters,
+                                                                                                                          metrics);
 
-                            if(rv){
-                                ogs_debug("Metrics Reporting Configuration created successfully");
-
+                            if(new_mrc){
                                 if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
 
-                                    msaf_metrics_reporting_configuration_t *new_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session,
-                                                                                                                                  scheme,
-                                                                                                                                  dataNetworkName,
-                                                                                                                                  isReportingInterval,
-                                                                                                                                  reportingInterval,
-                                                                                                                                  isSamplePercentage,
-                                                                                                                                  samplePercentage,
-                                                                                                                                  urlFilters,
-                                                                                                                                  metrics);
+                                    ogs_debug("Metrics Reporting Configuration created successfully");
 
-
-                                    if (new_mrc) {
-                                        char *text;
-                                        cJSON *mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(new_mrc);
-                                        if (mrc_json) {
-                                            msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
-                                                    message->h.resource.component[1]);
-                                            response = nf_server_new_response(request->h.uri, "application/json",
-                                                                              msaf_provisioning_session->metricsReportingConfigurationReceived,
-                                                                              msaf_provisioning_session->metricsReportingConfigurationHash,
-                                                                              NULL,
-                                                                              NULL,
-                                                                              m1_metricsreportingprovisioning_api,
-                                                                              app_meta);
-                                            ogs_assert(response);
-                                            text = cJSON_Print(mrc_json);
-                                            nf_server_populate_response(response, strlen(text), text, 201);
-                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                            response = NULL;
-                                            cJSON_Delete(mrc_json);
-                                        }
-                                    } else {
+                                    char *text;
+                                    cJSON *mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(new_mrc);
+                                    if (mrc_json) {
+                                        msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
+                                                message->h.resource.component[1]);
+                                        response = nf_server_new_response(request->h.uri, "application/json",
+                                                                          msaf_provisioning_session->metricsReportingConfigurationReceived,
+                                                                          msaf_provisioning_session->metricsReportingConfigurationHash,
+                                                                          NULL,
+                                                                          NULL,
+                                                                          m1_metricsreportingprovisioning_api,
+                                                                          app_meta);
+                                        ogs_assert(response);
+                                        text = cJSON_Print(mrc_json);
+                                        nf_server_populate_response(response, strlen(text), text, 201);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        response = NULL;
+                                        cJSON_Delete(mrc_json);
+                                    }
+                                    else {
                                         char *err = NULL;
                                         err = ogs_msprintf("Unable to retrieve the Metrics Reporting Configuration for the Provisioning Session [%s].",
                                                            message->h.resource.component[1]);
