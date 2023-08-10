@@ -46,11 +46,27 @@ typedef struct msaf_provisioning_session_s {
 
 } msaf_provisioning_session_t;
 
-typedef struct msaf_metrics_reporting_configuration_s {
+/*typedef struct msaf_metrics_reporting_configuration_s {
     char *metricsReportingConfigurationId;
     time_t receivedTime;
     char *etag;
     OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
+    char *metricsReportingConfigurationHash;
+} msaf_metrics_reporting_configuration_t;*/
+
+typedef struct msaf_metrics_reporting_configuration_s {
+    char *metricsReportingConfigurationId;
+    char *scheme;
+    char *dataNetworkName;
+    bool isReportingInterval;
+    int reportingInterval;
+    bool isSamplePercentage;
+    double samplePercentage;
+    OpenAPI_list_t *urlFilters;
+    OpenAPI_list_t *metrics;
+    //char *provisioningSessionId;
+    char *etag;
+    time_t receivedTime;
     char *metricsReportingConfigurationHash;
 } msaf_metrics_reporting_configuration_t;
 
@@ -65,15 +81,14 @@ extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioni
 extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 
 extern msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t *provisioning_session,
-        //const char *metricsReportingConfigurationId,
                                                                                            const char *scheme,
                                                                                            const char *data_network_name,
-                                                                                           const bool is_reporting_interval,
-                                                                                           const int reporting_interval,
-                                                                                           const bool is_sample_percentage,
-                                                                                           const double sample_percentage,
-                                                                                           const OpenAPI_list_t *url_filters,
-                                                                                           const OpenAPI_list_t *metrics);
+                                                                                           bool is_reporting_interval,
+                                                                                           int reporting_interval,
+                                                                                           bool is_sample_percentage,
+                                                                                           double sample_percentage,
+                                                                                           OpenAPI_list_t *url_filters,
+                                                                                           OpenAPI_list_t *metrics);
 
 
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);

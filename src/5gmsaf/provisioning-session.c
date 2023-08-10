@@ -36,7 +36,7 @@ static char* url_path_create(const char* macro, const char* session_id, const ms
 static void tidy_relative_path_re(void);
 static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
 static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
-static char *calculate_metricsReportingConfiguration_hash(OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration);
+static char *calculate_metrics_reporting_configuration_hash(OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration);
 
 /***** Public functions *****/
 
@@ -91,6 +91,7 @@ msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provis
 
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
     ogs_assert(msaf_provisioning_session);
+
     msaf_provisioning_session->provisioningSessionId = msaf_strdup(provisioning_session->provisioning_session_id);
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
     msaf_provisioning_session->aspId = msaf_strdup(provisioning_session->asp_id);
@@ -109,17 +110,18 @@ msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provis
     return msaf_provisioning_session;
 }
 
-msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t* provisioning_session,
-        //const char *metricsReportingConfigurationId,
+msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t *provisioning_session,
                                                                                     const char *scheme,
                                                                                     const char *dataNetworkName,
-                                                                                    const bool isReportingInterval,
-                                                                                    const int reportingInterval,
-                                                                                    const bool isSamplePercentage,
-                                                                                    const double samplePercentage,
-                                                                                    const OpenAPI_list_t *urlFilters,
-                                                                                    const OpenAPI_list_t *metrics)
+                                                                                    bool isReportingInterval,
+                                                                                    int reportingInterval,
+                                                                                    bool isSamplePercentage,
+                                                                                    double samplePercentage,
+                                                                                    OpenAPI_list_t *urlFilters,
+                                                                                    OpenAPI_list_t *metrics)
 {
+
+    ogs_assert(provisioning_session);
     msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
@@ -129,11 +131,11 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     ogs_uuid_format(id, &uuid);
 
     metricsReportingConfiguration = OpenAPI_metrics_reporting_configuration_create(msaf_strdup(id),
-                                                                                   ogs_strdup(scheme),
-                                                                                   ogs_strdup(dataNetworkName),
-                                                                                   true,
+                                                                                   msaf_strdup(scheme),
+                                                                                   msaf_strdup(dataNetworkName),
+                                                                                   isReportingInterval,
                                                                                    reportingInterval,
-                                                                                   true,
+                                                                                   isSamplePercentage,
                                                                                    samplePercentage,
                                                                                    urlFilters,
                                                                                    metrics);
@@ -142,15 +144,27 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     ogs_assert(msaf_metrics_reporting_configuration);
 
     msaf_metrics_reporting_configuration->metricsReportingConfigurationId = msaf_strdup(metricsReportingConfiguration->metrics_reporting_configuration_id);
-    msaf_metrics_reporting_configuration->metricsReportingConfiguration = metricsReportingConfiguration;
-    msaf_metrics_reporting_configuration->receivedTime = time(NULL);
+    msaf_metrics_reporting_configuration->scheme = msaf_strdup(metricsReportingConfiguration->scheme);
+    msaf_metrics_reporting_configuration->dataNetworkName = msaf_strdup(metricsReportingConfiguration->data_network_name);
+    msaf_metrics_reporting_configuration->isReportingInterval = metricsReportingConfiguration->is_reporting_interval;
+    msaf_metrics_reporting_configuration->reportingInterval = metricsReportingConfiguration->reporting_interval;
+    msaf_metrics_reporting_configuration->isSamplePercentage = metricsReportingConfiguration->is_sample_percentage;
+    msaf_metrics_reporting_configuration->samplePercentage = metricsReportingConfiguration->sample_percentage;
+    msaf_metrics_reporting_configuration->urlFilters = metricsReportingConfiguration->url_filters;
+    msaf_metrics_reporting_configuration->metrics = metricsReportingConfiguration->metrics;
     msaf_metrics_reporting_configuration->etag = NULL;
-    msaf_metrics_reporting_configuration->metricsReportingConfigurationHash = calculate_metricsReportingConfiguration_hash(metricsReportingConfiguration);
+    msaf_metrics_reporting_configuration->receivedTime = time(NULL);
+    msaf_metrics_reporting_configuration->metricsReportingConfigurationHash = calculate_metrics_reporting_configuration_hash(metricsReportingConfiguration);
+
+    if (provisioning_session->metricsReportingMap == NULL) {
+        provisioning_session->metricsReportingMap = ogs_hash_make();
+    }
 
     ogs_hash_set(provisioning_session->metricsReportingMap,
                  msaf_strdup(msaf_metrics_reporting_configuration->metricsReportingConfigurationId),
                  OGS_HASH_KEY_STRING,
                  msaf_metrics_reporting_configuration);
+
     provisioning_session->metricsReportingConfigurationId = msaf_strdup(msaf_metrics_reporting_configuration->metricsReportingConfigurationId);
     return msaf_metrics_reporting_configuration;
 }
@@ -160,28 +174,6 @@ msaf_metrics_reporting_map(void)
 {
     ogs_hash_t *metricsReportingMap = ogs_hash_make();
     return metricsReportingMap;
-}
-
-cJSON *msaf_get_metrics_reporting_configuration_by_provisioning_session_id(const char *provisioning_session_id) {
-
-    msaf_provisioning_session_t *msaf_provisioning_session;
-    cJSON *metricsReportingConfiguration_json;
-    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
-
-    if(msaf_provisioning_session) {
-        msaf_metrics_reporting_configuration_t *msaf_metricsReportingConfiguration;
-        msaf_metricsReportingConfiguration = ogs_hash_get(msaf_provisioning_session->metricsReportingMap, msaf_provisioning_session->metricsReportingConfigurationId, OGS_HASH_KEY_STRING);
-        if (msaf_metricsReportingConfiguration && msaf_metricsReportingConfiguration->metricsReportingConfiguration) {
-            metricsReportingConfiguration_json = OpenAPI_metrics_reporting_configuration_convertToJSON(msaf_metricsReportingConfiguration->metricsReportingConfiguration);
-        } else {
-            ogs_error("Unable to retrieve Metrics Reporting Configuration");
-            return NULL;
-        }
-    } else {
-        ogs_error("Unable to retrieve Provisioning Session");
-        return NULL;
-    }
-    return metricsReportingConfiguration_json;
 }
 
 cJSON *
@@ -682,7 +674,7 @@ static char *calculate_service_access_information_hash(OpenAPI_service_access_in
     return service_access_information_hashed;
 }
 
-static char *calculate_metricsReportingConfiguration_hash(OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration)
+static char *calculate_metrics_reporting_configuration_hash(OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration)
 {
     cJSON *metrics_reporting_config = NULL;
     char *metricsReportingConfiguration_to_hash;
