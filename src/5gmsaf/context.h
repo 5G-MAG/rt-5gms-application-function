@@ -58,7 +58,7 @@ typedef enum msaf_configuration_server_ifc_e {
 } msaf_configuration_server_ifc_t;
 
 typedef struct msaf_configuration_s {
-    int open5gsIntegration_flag;
+    bool open5gsIntegration_flag;
     ogs_list_t applicationServers_list;
     char *certificateManager;
     msaf_configuration_server_t servers[MSAF_SVR_NUM_IFCS];
@@ -77,6 +77,10 @@ typedef struct msaf_context_s {
     msaf_fsm_t   msaf_fsm;
     char server_name[NI_MAXHOST];
     msaf_pcf_cache_t *pcf_cache;
+    ogs_list_t pcf_sessions;
+    ogs_list_t network_assistance_sessions;
+    ogs_list_t network_assistance_policy_templates;
+    ogs_list_t delete_pcf_app_sessions;
 } msaf_context_t;
 
 typedef struct msaf_server_addr_s {

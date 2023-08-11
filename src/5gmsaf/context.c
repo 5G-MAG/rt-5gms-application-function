@@ -14,6 +14,9 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include <string.h>
 
 #include "pcf-cache.h"
+#include "network-assistance-session.h"
+#include "policy-template.h"
+#include "pcf-session.h"
 #include "context.h"
 #include "utilities.h"
 
@@ -37,6 +40,7 @@ static void msaf_context_application_server_state_content_hosting_configuration_
 static void msaf_context_application_server_state_assigned_provisioning_sessions_remove_all(void);
 static void msaf_context_application_server_state_remove_all(void);
 static void msaf_context_server_sockaddr_remove(void);
+static void msaf_context_network_assistance_session_init(void);
 
 void msaf_context_init(void)
 {
@@ -92,6 +96,19 @@ void msaf_context_final(void)
  
     if (self->config.certificateManager)
         ogs_free(self->config.certificateManager);
+
+     if(self->config.offerNetworkAssistance){
+        msaf_na_policy_template_remove_all();
+	msaf_network_assistance_session_remove_all_pcf_app_session();
+        msaf_network_assistance_session_remove_all();
+        msaf_pcf_session_remove_all();
+	bsf_terminate();
+	pcf_service_consumer_final();
+	//msaf_network_assistance_session_remove_all();
+	//pcf_terminate();
+    }
+    
+    msaf_pcf_cache_free(self->pcf_cache);
  
     if (self->config.data_collection_dir)
         ogs_free(self->config.data_collection_dir);
@@ -142,10 +159,7 @@ int msaf_context_parse_config(void)
                 const char *msaf_key = ogs_yaml_iter_key(&msaf_iter);
                 ogs_assert(msaf_key);
                 if (!strcmp(msaf_key, "open5gsIntegration")) {
-                    const char *open5gs = ogs_yaml_iter_value(&msaf_iter);
-                    if (!strcmp(open5gs, "true")) {
-                        self->config.open5gsIntegration_flag = 1;
-                    }
+		    self->config.open5gsIntegration_flag = ogs_yaml_iter_bool(&msaf_iter);
                 } else if (!strcmp(msaf_key, "certificateManager")) {
                     self->config.certificateManager = msaf_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "applicationServers")) {
@@ -223,7 +237,12 @@ int msaf_context_parse_config(void)
                                 m1_server_certificates_response_max_age, m1_content_protocols_response_max_age,
                                 m1_consumption_reporting_response_max_age, m5_service_access_information_response_max_age);
  
-                }  else if ((!strcmp(msaf_key, "sbi") && !self->config.open5gsIntegration_flag) || !strcmp(msaf_key, "m1") || !strcmp(msaf_key, "m5") || !strcmp(msaf_key, "maf")) {
+                }  else if ((!strcmp(msaf_key, "sbi") && self->config.open5gsIntegration_flag)) {
+
+                       /* handle config in sbi library */
+
+
+                }  else if (!strcmp(msaf_key, "sbi") || !strcmp(msaf_key, "m1") || !strcmp(msaf_key, "m5") || !strcmp(msaf_key, "maf")) {
                     
                     ogs_list_t list, list6;
                     ogs_socknode_t *node = NULL, *node6 = NULL;
@@ -491,6 +510,7 @@ int msaf_context_parse_config(void)
                     self->config.data_collection_dir = msaf_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "offerNetworkAssistance")) {
                     self->config.offerNetworkAssistance = ogs_yaml_iter_bool(&msaf_iter);
+		    msaf_context_network_assistance_session_init();
                 } else {
                     ogs_warn("unknown key `%s`", msaf_key);
                 }
@@ -513,6 +533,15 @@ msaf_context_get_content_hosting_configuration_resource_identifier(const char *c
 }
 
 /***** Private functions *****/
+
+static void msaf_context_network_assistance_session_init(void)
+{
+    ogs_list_init(&self->network_assistance_policy_templates);
+    ogs_list_init(&self->pcf_sessions);
+    ogs_list_init(&self->network_assistance_sessions);
+    ogs_list_init(&self->delete_pcf_app_sessions);
+}
+
 
 static void msaf_context_application_server_state_certificates_remove_all(void) {
 

@@ -9,6 +9,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "context.h"
 
+#include "utilities.h"
 #include "event.h"
 
 const char *msaf_event_get_name(msaf_event_t *e)
@@ -47,6 +48,44 @@ int check_event_addresses(msaf_event_t *e, ogs_sockaddr_t *sockaddr_v4, ogs_sock
     }
     return 0;
 
+}
+
+
+msaf_event_t *msaf_event_with_metadata( msaf_event_t *e, const nf_server_interface_metadata_t *m5_networkassistance_api, const nf_server_app_metadata_t *app_meta)
+{
+	msaf_event_t *event;
+        event = (msaf_event_t*) ogs_event_new(OGS_EVENT_SBI_SERVER);
+        event->h.sbi.request = e->h.sbi.request;
+        ogs_assert(event->h.sbi.request);
+        event->h.sbi.data = e->h.sbi.data;
+        ogs_assert(event->h.sbi.data);
+        event->message = e->message;
+
+        event->local.nf_server_interface_metadata = ogs_calloc(1, sizeof(nf_server_interface_metadata_t));
+        event->local.app_meta = ogs_calloc(1, sizeof(nf_server_app_metadata_t));
+
+        event->local.nf_server_interface_metadata->api_title = msaf_strdup(m5_networkassistance_api->api_title);
+        event->local.nf_server_interface_metadata->api_version = msaf_strdup(m5_networkassistance_api->api_version);
+        event->local.app_meta->app_name = msaf_strdup(app_meta->app_name);
+        event->local.app_meta->app_version = msaf_strdup(app_meta->app_version);
+        event->local.app_meta->server_name = msaf_strdup(app_meta->server_name);
+	return event;
+
+}
+
+
+msaf_event_free(msaf_event_t *e) {
+    if(e->local.nf_server_interface_metadata->api_title) ogs_free(e->local.nf_server_interface_metadata->api_title);
+    if(e->local.nf_server_interface_metadata->api_version) ogs_free(e->local.nf_server_interface_metadata->api_version);
+    if(e->local.app_meta->app_name) ogs_free(e->local.app_meta->app_name);
+    if(e->local.app_meta->app_version) ogs_free(e->local.app_meta->app_version);
+    if(e->local.app_meta->server_name) ogs_free(e->local.app_meta->server_name);
+    if(e->local.nf_server_interface_metadata) ogs_free(e->local.nf_server_interface_metadata);
+    if(e->local.app_meta) ogs_free(e->local.app_meta);
+    
+    if (e->message) ogs_sbi_message_free(e->message);
+
+    ogs_event_free(e);
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

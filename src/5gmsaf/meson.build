@@ -26,6 +26,7 @@ latest_apis = get_option('latest_apis')
 fiveg_api_approval = get_option('fiveg_api_approval')
 fiveg_api_release = get_option('fiveg_api_release')
 
+
 fs = import('fs')
 
 libmsaf_dist_sources = files('''
@@ -54,8 +55,14 @@ libmsaf_dist_sources = files('''
     msaf-mgmt-sm.c
     msaf-sm.h
     msaf-sm.c
+    network-assistance-session.h
+    network-assistance-session.c
     pcf-cache.c
     pcf-cache.h
+    pcf-session.h
+    pcf-session.c
+    policy-template.h
+    policy-template.c
     provisioning-session.h
     provisioning-session.c
     response-cache-control.h

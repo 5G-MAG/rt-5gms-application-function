@@ -20,11 +20,15 @@
 #include "msaf-version.h"
 #include "msaf-sm.h"
 #include "data-collection.h"
+#include "network-assistance-session.h"
+#include "utilities.h"
+#include "hash.h"
 #include "openapi/api/TS26512_M5_ServiceAccessInformationAPI-info.h"
 #include "openapi/api/TS26512_M5_ConsumptionReportingAPI-info.h"
+#include "openapi/api/TS26512_M5_NetworkAssistanceAPI-info.h"
 #include "openapi/model/consumption_report.h"
 
-const nf_server_interface_metadata_t
+static const nf_server_interface_metadata_t
 m5_serviceaccessinformation_api_metadata = {
     M5_SERVICEACCESSINFORMATION_API_NAME,
     M5_SERVICEACCESSINFORMATION_API_VERSION
@@ -34,6 +38,12 @@ static const nf_server_interface_metadata_t
 m5_consumptionreporting_api_metadata = {
     M5_CONSUMPTIONREPORTING_API_NAME,
     M5_CONSUMPTIONREPORTING_API_VERSION
+};
+
+static const nf_server_interface_metadata_t
+m5_networkassistance_api_metadata = {
+    M5_NETWORKASSISTANCE_API_NAME,
+    M5_NETWORKASSISTANCE_API_VERSION
 };
 
 void msaf_m5_state_initial(ogs_fsm_t *s, msaf_event_t *e)
@@ -57,6 +67,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     ogs_sbi_stream_t *stream = NULL;
     ogs_sbi_request_t *request = NULL;
     ogs_sbi_message_t *message = NULL;
+    msaf_event_t *nw_assist_event = NULL;
 
     msaf_sm_debug(e);
 
@@ -64,6 +75,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
     const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
     const nf_server_interface_metadata_t *m5_consumptionreporting_api = &m5_consumptionreporting_api_metadata;
+    const nf_server_interface_metadata_t *m5_networkassistance_api = &m5_networkassistance_api_metadata;
     const nf_server_app_metadata_t *app_meta = &app_metadata;
 
     ogs_assert(s);
@@ -95,6 +107,149 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     break;
                 }
                 SWITCH(message->h.resource.component[0])
+		    CASE("network-assistance")
+                    SWITCH(message->h.method)
+		    CASE(OGS_SBI_HTTP_METHOD_DELETE)
+                        if(message->h.resource.component[1])
+                        {
+			    msaf_network_assistance_session_t *na_sess = NULL;
+		            na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);	    
+			    if(na_sess){
+			        ogs_sbi_response_t *response;
+                                response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL,  m5_networkassistance_api, app_meta);
+                                nf_server_populate_response(response, 0, NULL, 204);
+                                ogs_assert(response);
+                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+                                msaf_network_assistance_session_delete_by_session_id((const char *)message->h.resource.component[1]);
+			    } else {
+				char *err = NULL;
+                                err = ogs_msprintf("The AF has no network assistance session with id [%s].", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+				ogs_assert(true == nf_server_send_error(stream, 404, 0, message, "Unable to retrieve the Network Assistance Session", err, NULL, m5_networkassistance_api, app_meta));
+                                ogs_free(err);
+			    }
+
+			} else {
+			    ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Unable to retrieve the Network Assistance Session", "Session Id not present in the request", NULL, m5_networkassistance_api, app_meta));
+	
+			}	
+		        break;
+
+
+		    CASE(OGS_SBI_HTTP_METHOD_GET)
+		        if(message->h.resource.component[1])
+			{
+
+		            cJSON *network_assistance_sess;
+			    network_assistance_sess = msaf_network_assistance_session_get_json((const char *)message->h.resource.component[1]);
+			    if(network_assistance_sess) {
+				msaf_network_assistance_session_t *na_sess = NULL;
+			        ogs_sbi_response_t *response;
+			        int response_code = 200;	
+		                char *body;
+				char *hash;
+
+				body = cJSON_Print(network_assistance_sess);
+			       	hash= calculate_hash(body);
+
+				na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);
+
+				response = nf_server_new_response(request->h.uri, "application/json",
+                                                            na_sess->na_sess_created, hash,
+							    msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age,
+                                                            NULL, m5_networkassistance_api, app_meta);
+				ogs_assert(response);
+                                nf_server_populate_response(response, strlen(body), ogs_strdup(body), response_code);
+                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+				ogs_free(hash);
+				
+				cJSON_Delete(network_assistance_sess);
+				cJSON_free(body);
+
+
+
+			    } else {
+
+                                char *err = NULL;
+                                err = ogs_msprintf("The AF has no network assistance session with id [%s].", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+
+                                ogs_assert(true == nf_server_send_error(stream, 404, 0, message, "Unable to retrieve the Network Assistance Session", err, NULL, m5_networkassistance_api, app_meta));
+				ogs_free(err);
+			    }
+
+
+			} else {
+		            
+                            ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Unable to retrieve the Network Assistance Session", "Session Id not present in the request", NULL, m5_networkassistance_api, app_meta));
+			}
+		        break;
+
+                    CASE(OGS_SBI_HTTP_METHOD_POST)
+		        cJSON *network_assistance_sess;
+		        cJSON *service_data_flow_description = NULL;
+			cJSON *policy_template_id = NULL;
+			cJSON *requested_qos = NULL;
+
+	        	if(!check_http_content_type(request->http,"application/json")){
+			    ogs_assert(true == nf_server_send_error(stream, 415, 3, message, "Unsupported Media Type.", "Expected content type: application/json", NULL, m5_networkassistance_api, app_meta));
+                            ogs_sbi_message_free(message);
+                            ogs_free(message);
+			}
+                        ogs_debug("Request body: %s", request->http.content);
+
+                        network_assistance_sess = cJSON_Parse(request->http.content);
+
+			if (!network_assistance_sess) {
+                            const char *err = "networkAssistanceSession: Could not parse request body as JSON";
+                            ogs_error("%s", err);
+                            ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
+                            break;
+                        }
+
+			service_data_flow_description = cJSON_GetObjectItemCaseSensitive(network_assistance_sess, "serviceDataFlowDescription");
+                        if (!service_data_flow_description) {
+                            const char *err = "createNetworkAssistanceSession: \"serviceDataFlowDescription\" is not present";
+                            ogs_error("%s", err);
+                            ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
+			    cJSON_Delete(network_assistance_sess);
+                            break;
+                        }
+                        if (!cJSON_IsArray(service_data_flow_description)) {
+                            const char *err = "createNetworkAssistanceSession: \"serviceDataFlowInformation\" is not an array";
+                            ogs_error("%s", err);
+                            ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
+                            break;
+                        }
+
+                        policy_template_id = cJSON_GetObjectItemCaseSensitive(network_assistance_sess, "policyTemplateId");
+                        if (!policy_template_id) {
+                            ogs_debug("createNetworkAssistanceSession: \"policyTemplateId\" is not present");
+                           
+                        }
+                        if (!policy_template_id && cJSON_IsString(policy_template_id)) {
+                            ogs_debug("createNetworkAssistanceSession: \"policyTemplateId\" is not a string");
+                        }
+
+                        requested_qos = cJSON_GetObjectItemCaseSensitive(network_assistance_sess, "requestedQoS");
+                        if (!requested_qos) {
+                            ogs_debug("createNetworkAssistanceSession: \"requestedQoS\" is not present");
+                        }
+
+                       
+			nw_assist_event = (msaf_event_t*) msaf_event_with_metadata(e, m5_networkassistance_api, app_meta);
+
+			msaf_nw_assistance_session_create(network_assistance_sess, nw_assist_event);
+
+			cJSON_Delete(network_assistance_sess);
+		        break; 
+		    DEFAULT
+                        ogs_error("Invalid HTTP method [%s]", message->h.method);
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, message, "Invalid HTTP method.", message->h.method, NULL, NULL, app_meta));
+                    END
+                    break;
+	
                 CASE("service-access-information")
                     SWITCH(message->h.method)
                     CASE(OGS_SBI_HTTP_METHOD_GET)
@@ -297,6 +452,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
         ogs_sbi_message_free(message);
         ogs_free(message);
     }
+
     ogs_free(nf_name);
 }
 

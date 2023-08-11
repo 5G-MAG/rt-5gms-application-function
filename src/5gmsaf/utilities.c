@@ -139,6 +139,26 @@ uint16_t ascii_to_uint16(const char *str)
     return ret;
 }
 
+char *check_http_content_type(ogs_sbi_http_message_t http, char *content_type)
+{
+    ogs_hash_index_t *hi;
+    for (hi = ogs_hash_first(http.headers);
+            hi; hi = ogs_hash_next(hi)) {
+        if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_CONTENT_TYPE)) {
+            if (!ogs_strcasecmp(ogs_hash_this_val(hi), content_type)) {
+                    return content_type;
+            } else {
+                const char *type;
+                type = (const char *)ogs_hash_this_val(hi);
+                ogs_error( "Unsupported Media Type: received type: %s, should have been %s", type, content_type);
+                return NULL;
+            }
+        }
+    }
+    return NULL;
+}
+
+
 char *traceable_strdup(const char *str, const char *location)
 {
     char *ptr = NULL;
