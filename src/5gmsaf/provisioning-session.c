@@ -169,6 +169,57 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     return msaf_metrics_reporting_configuration;
 }
 
+msaf_metrics_reporting_configuration_t* mrc_retrieve(const char *metricsReportingConfigurationId) {
+    ogs_hash_index_t *provisioning_node;
+    ogs_hash_index_t *metrics_node;
+
+    if (!metricsReportingConfigurationId) {
+        return NULL;
+    }
+
+    for (provisioning_node = ogs_hash_first(msaf_self()->provisioningSessions_map); provisioning_node; provisioning_node = ogs_hash_next(provisioning_node)) {
+        msaf_provisioning_session_t *provisioning_session = ogs_hash_this_val(provisioning_node);
+
+        for (metrics_node = ogs_hash_first(provisioning_session->metricsReportingMap); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
+            char *currentMetricsId = (char *)ogs_hash_this_key(metrics_node);
+            if (strcmp(currentMetricsId, metricsReportingConfigurationId) == 0) {
+                return ogs_hash_this_val(metrics_node);
+            }
+        }
+    }
+
+    return NULL;
+}
+
+cJSON *msaf_metrics_reporting_configuration_get_json(const char *metrics_reporting_configuration_id) {
+
+    msaf_metrics_reporting_configuration_t *mrc_data;
+    cJSON *mrc_json = NULL;
+
+    mrc_data = mrc_retrieve(metrics_reporting_configuration_id);
+
+    if (mrc_data) {
+        OpenAPI_metrics_reporting_configuration_t *metrics_reporting_configuration = ogs_calloc(1, sizeof(OpenAPI_metrics_reporting_configuration_t));
+        ogs_assert(metrics_reporting_configuration);
+
+        metrics_reporting_configuration->metrics_reporting_configuration_id = mrc_data->metricsReportingConfigurationId;
+        metrics_reporting_configuration->scheme = mrc_data->scheme;
+        metrics_reporting_configuration->data_network_name = mrc_data->dataNetworkName;
+        metrics_reporting_configuration->is_reporting_interval = mrc_data->isReportingInterval;
+        metrics_reporting_configuration->reporting_interval = mrc_data->reportingInterval;
+        metrics_reporting_configuration->is_sample_percentage = mrc_data->isSamplePercentage;
+        metrics_reporting_configuration->sample_percentage = mrc_data->samplePercentage;
+        metrics_reporting_configuration->url_filters = mrc_data->urlFilters;
+        metrics_reporting_configuration->metrics = mrc_data->metrics;
+
+        mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(metrics_reporting_configuration);
+        ogs_free(metrics_reporting_configuration);
+    } else {
+        ogs_error("Unable to retrieve Metrics Reporting Configuration [%s]", metrics_reporting_configuration_id);
+    }
+    return mrc_json;
+}
+
 ogs_hash_t *
 msaf_metrics_reporting_map(void)
 {

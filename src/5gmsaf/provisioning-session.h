@@ -46,14 +46,6 @@ typedef struct msaf_provisioning_session_s {
 
 } msaf_provisioning_session_t;
 
-/*typedef struct msaf_metrics_reporting_configuration_s {
-    char *metricsReportingConfigurationId;
-    time_t receivedTime;
-    char *etag;
-    OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
-    char *metricsReportingConfigurationHash;
-} msaf_metrics_reporting_configuration_t;*/
-
 typedef struct msaf_metrics_reporting_configuration_s {
     char *metricsReportingConfigurationId;
     char *scheme;
@@ -90,6 +82,8 @@ extern msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configurat
                                                                                            OpenAPI_list_t *url_filters,
                                                                                            OpenAPI_list_t *metrics);
 
+extern msaf_metrics_reporting_configuration_t* mrc_retrieve(const char *metricsReportingConfigurationId);
+extern cJSON *msaf_metrics_reporting_configuration_get_json(const char *metrics_reporting_configuration_id);
 
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
 
