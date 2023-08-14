@@ -27,11 +27,18 @@ typedef struct free_ogs_hash_provisioning_session_certificate_s {
     ogs_hash_t *hash;
 } free_ogs_hash_provisioning_session_certificate_t;
 
+typedef struct free_ogs_hash_provisioning_session_mrc_s{
+    const char *mrc;
+    ogs_hash_t *hash;
+} free_ogs_hash_provisioning_session_mrc_t;
+
 static regex_t *relative_path_re = NULL;
 
 static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value);
 static int free_ogs_hash_provisioning_session(void *rec, const void *key, int klen, const void *value);
 static int free_ogs_hash_provisioning_session_certificate(void *rec, const void *key, int klen, const void *value);
+static int free_ogs_hash_provisioning_session_mrc(void *rec, const void *key, int klen, const void *value);
+
 static char* url_path_create(const char* macro, const char* session_id, const msaf_application_server_node_t *msaf_as);
 static void tidy_relative_path_re(void);
 static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
@@ -226,6 +233,48 @@ msaf_metrics_reporting_map(void)
     ogs_hash_t *metricsReportingMap = ogs_hash_make();
     return metricsReportingMap;
 }
+
+int mrc_delete(const char *metricsReportingConfigurationId)
+{
+    msaf_application_server_state_node_t *as_state;
+    int result = -1;
+
+    ogs_list_for_each(&msaf_self()->application_server_states, as_state) {
+
+        resource_id_node_t *current_mrc, *next = NULL;
+        resource_id_node_t *upload_mrc, *next_node = NULL;
+        resource_id_node_t *delete_mrc = NULL;
+
+        ogs_list_init(&as_state->delete_mrcs);
+
+        if (&as_state->current_mrcs) {
+            ogs_list_for_each_safe(&as_state->current_mrcs, next, current_mrc){
+                if (!strcmp(current_mrc->state, metricsReportingConfigurationId))
+                    break;
+            }
+            if (current_mrc) {
+                delete_mrc = ogs_calloc(1, sizeof(resource_id_node_t));
+                ogs_assert(delete_mrc);
+                delete_mrc->state = msaf_strdup(current_mrc->state);
+                ogs_list_add(&as_state->delete_mrcs, delete_mrc);
+                result = 0;
+            }
+        }
+        ogs_list_for_each_safe(&as_state->upload_mrcs, next_node, upload_mrc) {
+            if (!strcmp(upload_mrc->state, metricsReportingConfigurationId))
+                break;
+        }
+        if (upload_mrc) {
+            ogs_list_remove(&as_state->upload_mrcs, upload_mrc);
+            ogs_list_add(&as_state->delete_mrcs, upload_mrc);
+            result = 0;
+        }
+        next_action_for_application_server(as_state);
+    }
+    return result;
+}
+
+
 
 cJSON *
 msaf_provisioning_session_get_json(const char *provisioning_session_id)
@@ -627,6 +676,21 @@ msaf_provisioning_session_certificate_hash_remove(const char *provisioning_sessi
     ogs_hash_do(free_ogs_hash_provisioning_session_certificate, &fohpsc, provisioning_session->certificate_map);
 }
 
+void
+msaf_provisioning_session_mrc_hash_remove(const char *provisioning_session_id, const char *metricsReportingConfigurationId)
+{
+    msaf_provisioning_session_t *provisioning_session = NULL;
+    provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
+
+    free_ogs_hash_provisioning_session_mrc_t fohpsmrc = {
+            metricsReportingConfigurationId,
+            provisioning_session->metricsReportingMap
+    };
+    ogs_hash_do(free_ogs_hash_provisioning_session_mrc,
+                &fohpsmrc,
+                provisioning_session->metricsReportingMap);
+}
+
 int uri_relative_check(const char *entry_point_path)
 {
     int result;
@@ -767,6 +831,17 @@ free_ogs_hash_provisioning_session_certificate(void *rec, const void *key, int k
         ogs_hash_set(fohpsc->hash, key, klen, NULL);
         ogs_free((void*)key);
 
+    }
+    return 1;
+}
+
+static int
+free_ogs_hash_provisioning_session_mrc(void *rec, const void *key, int klen, const void *value)
+{
+    free_ogs_hash_provisioning_session_mrc_t *fohpsmrc = (free_ogs_hash_provisioning_session_mrc_t *)rec;
+    if (!strcmp(fohpsmrc->mrc, (char *)key)) {
+        ogs_hash_set(fohpsmrc->hash, key, klen, NULL);
+        ogs_free((void*)key);
     }
     return 1;
 }

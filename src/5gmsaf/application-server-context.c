@@ -162,7 +162,7 @@ msaf_application_server_state_set(msaf_application_server_state_node_t *as_state
 }
 
 msaf_application_server_node_t *
-msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_format, int m3_port, char *m3_host)
+msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_format, int m3_port)
 {
     msaf_application_server_node_t *msaf_as = NULL;
 
@@ -172,7 +172,6 @@ msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_form
     msaf_as->canonicalHostname = canonical_hostname;
     msaf_as->urlPathPrefixFormat = url_path_prefix_format;
     msaf_as->m3Port = m3_port;
-    msaf_as->m3Host = m3_host;
     ogs_list_add(&msaf_self()->config.applicationServers_list, msaf_as);
 
     application_server_state_init(msaf_as);
@@ -224,7 +223,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
             ogs_debug("M3 client: Sending PUT method to Application Server [%s] for Certificate: [%s]", as_state->application_server->canonicalHostname, upload_cert->state);
             m3_client_as_state_requests(as_state, NULL, "application/x-pem-file", certificate->certificate, (char *)OGS_SBI_HTTP_METHOD_PUT, component);
         } else {
-            ogs_debug("M3 client: Sending POST method to Application Server [%s] for Certificate: [%s]", as_state->application_server->canonicalHostname, upload_cert->state);
+            ogs_debug("M3 client: Sending POST method to Application Server [%s]for Certificate: [%s]", as_state->application_server->canonicalHostname, upload_cert->state);
             m3_client_as_state_requests(as_state, NULL, "application/x-pem-file", certificate->certificate, (char *)OGS_SBI_HTTP_METHOD_POST, component);
         }
         msaf_certificate_free(certificate);
@@ -295,9 +294,55 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
             m3_client_as_state_requests(as_state, purge_chc, "application/x-www-form-urlencoded", NULL, OGS_SBI_HTTP_METHOD_POST, component);
         }
         ogs_free(component);
+    }
+    else if (ogs_list_first(&as_state->upload_mrcs) != NULL) {
+        msaf_provisioning_session_t *provisioning_session;
+        msaf_metrics_reporting_configuration_t *metricsReportingConfiguration;
+        char *data;
+        char *component;
+        resource_id_node_t *mrc_id_node;
+        cJSON *json;
 
+        resource_id_node_t *upload_mrc = ogs_list_first(&as_state->upload_mrcs);
+        ogs_list_for_each(as_state->current_mrcs, mrc_id_node) {
+            if (!strcmp(mrc_id_node->state, upload_mrc->state)) {
+                break;
+            }
+        }
+        provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(upload_mrc->state);
+
+        // Retrieve the metrics reporting configuration
+        metricsReportingConfiguration = mrc_retrieve(upload_mrc->state);
+        if (metricsReportingConfiguration) {
+            json = msaf_metrics_reporting_configuration_get_json(metricsReportingConfiguration->metricsReportingConfigurationId);
+            data = cJSON_Print(json);
+
+            component = ogs_msprintf("metrics-reporting-configurations/%s", upload_mrc->state);
+
+            if (mrc_id_node) {
+                ogs_debug("M3 client: Sending PUT method to Application Server [%s] for Metrics Reporting Configuration: [%s]", as_state->application_server->canonicalHostname, upload_mrc->state);
+                m3_client_as_state_requests(as_state, NULL, "application/json", data, (char *)OGS_SBI_HTTP_METHOD_PUT, component);
+            } else {
+                ogs_debug("M3 client: Sending POST method to Application Server [%s] for Metrics Reporting Configuration:  [%s]", as_state->application_server->canonicalHostname, upload_mrc->state);
+                m3_client_as_state_requests(as_state, NULL, "application/json", data, (char *)OGS_SBI_HTTP_METHOD_POST, component);
+            }
+
+            ogs_free(component);
+            cJSON_Delete(json);
+            cJSON_free(data);
+        } else {
+            ogs_error("Failed to retrieve the Metrics Reporting Configuration with ID: %s", upload_mrc->state);
+        }
     }
 
+    else if (ogs_list_first(&as_state->delete_mrcs) !=  NULL) {
+        char *component;
+        resource_id_node_t *delete_mrc = ogs_list_first(&as_state->delete_mrcs);
+        ogs_debug("M3 client: Sending DELETE method for MRC [%s] to the Application Server [%s]", delete_mrc->state, as_state->application_server->canonicalHostname);
+        component = ogs_msprintf("metrics-reporting-configurations/%s", delete_mrc->state);
+        m3_client_as_state_requests(as_state, NULL, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_DELETE, component);
+        ogs_free(component);
+    }
 
 }
 
@@ -307,7 +352,7 @@ void msaf_application_server_remove_all()
     msaf_application_server_node_t *msaf_as = NULL, *next = NULL;
 
     ogs_list_for_each_safe(&msaf_self()->config.applicationServers_list, next, msaf_as)
-        msaf_application_server_remove(msaf_as);
+    msaf_application_server_remove(msaf_as);
 }
 
 void msaf_application_server_print_all()
@@ -315,7 +360,7 @@ void msaf_application_server_print_all()
     msaf_application_server_node_t *msaf_as = NULL, *next = NULL;;
 
     ogs_list_for_each_safe(&msaf_self()->config.applicationServers_list, next, msaf_as)
-        ogs_debug("AS %s %s", msaf_as->canonicalHostname, msaf_as->urlPathPrefixFormat);
+    ogs_debug("AS %s %s", msaf_as->canonicalHostname, msaf_as->urlPathPrefixFormat);
 }
 
 
@@ -343,7 +388,6 @@ static void msaf_application_server_remove(msaf_application_server_node_t *msaf_
     ogs_list_remove(&msaf_self()->config.applicationServers_list, msaf_as);
     if (msaf_as->canonicalHostname) ogs_free(msaf_as->canonicalHostname);
     if (msaf_as->urlPathPrefixFormat) ogs_free(msaf_as->urlPathPrefixFormat);
-    if (msaf_as->m3Host) ogs_free(msaf_as->m3Host);
     ogs_free(msaf_as);
 }
 
@@ -352,7 +396,6 @@ static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port)
     int rv;
     ogs_sbi_client_t *client = NULL;
     ogs_sockaddr_t *addr = NULL;
-    OpenAPI_uri_scheme_e scheme = OpenAPI_uri_scheme_http;
 
     rv = ogs_getaddrinfo(&addr, AF_UNSPEC, hostname, port, 0);
     if (rv != OGS_OK) {
@@ -363,7 +406,7 @@ static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port)
     if (addr == NULL)
         ogs_error("Could not get the address of the Application Server");
 
-    client = ogs_sbi_client_add(scheme, addr);
+    client = ogs_sbi_client_add(addr);
     ogs_assert(client);
 
     ogs_freeaddrinfo(addr);
@@ -372,18 +415,16 @@ static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port)
 }
 
 static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_state,
-        purge_resource_id_node_t *purge_node, const char *type, const char *data, const char *method,
-        const char *component)
+                                       purge_resource_id_node_t *purge_node, const char *type, const char *data, const char *method,
+                                       const char *component)
 {
     ogs_sbi_request_t *request;
-    const char *m3_host;
 
-    m3_host = as_state->application_server->m3Host?
-	    as_state->application_server->m3Host:
-	    as_state->application_server->canonicalHostname;
     request = ogs_sbi_request_new();
-    request->h.method = msaf_strdup(method);	
-    request->h.uri = ogs_msprintf("http://%s:%i/3gpp-m3/v1/%s", m3_host, as_state->application_server->m3Port, component);
+    request->h.method = msaf_strdup(method);
+    request->h.uri = ogs_msprintf("http://%s:%i/3gpp-m3/v1/%s",
+                                  as_state->application_server->canonicalHostname,
+                                  as_state->application_server->m3Port, component);
     request->h.api.version = msaf_strdup("v1");
     if (data) {
         request->http.content = msaf_strdup(data);
@@ -393,7 +434,8 @@ static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_
         ogs_sbi_header_set(request->http.headers, "Content-Type", type);
 
     if (as_state->client == NULL) {
-        as_state->client = msaf_m3_client_init(m3_host, as_state->application_server->m3Port);
+        as_state->client = msaf_m3_client_init(as_state->application_server->canonicalHostname,
+                                               as_state->application_server->m3Port);
     }
     client_request_info_t *request_info = ogs_calloc(1, sizeof(client_request_info_t));
     request_info->as_state = as_state;
@@ -404,7 +446,7 @@ static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_
     ogs_sbi_request_free(request);
 
     return 1;
-}		
+}
 
 static int client_notify_cb(int status, ogs_sbi_response_t *response, void *data)
 {
