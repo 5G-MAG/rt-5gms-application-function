@@ -82,6 +82,16 @@ extern msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configurat
                                                                                            OpenAPI_list_t *url_filters,
                                                                                            OpenAPI_list_t *metrics);
 
+extern msaf_metrics_reporting_configuration_t* mrc_update(const char *metricsReportingConfigurationId,
+                                                          const char *scheme,
+                                                          const char *dataNetworkName,
+                                                          bool isReportingInterval,
+                                                          int reportingInterval,
+                                                          bool isSamplePercentage,
+                                                          double samplePercentage,
+                                                          OpenAPI_list_t *urlFilters,
+                                                          OpenAPI_list_t *metrics);
+
 extern msaf_metrics_reporting_configuration_t* mrc_retrieve(const char *metricsReportingConfigurationId);
 extern cJSON *msaf_metrics_reporting_configuration_get_json(const char *metrics_reporting_configuration_id);
 extern int mrc_delete(const char *metricsReportingConfigurationId);

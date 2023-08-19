@@ -1141,15 +1141,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     }
                                 }
 
-                                msaf_metrics_reporting_configuration_t *updated_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session,
-                                                                                                                                  scheme,
-                                                                                                                                  dataNetworkName,
-                                                                                                                                  isReportingInterval,
-                                                                                                                                  reportingInterval,
-                                                                                                                                  isSamplePercentage,
-                                                                                                                                  samplePercentage,
-                                                                                                                                  urlFilters,
-                                                                                                                                  metrics);
+                                char *current_id = message->h.resource.component[3];
+                                msaf_metrics_reporting_configuration_t *updated_mrc = mrc_update(current_id,
+                                                                                                 scheme,
+                                                                                                 dataNetworkName,
+                                                                                                 isReportingInterval,
+                                                                                                 reportingInterval,
+                                                                                                 isSamplePercentage,
+                                                                                                 samplePercentage,
+                                                                                                 urlFilters,
+                                                                                                 metrics);
+
 
                                 if(updated_mrc){
 

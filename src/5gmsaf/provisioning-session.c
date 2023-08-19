@@ -176,6 +176,50 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     return msaf_metrics_reporting_configuration;
 }
 
+msaf_metrics_reporting_configuration_t* mrc_update(const char *metricsReportingConfigurationId,
+                                                   const char *scheme,
+                                                   const char *dataNetworkName,
+                                                   bool isReportingInterval,
+                                                   int reportingInterval,
+                                                   bool isSamplePercentage,
+                                                   double samplePercentage,
+                                                   OpenAPI_list_t *urlFilters,
+                                                   OpenAPI_list_t *metrics)
+{
+    msaf_metrics_reporting_configuration_t *existing_mrc = mrc_retrieve(metricsReportingConfigurationId);
+    if (!existing_mrc) {
+        ogs_error("Metrics Reporting Configuration with ID %s not found", metricsReportingConfigurationId);
+        return NULL;
+    }
+
+    // Update the fields of the existing object
+
+    // For string fields, free the old memory and allocate new memory
+    ogs_free(existing_mrc->scheme);
+    existing_mrc->scheme = msaf_strdup(scheme);
+
+    ogs_free(existing_mrc->dataNetworkName);
+    existing_mrc->dataNetworkName = msaf_strdup(dataNetworkName);
+
+    existing_mrc->isReportingInterval = isReportingInterval;
+    existing_mrc->reportingInterval = reportingInterval;
+    existing_mrc->isSamplePercentage = isSamplePercentage;
+    existing_mrc->samplePercentage = samplePercentage;
+
+    // Depending on how you manage memory in your project, you might need to free the old lists before assigning the new ones
+    existing_mrc->urlFilters = urlFilters;
+    existing_mrc->metrics = metrics;
+
+    existing_mrc->receivedTime = time(NULL);
+
+    // If you have other fields in the object to be updated, continue updating them in a similar fashion
+
+    // Return the updated object
+    return existing_mrc;
+}
+
+
+
 msaf_metrics_reporting_configuration_t* mrc_retrieve(const char *metricsReportingConfigurationId) {
     ogs_hash_index_t *provisioning_node;
     ogs_hash_index_t *metrics_node;
