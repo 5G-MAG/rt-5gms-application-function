@@ -11,12 +11,17 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "utilities.h"
 #include "network-assistance-session.h"
 #include "pcf-session.h"
+#include "timer.h"
+#include "openapi/model/operation_success_response.h"
+
 
 typedef struct retrieve_pcf_binding_cb_data_s {
     ue_network_identifier_t *ue_connection;
+    OpenAPI_list_t *media_component;
     msaf_network_assistance_session_t *na_sess;
 } retrieve_pcf_binding_cb_data_t;
 
+static msaf_network_assistance_session_t *msaf_network_assistance_session_init(void);
 static void msaf_network_assistance_session_remove(msaf_network_assistance_session_t *na_sess);
 static void ue_connection_details_free(ue_network_identifier_t *ue_connection);
 
@@ -24,16 +29,24 @@ static bool app_session_change_callback(pcf_app_session_t *app_session, void *us
 static bool app_session_notification_callback(pcf_app_session_t *app_session, const OpenAPI_events_notification_t *notifications, void *user_data);
 static void display_notifications(const OpenAPI_events_notification_t *notifications);
 static void add_create_event_metadata_to_na_sess_context(msaf_network_assistance_session_t *na_sess, msaf_event_t *e);
+static void add_delivery_boost_event_metadata_to_na_sess_context(msaf_network_assistance_session_t *na_sess, msaf_event_t *e);
 static bool create_msaf_na_sess_and_send_response(msaf_network_assistance_session_t *na_sess);
 static ue_network_identifier_t *copy_ue_network_connection_identifier(const ue_network_identifier_t *ue_net_connection);
 static void free_ue_network_connection_identifier(ue_network_identifier_t *ue_net_connection);
 static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding, void *data);
-static void create_pcf_app_session(ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, msaf_network_assistance_session_t *na_sess);
-static void retrieve_pcf_binding_and_create_app_session(ue_network_identifier_t *ue_connection, msaf_network_assistance_session_t *na_sess);
+static void create_pcf_app_session(ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess);
+static void retrieve_pcf_binding_and_create_app_session(ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess);
 static void msaf_network_assistance_session_add_to_delete_list(pcf_app_session_t *pcf_app_session);
 static void msaf_network_assistance_session_remove_from_delete_list(void);
 static void msaf_pcf_app_session_free(void);
 static void retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data_t *cb_data);
+static OpenAPI_list_t *update_media_component(char *mir_bw_dl_bit_rate);
+static char *flow_description_port(int port);
+static char *flow_description_protocol_to_string(int protocol);
+static OpenAPI_list_t *populate_media_component(char *policy_template_id, OpenAPI_ip_packet_filter_set_t *flow_description, OpenAPI_m5_qo_s_specification_t *requested_qos);
+static void activate_delivery_boost_and_send_response(msaf_network_assistance_session_t *na_sess);
+static void delivery_boost_send_response(msaf_network_assistance_session_t *na_sess);
+
 
 /***** Public functions *****/
 
@@ -42,42 +55,121 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
 
     msaf_network_assistance_session_t *na_sess;
     OpenAPI_network_assistance_session_t *nas;
-    OpenAPI_service_data_flow_description_t *service_data_flow_information;
+    OpenAPI_service_data_flow_description_t *service_data_flow_description;
     OpenAPI_lnode_t *node = NULL;
+    OpenAPI_list_t *media_component = NULL;
+    cJSON *network_policy_template = NULL;
 
     ogs_sockaddr_t *pcf_address;
 
     nas =  OpenAPI_network_assistance_session_parseFromJSON(network_assistance_sess);
 
-    na_sess = ogs_calloc(1, sizeof(msaf_network_assistance_session_t));
+    na_sess = msaf_network_assistance_session_init();
     ogs_assert(na_sess);
     na_sess->NetworkAssistanceSession = OpenAPI_network_assistance_session_parseFromJSON(network_assistance_sess);
-    
-    add_create_event_metadata_to_na_sess_context(na_sess, e);
+    ogs_assert(na_sess->NetworkAssistanceSession);
 
-    if (nas->service_data_flow_description) {
-        OpenAPI_list_for_each(nas->service_data_flow_description, node) {
-	    ue_network_identifier_t *ue_connection;	
-            service_data_flow_information = (OpenAPI_service_data_flow_description_t *)node->data;
-            ue_connection = populate_ue_connection_details(service_data_flow_information);
+    add_create_event_metadata_to_na_sess_context(na_sess, e);
+    // To do: Remove msaf_na_policy_template_create() call when dynamic policies is implemented
+    msaf_na_policy_template_create(network_policy_template);
+
+
+    if (nas->service_data_flow_descriptions) {
+        OpenAPI_list_for_each(nas->service_data_flow_descriptions, node) {
+            ue_network_identifier_t *ue_connection;
+            service_data_flow_description = (OpenAPI_service_data_flow_description_t *)node->data;
+            if (!service_data_flow_description->flow_description->direction) {
+                msaf_network_assistance_session_remove(na_sess);
+                return 0;
+            }
+
+            ue_connection = populate_ue_connection_details(service_data_flow_description);
+
+
+            media_component = populate_media_component(na_sess->NetworkAssistanceSession->policy_template_id, service_data_flow_description->flow_description, na_sess->NetworkAssistanceSession->requested_qo_s);
+
 
             pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, ue_connection->address);
 
-	    if(pcf_address)
-	    {  
-	        create_pcf_app_session(pcf_address, ue_connection, na_sess);
+            if(pcf_address)
+            {
+                create_pcf_app_session(pcf_address, ue_connection, media_component, na_sess);
 
-	    } else {
-		retrieve_pcf_binding_and_create_app_session(ue_connection, na_sess);    
-	    }
-	    ue_connection_details_free(ue_connection);
+            } else {
+                retrieve_pcf_binding_and_create_app_session(ue_connection, media_component, na_sess);
+            }
+            ue_connection_details_free(ue_connection);
 
         }
     }
-    OpenAPI_network_assistance_session_free(nas); 
+    OpenAPI_network_assistance_session_free(nas);
     return 1;
 
 }
+
+void msaf_nw_assistance_session_update_pcf(msaf_network_assistance_session_t *na_sess, msaf_event_t *e){
+
+    OpenAPI_list_t *media_comps;
+    char *mir_bw_dl_bit_rate = NULL;
+
+    ogs_assert(na_sess);
+
+    mir_bw_dl_bit_rate =  ogs_sbi_bitrate_to_string(msaf_self()->config.network_assistance_delivery_boost->delivery_boost_min_dl_bit_rate, OGS_SBI_BITRATE_BPS);
+
+    ogs_assert(mir_bw_dl_bit_rate);
+
+    media_comps = update_media_component(mir_bw_dl_bit_rate);
+
+    if (na_sess->pcf_app_session) {
+
+        add_delivery_boost_event_metadata_to_na_sess_context(na_sess, e);
+
+        if(!pcf_session_update_app_session(na_sess->pcf_app_session, media_comps)) {
+            ogs_error("Unable to send update request to the PCF");
+            ogs_assert(true == nf_server_send_error(e->h.sbi.data, 401, 0, e->message, "Creation of delivery boost failed.", "Unable to send update request to the PCF" , NULL, e->nf_server_interface_metadata, e->app_meta));
+        }
+
+    } else {
+            ogs_error("The Network Assistance Session has no associated App Session");
+            ogs_assert(true == nf_server_send_error(e->h.sbi.data, 401, 0, e->message, "Creation of delivery boost failed.", "The Network Assistance Session has no associated App Session" , NULL, e->nf_server_interface_metadata, e->app_meta));
+
+    }
+    ogs_info("END of msaf_nw_assistance_session_update_pcf");
+
+}
+
+void msaf_nw_assistance_session_update_pcf_on_timeout(msaf_network_assistance_session_t *na_sess){
+
+    OpenAPI_list_t *media_comps;
+    char *mir_bw_dl_bit_rate;
+    bool rv = false;
+
+    ogs_assert(na_sess);
+
+    mir_bw_dl_bit_rate = msaf_strdup(na_sess->NetworkAssistanceSession->requested_qo_s->mir_bw_dl_bit_rate);
+    ogs_assert(mir_bw_dl_bit_rate);
+
+    media_comps = update_media_component(mir_bw_dl_bit_rate);
+
+    if (na_sess->pcf_app_session) {
+
+        rv = pcf_session_update_app_session(na_sess->pcf_app_session, media_comps);
+
+        if(!rv){
+            ogs_error("Unable to send update request to the PCF");
+        } else {
+            na_sess->active_delivery_boost = false;
+        }
+
+    } else {
+            ogs_error("The Network Assistance Session has no associated App Session");
+
+    }
+
+    ogs_timer_stop(na_sess->delivery_boost_timer);
+
+}
+
 
 msaf_network_assistance_session_t *msaf_network_assistance_session_retrieve(const char *na_session_id)
 {
@@ -98,15 +190,14 @@ cJSON *msaf_network_assistance_session_get_json(const char *na_session_id)
 {
     msaf_network_assistance_session_t *na_sess = NULL;
     ogs_list_for_each(&msaf_self()->network_assistance_sessions, na_sess)
-    { 
+    {
         if(!strcmp(na_sess->naSessionId, na_session_id))
-	    break;		
+            break;
     }
     if(na_sess)
         return OpenAPI_network_assistance_session_convertToJSON(na_sess->NetworkAssistanceSession);
 
     return NULL;
-	
 }
 
 ue_network_identifier_t *populate_ue_connection_details(OpenAPI_service_data_flow_description_t *service_data_flow_information)
@@ -117,9 +208,21 @@ ue_network_identifier_t *populate_ue_connection_details(OpenAPI_service_data_flo
     ue_connection = ogs_calloc(1, sizeof(ue_network_identifier_t));
     ogs_assert(ue_connection);
 
-    ue_connection->ip_domain = msaf_strdup(service_data_flow_information->domain_name);
+    if (service_data_flow_information->domain_name) {
+        ue_connection->ip_domain = msaf_strdup(service_data_flow_information->domain_name);
+    }
 
-    rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->dst_ip, service_data_flow_information->flow_description->dst_port, 0);
+    if (!strcmp(service_data_flow_information->flow_description->direction, "UPLINK")) {
+
+        rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->src_ip, service_data_flow_information->flow_description->src_port, 0);
+    }
+
+    if (!strcmp(service_data_flow_information->flow_description->direction, "DOWNLINK")) {
+        ogs_info("%s: dst_ip", service_data_flow_information->flow_description->dst_ip);
+
+        rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->dst_ip, service_data_flow_information->flow_description->dst_port, 0);
+    }
+
     if (rv != OGS_OK) {
         ogs_error("getaddrinfo failed");
         return NULL;
@@ -127,9 +230,9 @@ ue_network_identifier_t *populate_ue_connection_details(OpenAPI_service_data_flo
 
     if (ue_connection->address == NULL)
         ogs_error("Could not get the address for the UE connection");
-    
+
     return ue_connection;
-	  
+
 }
 
 void msaf_network_assistance_session_remove_all_pcf_app_session(void)
@@ -142,45 +245,30 @@ void msaf_network_assistance_session_remove_all_pcf_app_session(void)
 
 }
 
+static OpenAPI_list_t *update_media_component(char *mir_bw_dl_bit_rate) {
 
-OpenAPI_list_t *populate_media_component(char *policy_template_id, OpenAPI_m5_qo_s_specification_t *requested_qos) {
+    OpenAPI_list_t *media_comps;
+    OpenAPI_media_component_t *media_comp;
+    OpenAPI_map_t *media_comp_map;
 
-    OpenAPI_list_t *MediaComponentList = NULL;
-    OpenAPI_map_t *MediaComponentMap = NULL;
-    OpenAPI_media_component_t *MediaComponent = NULL;
-    int i = 0;
+    media_comps = OpenAPI_list_create();
+    ogs_assert(media_comps);
 
-    msaf_network_assistance_policy_template_t *policy_template;
-    policy_template = get_policy_template_by_id(policy_template_id);
-    ogs_assert(policy_template);
+    media_comp = OpenAPI_media_component_create(NULL , NULL, NULL, false , 0, NULL, NULL, false, 0, NULL, false, 0.0,
+            false, 0.0, NULL, OpenAPI_flow_status_NULL, NULL, NULL, false, 0, false, 0, NULL, NULL, 0, NULL,
+            OpenAPI_media_type_VIDEO, NULL, NULL, mir_bw_dl_bit_rate, NULL, OpenAPI_preemption_capability_NULL,
+            OpenAPI_preemption_vulnerability_NULL, OpenAPI_priority_sharing_indicator_NULL, OpenAPI_reserv_priority_NULL,
+            NULL, NULL, false, 0, false, 0, NULL, NULL, NULL, false, 0);
 
-    MediaComponentList = OpenAPI_list_create();
-    ogs_assert(MediaComponentList);
+    media_comp_map = OpenAPI_map_create(ogs_msprintf("%d", media_comp->med_comp_n), media_comp);
+    ogs_assert(media_comp_map);
+    ogs_assert(media_comp_map->key);
 
-    MediaComponent = ogs_calloc(1, sizeof(*MediaComponent));
-    ogs_assert(MediaComponent);
+    OpenAPI_list_add(media_comps, media_comp_map);
 
-    MediaComponent->med_type = OpenAPI_media_type_VIDEO;
+    ogs_assert(media_comps->count);
 
-    MediaComponent->med_comp_n = i++;
-
-    MediaComponent->mar_bw_dl = msaf_strdup(requested_qos->mar_bw_dl_bit_rate);
-    MediaComponent->mar_bw_ul = msaf_strdup(requested_qos->mar_bw_ul_bit_rate);
-    MediaComponent->mir_bw_dl = msaf_strdup(requested_qos->mir_bw_dl_bit_rate);
-    MediaComponent->mir_bw_ul = msaf_strdup(requested_qos->mir_bw_ul_bit_rate);
-    MediaComponent->min_des_bw_dl = requested_qos->min_des_bw_dl_bit_rate;
-    MediaComponent->min_des_bw_ul = requested_qos->min_des_bw_ul_bit_rate;
-
-    MediaComponentMap = OpenAPI_map_create(
-            ogs_msprintf("%d", MediaComponent->med_comp_n), MediaComponent);
-    ogs_assert(MediaComponentMap);
-    ogs_assert(MediaComponentMap->key);
-
-    OpenAPI_list_add(MediaComponentList, MediaComponentMap);
-
-    ogs_assert(MediaComponentList->count);
-
-    return MediaComponentList;
+    return media_comps;
 }
 
 void msaf_network_assistance_session_remove_all()
@@ -188,7 +276,7 @@ void msaf_network_assistance_session_remove_all()
     msaf_network_assistance_session_t *msaf_network_assistance_session = NULL, *next = NULL;
 
     ogs_list_for_each_safe(&msaf_self()->network_assistance_sessions, next, msaf_network_assistance_session){
-	ogs_list_remove(&msaf_self()->network_assistance_sessions, msaf_network_assistance_session);
+        ogs_list_remove(&msaf_self()->network_assistance_sessions, msaf_network_assistance_session);
         msaf_network_assistance_session_remove(msaf_network_assistance_session);
     }
 }
@@ -207,6 +295,117 @@ void msaf_network_assistance_session_delete_by_session_id(const char *na_sess_id
     msaf_pcf_app_session_free();
 }
 
+/*Private functions */
+
+static msaf_network_assistance_session_t *msaf_network_assistance_session_init(void){
+
+    msaf_network_assistance_session_t *na_sess;
+    na_sess = ogs_calloc(1, sizeof(msaf_network_assistance_session_t));
+    ogs_assert(na_sess);
+    na_sess->delivery_boost_timer = NULL;
+    return na_sess;
+
+
+}
+
+
+static OpenAPI_list_t *populate_media_component(char *policy_template_id, OpenAPI_ip_packet_filter_set_t *flow_description, OpenAPI_m5_qo_s_specification_t *requested_qos) {
+
+    OpenAPI_list_t *MediaComponentList = NULL;
+    OpenAPI_map_t *MediaComponentMap = NULL;
+    OpenAPI_media_component_t *MediaComponent = NULL;
+    OpenAPI_list_t *media_sub_comp_list = NULL;
+
+    msaf_network_assistance_policy_template_t *policy_template;
+    policy_template = get_policy_template_by_id(policy_template_id);
+    ogs_assert(policy_template);
+
+    MediaComponentList = OpenAPI_list_create();
+    ogs_assert(MediaComponentList);
+
+    if (flow_description->src_ip || flow_description->src_port !=0 || flow_description->protocol != IPPROTO_IP ||
+                flow_description->dst_ip || flow_description->dst_port != 0) {
+        OpenAPI_media_sub_component_t *media_sub_comp;
+        OpenAPI_list_t *flow_descs;
+        OpenAPI_map_t *media_sub_comp_map;
+        char *flow_desc;
+        char *ue_addr;
+        char *ue_port;
+        char *remote_addr;
+        char *remote_port;
+
+        if(!strcmp(flow_description->direction, "UPLINK")){
+            remote_addr = flow_description->dst_ip?flow_description->dst_ip:"any";
+            remote_port = flow_description_port(flow_description->dst_port);
+
+            ue_addr = flow_description->src_ip?flow_description->src_ip:"any";
+            ue_port = flow_description_port(flow_description->dst_port);
+
+        }
+
+        if(!strcmp(flow_description->direction, "DOWNLINK")){
+
+            remote_addr = flow_description->src_ip?flow_description->src_ip:"any";
+            remote_port = flow_description_port(flow_description->src_port);
+
+            ue_addr = flow_description->dst_ip?flow_description->dst_ip:"any";
+            ue_port = flow_description_port(flow_description->dst_port);
+         }
+
+        flow_descs = OpenAPI_list_create();
+        ogs_assert(flow_descs);
+
+        flow_desc = ogs_msprintf("permit in %s from %s%s to %s%s", flow_description_protocol_to_string(flow_description->protocol),
+                ue_addr, ue_port, remote_addr, remote_port);
+        ogs_assert(flow_desc);
+
+        OpenAPI_list_add(flow_descs, flow_desc);
+
+        flow_desc = ogs_msprintf("permit out %s from %s%s to %s%s", flow_description_protocol_to_string(flow_description->protocol),
+                remote_addr, remote_port, ue_addr, ue_port);
+        ogs_assert(flow_desc);
+
+        OpenAPI_list_add(flow_descs, flow_desc);
+
+        ogs_free(ue_port);
+        ogs_free(remote_port);
+
+        media_sub_comp = OpenAPI_media_sub_component_create(OpenAPI_af_sig_protocol_NULL,
+                NULL, 0, flow_descs, OpenAPI_flow_status_ENABLED,
+                msaf_strdup(requested_qos->mar_bw_dl_bit_rate),
+                msaf_strdup(requested_qos->mar_bw_ul_bit_rate),
+                NULL , OpenAPI_flow_usage_NULL);
+        ogs_assert(media_sub_comp);
+
+        media_sub_comp_map = OpenAPI_map_create(ogs_msprintf("%d", media_sub_comp->f_num), media_sub_comp);
+        ogs_assert(media_sub_comp_map);
+
+        media_sub_comp_list = OpenAPI_list_create();
+        OpenAPI_list_add(media_sub_comp_list, media_sub_comp_map);
+
+    }
+
+    MediaComponent = OpenAPI_media_component_create(NULL, NULL, NULL, false, 0, NULL, NULL,
+            false, 0, NULL, false, 0.0, false, 0.0, NULL, OpenAPI_flow_status_NULL,
+            msaf_strdup(requested_qos->mar_bw_dl_bit_rate), msaf_strdup(requested_qos->mar_bw_ul_bit_rate),
+            false, 0, false, 0, NULL, NULL, 0, media_sub_comp_list, OpenAPI_media_type_VIDEO,
+            msaf_strdup(requested_qos->min_des_bw_dl_bit_rate), msaf_strdup(requested_qos->min_des_bw_ul_bit_rate),
+            msaf_strdup(requested_qos->mir_bw_dl_bit_rate), msaf_strdup(requested_qos->mir_bw_ul_bit_rate),
+            OpenAPI_preemption_capability_NULL, OpenAPI_preemption_vulnerability_NULL,
+            OpenAPI_priority_sharing_indicator_NULL, OpenAPI_reserv_priority_NULL,
+            NULL, NULL, false, 0, false, 0, NULL, NULL, NULL, false, 0);
+
+    MediaComponentMap = OpenAPI_map_create(
+            ogs_msprintf("%d", MediaComponent->med_comp_n), MediaComponent);
+    ogs_assert(MediaComponentMap);
+    ogs_assert(MediaComponentMap->key);
+
+    OpenAPI_list_add(MediaComponentList, MediaComponentMap);
+
+    ogs_assert(MediaComponentList->count);
+
+    return MediaComponentList;
+}
 
 static void msaf_network_assistance_session_add_to_delete_list(pcf_app_session_t *pcf_app_session)
 {
@@ -234,32 +433,25 @@ static void msaf_pcf_app_session_free(void)
         msaf_pcf_app_session_t *msaf_pcf_app_session;
         ogs_list_for_each(&msaf_self()->delete_pcf_app_sessions, msaf_pcf_app_session){
             if(msaf_pcf_app_session->pcf_app_session)
-	    {
+            {
                 pcf_app_session_free(msaf_pcf_app_session->pcf_app_session);
-		msaf_pcf_app_session->pcf_app_session = NULL;
-	    }
+                msaf_pcf_app_session->pcf_app_session = NULL;
+            }
         }
 }
 
 
 
-static void create_pcf_app_session(ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, msaf_network_assistance_session_t *na_sess)
+static void create_pcf_app_session(ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess)
 {
     pcf_session_t *pcf_session;
     int events = 0;
-    cJSON *network_policy_template = NULL;
-    OpenAPI_list_t *media_component = NULL;
     ue_network_identifier_t *ue_net = NULL;
 
 
     events = PCF_APP_SESSION_EVENT_TYPE_QOS_NOTIF | PCF_APP_SESSION_EVENT_TYPE_QOS_MONITORING | PCF_APP_SESSION_EVENT_TYPE_SUCCESSFUL_QOS_UPDATE | PCF_APP_SESSION_EVENT_TYPE_FAILED_QOS_UPDATE;
 
     pcf_session = msaf_pcf_session_new(pcf_address);
-
-    // To do: Remove msaf_na_policy_template_create() call when dynamic policies is implemented
-    msaf_na_policy_template_create(network_policy_template);
-
-    media_component = populate_media_component(na_sess->NetworkAssistanceSession->policy_template_id, na_sess->NetworkAssistanceSession->requested_qo_s);
 
     ue_net  = copy_ue_network_connection_identifier(ue_connection);
 
@@ -268,21 +460,16 @@ static void create_pcf_app_session(ogs_sockaddr_t *pcf_address, ue_network_ident
     ue_connection_details_free(ue_net);
 }
 
-static void retrieve_pcf_binding_and_create_app_session(ue_network_identifier_t *ue_connection, msaf_network_assistance_session_t *na_sess)
+static void retrieve_pcf_binding_and_create_app_session(ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess)
 {
-    	
     retrieve_pcf_binding_cb_data_t *cb_data;
-
-    ogs_sockaddr_t *ue_address;
 
     cb_data = ogs_calloc(1, sizeof(retrieve_pcf_binding_cb_data_t));
     cb_data->ue_connection = copy_ue_network_connection_identifier((const ue_network_identifier_t *)ue_connection);
     cb_data->na_sess = na_sess;
+    cb_data->media_component = media_component;
 
-    ogs_copyaddrinfo(&ue_address, ue_connection->address);
-
-    bsf_retrieve_pcf_binding_for_pdu_session(ue_address, bsf_retrieve_pcf_binding_callback, cb_data);
-	
+    bsf_retrieve_pcf_binding_for_pdu_session(ue_connection->address, bsf_retrieve_pcf_binding_callback, cb_data);
 }
 
 static ue_network_identifier_t *copy_ue_network_connection_identifier(const ue_network_identifier_t *ue_net_connection)
@@ -320,7 +507,14 @@ static void msaf_network_assistance_session_remove(msaf_network_assistance_sessi
     }
 
     if(msaf_network_assistance_session->NetworkAssistanceSession) OpenAPI_network_assistance_session_free(msaf_network_assistance_session->NetworkAssistanceSession);
-    if(msaf_network_assistance_session->create_event) msaf_event_free(msaf_network_assistance_session->create_event);
+    if(msaf_network_assistance_session->metadata){
+        if(msaf_network_assistance_session->metadata->create_event) msaf_event_free(msaf_network_assistance_session->metadata->create_event);
+        if(msaf_network_assistance_session->metadata->delivery_boost) msaf_event_free(msaf_network_assistance_session->metadata->delivery_boost);
+        ogs_free(msaf_network_assistance_session->metadata);
+    }
+    if(msaf_network_assistance_session->delivery_boost_timer)
+        ogs_timer_delete(msaf_network_assistance_session->delivery_boost_timer);
+
     ogs_free(msaf_network_assistance_session);
 
 }
@@ -335,32 +529,117 @@ static void ue_connection_details_free(ue_network_identifier_t *ue_connection) {
 static bool app_session_change_callback(pcf_app_session_t *app_session, void *data){
 
     msaf_network_assistance_session_t *na_sess;
-    ogs_debug("msaf_na_sess_cb(app_session=%p, data=%p)", app_session, data);
+    ogs_debug("change callback(app_session=%p, data=%p)", app_session, data);
 
     na_sess = (msaf_network_assistance_session_t *)data;
 
     if(!app_session){
-	    
-	if(na_sess->create_event)
-	{
-	    /*
-	    ogs_assert(true == nf_server_send_error(na_sess->create_event->h.sbi.data, 401, 0, na_sess->create_event->message, "Creation of the Network Assistance Session failed.", "PCF App Session creation failed" , NULL, na_sess->create_event->local.nf_server_interface_metadata, na_sess->create_event->local.app_meta));
+
+        if(na_sess->metadata->create_event)
+        {
+            /*
+            ogs_assert(true == nf_server_send_error(na_sess->create_event->h.sbi.data, 401, 0, na_sess->create_event->message, "Creation of the Network Assistance Session failed.", "PCF App Session creation failed" , NULL, na_sess->create_event->local.nf_server_interface_metadata, na_sess->create_event->local.app_meta));
             */
-	    msaf_network_assistance_session_remove(na_sess);
-	
-	} else {
-	    msaf_network_assistance_session_remove_from_delete_list();
-	}
-	return false;
+            msaf_network_assistance_session_remove(na_sess);
+            return false;
+
+        }
+
+        if(na_sess->metadata->delivery_boost){
+            delivery_boost_send_response(na_sess);
+            return false;
+        }
+
+        msaf_network_assistance_session_remove_from_delete_list();
+
+        return false;
     }
 
-    if(app_session){
-	na_sess->pcf_app_session = app_session;    
-	create_msaf_na_sess_and_send_response(na_sess);    
-	return true;
+    if(app_session && na_sess->metadata->create_event){
+        na_sess->pcf_app_session = app_session;
+        create_msaf_na_sess_and_send_response(na_sess);
+        return true;
+    }
+
+    if(app_session && na_sess->metadata->delivery_boost) {
+        ogs_info("Callback from PCF Update");
+        activate_delivery_boost_and_send_response(na_sess);
+        return true;
     }
     return false;
 }
+
+static void activate_delivery_boost_and_send_response(msaf_network_assistance_session_t *na_sess) {
+
+    char *reason = NULL;
+    OpenAPI_operation_success_response_t *operation_success_response;
+    cJSON *op_success_response;
+    char *success_response;
+    ogs_sbi_response_t *response;
+    int response_code = 200;
+    int cache_control_max_age;
+
+    ogs_assert(na_sess);
+    na_sess->active_delivery_boost = true;
+
+    operation_success_response = OpenAPI_operation_success_response_create(reason, 1);
+    op_success_response = OpenAPI_operation_success_response_convertToJSON(operation_success_response);
+    success_response = cJSON_Print(op_success_response);
+
+    cache_control_max_age = (msaf_self()->config.network_assistance_delivery_boost->delivery_boost_period);
+
+    response = nf_server_new_response(NULL, "application/json", 0, NULL, cache_control_max_age, NULL, na_sess->metadata->delivery_boost->nf_server_interface_metadata, na_sess->metadata->delivery_boost->app_meta);
+    ogs_assert(response);
+    nf_server_populate_response(response, strlen(success_response), ogs_strdup(success_response), response_code);
+    ogs_assert(true == ogs_sbi_server_send_response(na_sess->metadata->delivery_boost->h.sbi.data, response));
+
+    if(!na_sess->delivery_boost_timer) na_sess->delivery_boost_timer = ogs_timer_add(ogs_app()->timer_mgr, msaf_timer_delivery_boost, na_sess);
+
+    if (na_sess->delivery_boost_timer) {
+            ogs_timer_start(na_sess->delivery_boost_timer, ogs_time_from_sec(msaf_self()->config.network_assistance_delivery_boost->delivery_boost_period));
+    }
+    if(na_sess->metadata->delivery_boost)
+    {
+        msaf_event_free(na_sess->metadata->delivery_boost);
+        na_sess->metadata->delivery_boost =  NULL;
+
+    }
+
+    cJSON_Delete(op_success_response);
+    OpenAPI_operation_success_response_free(operation_success_response);
+    cJSON_free(success_response);
+
+}
+
+static void delivery_boost_send_response(msaf_network_assistance_session_t *na_sess) {
+
+    char *reason = NULL;
+    OpenAPI_operation_success_response_t *operation_success_response;
+    cJSON *op_success_response;
+    char *success_response;
+    ogs_sbi_response_t *response;
+    int response_code = 200;
+
+    ogs_assert(na_sess);
+
+    reason = "PCF rejected delivery boost requested";
+
+
+    operation_success_response = OpenAPI_operation_success_response_create(reason, 0);
+    op_success_response = OpenAPI_operation_success_response_convertToJSON(operation_success_response);
+    success_response = cJSON_Print(op_success_response);
+
+    response = nf_server_new_response(NULL, "application/json", 0, NULL, 0, NULL, na_sess->metadata->delivery_boost->nf_server_interface_metadata, na_sess->metadata->delivery_boost->app_meta);
+    ogs_assert(response);
+    nf_server_populate_response(response, strlen(success_response), ogs_strdup(success_response), response_code);
+    ogs_assert(true == ogs_sbi_server_send_response(na_sess->metadata->delivery_boost->h.sbi.data, response));
+
+    cJSON_Delete(op_success_response);
+    OpenAPI_operation_success_response_free(operation_success_response);
+    cJSON_free(success_response);
+
+}
+
 
 static bool create_msaf_na_sess_and_send_response(msaf_network_assistance_session_t *na_sess){
     ogs_uuid_t uuid;
@@ -371,31 +650,36 @@ static bool create_msaf_na_sess_and_send_response(msaf_network_assistance_sessio
     int response_code = 200;
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
-    
-    if(na_sess->NetworkAssistanceSession->na_session_id) {
-	    ogs_free(na_sess->NetworkAssistanceSession->na_session_id);
-	    na_sess->NetworkAssistanceSession->na_session_id = NULL;
+
+    if (na_sess->NetworkAssistanceSession->na_session_id) {
+        ogs_free(na_sess->NetworkAssistanceSession->na_session_id);
+        na_sess->NetworkAssistanceSession->na_session_id = NULL;
     }
-    
 
     na_sess->NetworkAssistanceSession->na_session_id = msaf_strdup(id);
     na_sess->naSessionId = msaf_strdup(id);
-    
+
     na_sess->na_sess_created = time(NULL);
-    
-    response = nf_server_new_response(NULL, "application/json", 0, NULL, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL,na_sess->create_event->local.nf_server_interface_metadata, na_sess->create_event->local.app_meta);
+
+    response = nf_server_new_response(NULL, "application/json", 0, NULL, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL,na_sess->metadata->create_event->nf_server_interface_metadata, na_sess->metadata->create_event->app_meta);
+
     ogs_assert(response);
 
     nas_json = OpenAPI_network_assistance_session_convertToJSON(na_sess->NetworkAssistanceSession);
     response_body= cJSON_Print(nas_json);
     nf_server_populate_response(response, response_body?strlen(response_body):0, msaf_strdup(response_body), response_code);
-    ogs_assert(true == ogs_sbi_server_send_response(na_sess->create_event->h.sbi.data, response));
+    ogs_assert(true == ogs_sbi_server_send_response(na_sess->metadata->create_event->h.sbi.data, response));
 
-    if(na_sess->create_event) 
+    if(na_sess->metadata->create_event)
     {
-        msaf_event_free(na_sess->create_event);
-	na_sess->create_event =  NULL;
+        msaf_event_free(na_sess->metadata->create_event);
+        na_sess->metadata->create_event =  NULL;
+        //ogs_free(na_sess->metadata);
+        //na_sess->metadata =  NULL;
+
     }
+
+    na_sess->active_delivery_boost = false;
 
     ogs_list_add(&msaf_self()->network_assistance_sessions, na_sess);
 
@@ -403,7 +687,6 @@ static bool create_msaf_na_sess_and_send_response(msaf_network_assistance_sessio
     cJSON_free(response_body);
     ogs_sbi_header_free(&response->h);
 
-    
     return true;
 
 }
@@ -421,8 +704,8 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
     ogs_assert(data);
     ogs_sockaddr_t *pcf_address;
     ogs_sockaddr_t *ue_address = NULL;
-    retrieve_pcf_binding_cb_data_t *retrieve_pcf_binding_cb_data; 
-    
+    retrieve_pcf_binding_cb_data_t *retrieve_pcf_binding_cb_data;
+
     retrieve_pcf_binding_cb_data = (retrieve_pcf_binding_cb_data_t *)data;
     ogs_assert(retrieve_pcf_binding_cb_data);
 
@@ -433,46 +716,47 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
     if(pcf_binding){
         expires = ogs_time_now() + ogs_time_from_sec(valid_time);
         rv =  msaf_pcf_cache_add(msaf_self()->pcf_cache, ue_address, (const OpenAPI_pcf_binding_t *)pcf_binding, expires);
-	OpenAPI_pcf_binding_free(pcf_binding);
+        OpenAPI_pcf_binding_free(pcf_binding);
 
 
         if (rv != true){
             ogs_error("Adding PCF Binding to the cache failed");
-	    retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
+            retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
             return false;
         }
-	pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, retrieve_pcf_binding_cb_data->ue_connection->address);
-	if(pcf_address){
-	    create_pcf_app_session(pcf_address, retrieve_pcf_binding_cb_data->ue_connection, retrieve_pcf_binding_cb_data->na_sess);
-            
-	} else{
-	   // send 404 to the ue client
-	   char *err = NULL;
+        pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, retrieve_pcf_binding_cb_data->ue_connection->address);
+        if(pcf_address){
+            create_pcf_app_session(pcf_address, retrieve_pcf_binding_cb_data->ue_connection, retrieve_pcf_binding_cb_data->media_component, retrieve_pcf_binding_cb_data->na_sess);
+            retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
+            return true;
+        } else{
+           // send 404 to the ue client
+           char *err = NULL;
            err = ogs_msprintf("Unable to create the PCF app session.");
            ogs_error("%s", err);
-           ogs_assert(true == nf_server_send_error(retrieve_pcf_binding_cb_data->na_sess->create_event->h.sbi.data, 404, 0, 
-				   retrieve_pcf_binding_cb_data->na_sess->create_event->message, 
-				   "PCF app session creation failed.", err, NULL, 
-				   retrieve_pcf_binding_cb_data->na_sess->create_event->local.nf_server_interface_metadata, 
-				   retrieve_pcf_binding_cb_data->na_sess->create_event->local.app_meta));
+           ogs_assert(true == nf_server_send_error(retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->h.sbi.data, 404, 0,
+                                   retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->message,
+                                   "PCF app session creation failed.", err, NULL,
+                                   retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->nf_server_interface_metadata,
+                                   retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->app_meta));
            ogs_free(err);
 
-	   ogs_error("unable to create the PCF app session");
-	   retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
-	   return false;
-	}
+           ogs_error("unable to create the PCF app session");
+           retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
+           return false;
+        }
     } else {
-	char *err = NULL;
+        char *err = NULL;
         err = ogs_msprintf("Unable to retrieve PCF Binding.");
         ogs_error("%s", err);
-        ogs_assert(true == nf_server_send_error(retrieve_pcf_binding_cb_data->na_sess->create_event->h.sbi.data, 404, 0,
-                                   retrieve_pcf_binding_cb_data->na_sess->create_event->message,
+        ogs_assert(true == nf_server_send_error(retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->h.sbi.data, 404, 0,
+                                   retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->message,
                                    "PCF Binding not found.", err, NULL,
-                                   retrieve_pcf_binding_cb_data->na_sess->create_event->local.nf_server_interface_metadata,
-                                   retrieve_pcf_binding_cb_data->na_sess->create_event->local.app_meta));
+                                   retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->nf_server_interface_metadata,
+                                   retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->app_meta));
         ogs_free(err);
         ogs_error("Unable to retrieve PCF Binding.");
-	retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
+        retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
         return false;
     }
 
@@ -485,15 +769,46 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
 static void retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data_t *cb_data)
 {
     free_ue_network_connection_identifier(cb_data->ue_connection);
-    ogs_free(cb_data);	    
-
+    ogs_free(cb_data);
 }
 
 static void add_create_event_metadata_to_na_sess_context(msaf_network_assistance_session_t *na_sess, msaf_event_t *e)
 {
-  if(na_sess->create_event) msaf_event_free(na_sess->create_event);
-  na_sess->create_event =  e; 
+  //if(na_sess->metadata->create_event) msaf_event_free(na_sess->metadata->create_event);
+  na_sess->metadata = ogs_calloc(1, sizeof(OpenAPI_network_assistance_session_t));
+  na_sess->metadata->create_event =  e;
 }
+
+static void add_delivery_boost_event_metadata_to_na_sess_context(msaf_network_assistance_session_t *na_sess, msaf_event_t *e){
+    na_sess->metadata->delivery_boost = e;
+}
+
+static char *flow_description_protocol_to_string(int protocol)
+{
+    switch (protocol) {
+    case IPPROTO_IP:
+        return "ip";
+    case IPPROTO_TCP:
+        return "tcp";
+    case IPPROTO_UDP:
+        return "udp";
+    case IPPROTO_ICMP:
+        return "icmp";
+    case IPPROTO_SCTP:
+        return "sctp";
+    default:
+        break;
+    }
+    return "ip";
+}
+
+
+static char *flow_description_port(int port)
+{
+    if (port == 0) return ogs_strdup("");
+    return ogs_msprintf(" %d", port);
+}
+
 
 static void display_notifications(const OpenAPI_events_notification_t *notifications)
 {

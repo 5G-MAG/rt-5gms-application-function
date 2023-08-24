@@ -281,7 +281,14 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             if (message) ogs_sbi_message_free(message);
             break;
 
-        case OGS_EVENT_SBI_TIMER:
+        case MSAF_EVENT_DELIVERY_BOOST_TIMER:
+	    ogs_assert(e);
+            //e->message = message;
+            //message = NULL;
+            ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
+	    break;
+
+	case OGS_EVENT_SBI_TIMER:
             ogs_assert(e);
 
             switch(e->h.timer_id) {

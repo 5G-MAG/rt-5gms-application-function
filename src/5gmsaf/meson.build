@@ -57,6 +57,10 @@ libmsaf_dist_sources = files('''
     msaf-sm.c
     network-assistance-session.h
     network-assistance-session.c
+    timer.h
+    timer.c
+    network-assistance-delivery-boost.h
+    network-assistance-delivery-boost.c
     pcf-cache.c
     pcf-cache.h
     pcf-session.h

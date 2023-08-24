@@ -30,6 +30,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "application-server-context.h"
 #include "service-access-information.h"
 #include "response-cache-control.h"
+#include "network-assistance-delivery-boost.h"
 #include "pcf-cache.h"
 
 #ifdef __cplusplus
@@ -63,6 +64,7 @@ typedef struct msaf_configuration_s {
     char *certificateManager;
     msaf_configuration_server_t servers[MSAF_SVR_NUM_IFCS];
     msaf_server_response_cache_control_t *server_response_cache_control;
+    msaf_network_assistance_delivery_boost_t *network_assistance_delivery_boost;
     int  number_of_application_servers;
 
     char *data_collection_dir;

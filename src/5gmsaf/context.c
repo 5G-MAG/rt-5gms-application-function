@@ -41,6 +41,7 @@ static void msaf_context_application_server_state_assigned_provisioning_sessions
 static void msaf_context_application_server_state_remove_all(void);
 static void msaf_context_server_sockaddr_remove(void);
 static void msaf_context_network_assistance_session_init(void);
+static int check_for_network_assistance_support(void);
 
 void msaf_context_init(void)
 {
@@ -64,6 +65,7 @@ void msaf_context_init(void)
     self->pcf_cache = msaf_pcf_cache_new();
 
     msaf_server_response_cache_control_set();
+    msaf_network_assistance_delivery_boost_set();
 
 }
 
@@ -96,6 +98,8 @@ void msaf_context_final(void)
  
     if (self->config.certificateManager)
         ogs_free(self->config.certificateManager);
+
+    msaf_network_assistance_delivery_boost_free();
 
      if(self->config.offerNetworkAssistance){
         msaf_na_policy_template_remove_all();
@@ -511,12 +515,77 @@ int msaf_context_parse_config(void)
                 } else if (!strcmp(msaf_key, "offerNetworkAssistance")) {
                     self->config.offerNetworkAssistance = ogs_yaml_iter_bool(&msaf_iter);
 		    msaf_context_network_assistance_session_init();
-                } else {
+                } else if (!strcmp(msaf_key, "networkAssistance")) {
+                    ogs_yaml_iter_t na_iter, na_array;
+                    ogs_yaml_iter_recurse(&msaf_iter, &na_array);
+                    if (ogs_yaml_iter_type(&na_array) == YAML_MAPPING_NODE) {
+                        memcpy(&na_iter, &na_array, sizeof(ogs_yaml_iter_t));
+                    } else if (ogs_yaml_iter_type(&na_array) == YAML_SEQUENCE_NODE) {
+                    if (!ogs_yaml_iter_next(&na_array))
+                        break;
+                    ogs_yaml_iter_recurse(&na_array, &na_iter);
+                    } else if (ogs_yaml_iter_type(&na_array) == YAML_SCALAR_NODE) {
+                        break;
+                    } else
+                    ogs_assert_if_reached();
+	            
+	            //int delivery_boost_min_dl_bit_rate;
+	            uint64_t delivery_boost_min_dl_bit_rate;
+                    int delivery_boost_period;		    
+
+                    while (ogs_yaml_iter_next(&na_iter)) {
+                        const char *na_key = ogs_yaml_iter_key(&na_iter);
+                        ogs_assert(na_key);
+                        if (!strcmp(na_key, "deliveryBoost")) {
+		            ogs_info("deliveryBoost");
+			    ogs_yaml_iter_t db_iter, db_array;
+                            ogs_yaml_iter_recurse(&na_iter, &db_array);
+                            if (ogs_yaml_iter_type(&db_array) == YAML_MAPPING_NODE) {
+                                memcpy(&db_iter, &db_array, sizeof(ogs_yaml_iter_t));
+                            } else if (ogs_yaml_iter_type(&db_array) == YAML_SEQUENCE_NODE) {
+                                if (!ogs_yaml_iter_next(&db_array))
+                                    break;
+                                ogs_yaml_iter_recurse(&db_array, &db_iter);
+                            } else if (ogs_yaml_iter_type(&db_array) == YAML_SCALAR_NODE) {
+                                  break;
+                            } else
+                            ogs_assert_if_reached();
+
+                            while (ogs_yaml_iter_next(&db_iter)) {
+                                const char *db_key = ogs_yaml_iter_key(&db_iter);
+                                ogs_assert(db_key);
+                                if (!strcmp(db_key, "minDlBitRate")) {
+                                    ogs_info("deliveryBoost.minDlBitRate");
+				    
+				    delivery_boost_min_dl_bit_rate = ogs_sbi_bitrate_from_string(ogs_yaml_iter_value(&db_iter));
+
+				    ogs_info("delivery_boost_min_dl_bit_rate: %ld", delivery_boost_min_dl_bit_rate);
+				    /*
+				    delivery_boost_min_dl_bit_rate = atoi(ogs_yaml_iter_value(&db_iter));
+				    ogs_info("delivery_boost_min_dl_bit_rate: %d", delivery_boost_min_dl_bit_rate);
+				    */
+                                }
+				if (!strcmp(db_key, "boostPeriod")) {
+                                    ogs_info("deliveryBoost.boostPeriod");
+                                    delivery_boost_period = atoi(ogs_yaml_iter_value(&db_iter));
+				    ogs_info("delivery_boost_period: %d", delivery_boost_period);
+                                }
+
+                            }
+			    msaf_network_assistance_delivery_boost_set_from_config( delivery_boost_min_dl_bit_rate, delivery_boost_period);
+                        }
+                  }
+              }
+		
+		else {
                     ogs_warn("unknown key `%s`", msaf_key);
                 }
             }
         }
     }
+
+    rv = check_for_network_assistance_support();
+    if (rv != OGS_OK) return rv;
 
     rv = msaf_context_validation();
     if (rv != OGS_OK) return rv;
@@ -542,6 +611,16 @@ static void msaf_context_network_assistance_session_init(void)
     ogs_list_init(&self->delete_pcf_app_sessions);
 }
 
+static int check_for_network_assistance_support(void){
+
+    if(self->config.offerNetworkAssistance && !self->config.open5gsIntegration_flag) {
+        ogs_info("For network assistance, set \"offerNetworkAssistance: true\" and \"open5gsIntegration: true\" in the configuration file");
+	return OGS_ERROR;
+    }
+
+    return OGS_OK;
+
+}
 
 static void msaf_context_application_server_state_certificates_remove_all(void) {
 

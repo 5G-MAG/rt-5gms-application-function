@@ -21,20 +21,29 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "bsf-service-consumer.h"
 #include "pcf-service-consumer.h"
 #include "policy-template.h"
+#include "event.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct ue_network_identifier_s ue_network_identifier_t;
+typedef struct msaf_event_s msaf_event_t;
+
+typedef struct msaf_network_assistance_session_internal_metadata_s {
+    msaf_event_t *create_event;
+    msaf_event_t *delivery_boost;    
+} msaf_network_assistance_session_internal_metadata_t;
 
 typedef struct msaf_network_assistance_session_s {
     ogs_lnode_t node;	
     char *naSessionId;
+    msaf_network_assistance_session_internal_metadata_t *metadata;
     OpenAPI_network_assistance_session_t *NetworkAssistanceSession;
     pcf_app_session_t *pcf_app_session;
-    msaf_event_t *create_event;
     time_t na_sess_created;
+    bool active_delivery_boost;
+    ogs_timer_t *delivery_boost_timer;
 } msaf_network_assistance_session_t;
 
 typedef struct msaf_pcf_app_session_s {
@@ -45,23 +54,23 @@ typedef struct msaf_pcf_app_session_s {
 
 extern int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event_t *e);
 
-extern int msaf_nw_assistance_session_delete(msaf_network_assistance_session_t *msaf_network_assistance_session, msaf_event_t *e);
 extern msaf_network_assistance_session_t *msaf_network_assistance_session_retrieve(const char *na_session_id);
+
 extern cJSON *msaf_network_assistance_session_get_json(const char *na_session_id);
+
 extern void msaf_network_assistance_session_delete_by_session_id(const char *na_sess_id);
+
 void msaf_network_assistance_session_remove_all_pcf_app_session(void);
-
-extern void msaf_network_assistance_session_delete(const char *na_session_id);
-
-extern char *enumerate_network_assistance_sessions(void);
 
 extern ue_network_identifier_t *populate_ue_connection_details(OpenAPI_service_data_flow_description_t *service_data_flow_information);
 
 extern void msaf_network_assistance_session_remove_all(void);
 
-extern OpenAPI_list_t *populate_media_component(char *policy_template_id, OpenAPI_m5_qo_s_specification_t *requested_qos);
+extern void msaf_nw_assistance_session_update_pcf(msaf_network_assistance_session_t *na_sess, msaf_event_t *e);
 
-extern bool msaf_na_sess_cb(pcf_app_session_t *app_session, void *user_data);
+extern void na_session_set_active_delivery_boost(msaf_network_assistance_session_t *na_sess);
+
+extern void msaf_nw_assistance_session_update_pcf_on_timeout(msaf_network_assistance_session_t *na_sess);
 
 
 #ifdef __cplusplus

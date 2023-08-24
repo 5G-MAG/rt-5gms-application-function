@@ -74,9 +74,6 @@ static void msaf_na_policy_template_remove(msaf_network_assistance_policy_templa
 
 static OpenAPI_policy_template_t *dummy_policy_template(void)
 {
-
-    char *af_app_id = "5G Media Stream";
-    char *asp_id = "5G-MAG";
     char *dnn = "internet";
 
     char *max_auth_btr_dl;
@@ -97,9 +94,9 @@ static OpenAPI_policy_template_t *dummy_policy_template(void)
 
     m1_qos = OpenAPI_m1_qo_s_specification_create(false, 0, false, 0, max_auth_btr_dl, max_auth_btr_ul, max_btr_dl, max_btr_ul, NULL);
 
-    policy_template_application_session_context = OpenAPI_policy_template_application_session_context_create(msaf_strdup(af_app_id), msaf_strdup(asp_id), msaf_strdup(dnn), NULL);
+    policy_template_application_session_context = OpenAPI_policy_template_application_session_context_create(msaf_strdup(dnn), NULL);
 
-    policy_template = OpenAPI_policy_template_create(NULL, OpenAPI_policy_template_APITYPE_N5, policy_template_application_session_context, NULL, NULL, msaf_strdup(policy_template_id), m1_qos, OpenAPI_policy_template_STATE_READY, NULL);
+    policy_template = OpenAPI_policy_template_create(policy_template_application_session_context, NULL, NULL, msaf_strdup(policy_template_id), m1_qos, OpenAPI_policy_template_STATE_READY, NULL);
 
     return policy_template;
 }
