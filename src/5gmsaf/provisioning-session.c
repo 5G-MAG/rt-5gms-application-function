@@ -118,6 +118,7 @@ msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provis
 }
 
 msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t *provisioning_session,
+                                                                                    const char *metricsReportingConfigurationId,
                                                                                     const char *scheme,
                                                                                     const char *dataNetworkName,
                                                                                     bool isReportingInterval,
@@ -130,14 +131,10 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
 
     ogs_assert(provisioning_session);
     msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration;
-    ogs_uuid_t uuid;
-    char id[OGS_UUID_FORMATTED_LENGTH + 1];
+
     OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
 
-    ogs_uuid_get(&uuid);
-    ogs_uuid_format(id, &uuid);
-
-    metricsReportingConfiguration = OpenAPI_metrics_reporting_configuration_create(msaf_strdup(id),
+    metricsReportingConfiguration = OpenAPI_metrics_reporting_configuration_create(msaf_strdup(metricsReportingConfigurationId),
                                                                                    msaf_strdup(scheme),
                                                                                    msaf_strdup(dataNetworkName),
                                                                                    isReportingInterval,
@@ -150,7 +147,7 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     msaf_metrics_reporting_configuration = ogs_calloc(1, sizeof(msaf_metrics_reporting_configuration_t));
     ogs_assert(msaf_metrics_reporting_configuration);
 
-    msaf_metrics_reporting_configuration->metricsReportingConfigurationId = msaf_strdup(metricsReportingConfiguration->metrics_reporting_configuration_id);
+    msaf_metrics_reporting_configuration->metricsReportingConfigurationId = msaf_strdup(metricsReportingConfigurationId);
     msaf_metrics_reporting_configuration->scheme = msaf_strdup(metricsReportingConfiguration->scheme);
     msaf_metrics_reporting_configuration->dataNetworkName = msaf_strdup(metricsReportingConfiguration->data_network_name);
     msaf_metrics_reporting_configuration->isReportingInterval = metricsReportingConfiguration->is_reporting_interval;
@@ -192,9 +189,6 @@ msaf_metrics_reporting_configuration_t* mrc_update(const char *metricsReportingC
         return NULL;
     }
 
-    // Update the fields of the existing object
-
-    // For string fields, free the old memory and allocate new memory
     ogs_free(existing_mrc->scheme);
     existing_mrc->scheme = msaf_strdup(scheme);
 
@@ -205,16 +199,11 @@ msaf_metrics_reporting_configuration_t* mrc_update(const char *metricsReportingC
     existing_mrc->reportingInterval = reportingInterval;
     existing_mrc->isSamplePercentage = isSamplePercentage;
     existing_mrc->samplePercentage = samplePercentage;
-
-    // Depending on how you manage memory in your project, you might need to free the old lists before assigning the new ones
     existing_mrc->urlFilters = urlFilters;
     existing_mrc->metrics = metrics;
 
     existing_mrc->receivedTime = time(NULL);
 
-    // If you have other fields in the object to be updated, continue updating them in a similar fashion
-
-    // Return the updated object
     return existing_mrc;
 }
 
@@ -278,7 +267,8 @@ msaf_metrics_reporting_map(void)
     return metricsReportingMap;
 }
 
-int mrc_delete(const char *metricsReportingConfigurationId)
+
+int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId)
 {
     msaf_application_server_state_node_t *as_state;
     int result = -1;
@@ -318,8 +308,6 @@ int mrc_delete(const char *metricsReportingConfigurationId)
     return result;
 }
 
-
-
 cJSON *
 msaf_provisioning_session_get_json(const char *provisioning_session_id)
 {
@@ -348,14 +336,17 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
             OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
         }
 
-        // Storing metrics configuration UUIDs into set
-        provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
+        cJSON *metrics_reporting_configurations_json = cJSON_CreateArray();
         for (metrics_node=ogs_hash_first(msaf_provisioning_session->metricsReportingMap); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
-            ogs_debug("msaf_provisioning_session_get_json: Add metric reporting configuration %s", (const char *)ogs_hash_this_key(metrics_node));
-            OpenAPI_list_add(provisioning_session->metrics_reporting_configuration_ids, (void*)ogs_hash_this_key(metrics_node));
+            const char *config_id = (const char *)ogs_hash_this_key(metrics_node);
+            cJSON *config_json = msaf_metrics_reporting_configuration_get_json(config_id);
+            if (config_json) {
+                cJSON_AddItemToArray(metrics_reporting_configurations_json, config_json);
+            }
         }
 
         provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
+        cJSON_AddItemToObject(provisioning_session_json, "metricsReportingConfigurations", metrics_reporting_configurations_json);
 
         OpenAPI_list_free(provisioning_session->server_certificate_ids);
         ogs_free(provisioning_session);
