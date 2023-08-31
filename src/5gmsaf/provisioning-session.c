@@ -268,7 +268,7 @@ msaf_metrics_reporting_map(void)
 }
 
 
-int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId)
+/*int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId)
 {
     msaf_application_server_state_node_t *as_state;
     int result = -1;
@@ -306,6 +306,40 @@ int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConf
         next_action_for_application_server(as_state);
     }
     return result;
+}*/
+
+int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId) {
+    ogs_hash_index_t *provisioning_node;
+    ogs_hash_index_t *metrics_node;
+
+    if (!metricsReportingConfigurationId) {
+        ogs_error("Metrics Reporting Configuration ID is NULL");
+        return -1;
+    }
+
+    for (provisioning_node = ogs_hash_first(msaf_self()->provisioningSessions_map); provisioning_node; provisioning_node = ogs_hash_next(provisioning_node)) {
+        msaf_provisioning_session_t *provisioning_session = ogs_hash_this_val(provisioning_node);
+
+        for (metrics_node = ogs_hash_first(provisioning_session->metricsReportingMap); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
+            char *currentMetricsId = (char *)ogs_hash_this_key(metrics_node);
+            if (strcmp(currentMetricsId, metricsReportingConfigurationId) == 0) {
+                msaf_metrics_reporting_configuration_t *mrc_to_delete = ogs_hash_this_val(metrics_node);
+
+                // Remove from hash map
+                ogs_hash_set(provisioning_session->metricsReportingMap, currentMetricsId, OGS_HASH_KEY_STRING, NULL);
+
+                ogs_free(mrc_to_delete->metricsReportingConfigurationId);
+                ogs_free(mrc_to_delete->scheme);
+                ogs_free(mrc_to_delete->dataNetworkName);
+                ogs_free(mrc_to_delete);
+
+                return 0; // Successfully deleted
+            }
+        }
+    }
+
+    ogs_error("Metrics Reporting Configuration with ID %s not found", metricsReportingConfigurationId);
+    return -1; // Not found
 }
 
 cJSON *

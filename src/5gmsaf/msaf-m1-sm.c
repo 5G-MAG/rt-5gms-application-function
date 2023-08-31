@@ -1421,88 +1421,56 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 }
             }
 
-            if (
-                    message->h.resource.component[1] &&
-                    message->h.resource.component[2] &&
-                    !strcmp(message->h.resource.component[2],"metrics-reporting-configurations") &&
-                    message->h.resource.component[3] &&
-                    !message->h.resource.component[4])
-            {
-                ogs_sbi_response_t *response;
-                msaf_provisioning_session_t *msaf_provisioning_session;
-                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+            if (message->h.resource.component[1] && message->h.resource.component[2] && message->h.resource.component[3] && !message->h.resource.component[4]) {
 
-                if (msaf_provisioning_session) {
-                    int rv;
-                    rv = msaf_metrics_reporting_configuration_delete(message->h.resource.component[3]);
+                if (!strcmp(message->h.resource.component[2], "metrics-reporting-configurations")) {
+                    msaf_provisioning_session_t *msaf_provisioning_session;
+                    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                    if (msaf_provisioning_session) {
+                        int delete_result = msaf_metrics_reporting_configuration_delete(message->h.resource.component[3]);
+                        if (delete_result == 0) {
+                            ogs_sbi_response_t *response;
+                            response = nf_server_new_response(NULL,
+                                                              "application/json",
+                                                              NULL,
+                                                              NULL,
+                                                              NULL,
+                                                              NULL,
+                                                              m1_metricsreportingprovisioning_api,
+                                                              app_meta);
 
-                    if ((rv == 0) || (rv == 8)){
-                        response = nf_server_new_response(NULL,
-                                                          NULL,
-                                                          msaf_provisioning_session->metricsReportingConfigurationReceived,
-                                                          msaf_provisioning_session->metricsReportingConfigurationHash,
-                                                          0,
-                                                          NULL,
-                                                          m1_metricsreportingprovisioning_api,
-                                                          app_meta);
-
-                        nf_server_populate_response(response,
-                                                    0,
-                                                    NULL,
-                                                    204);
-                        ogs_assert(response);
-                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-
-                        msaf_provisioning_session_mrc_hash_remove(message->h.resource.component[1],
-                                                                  message->h.resource.component[3]);
-
-                    } else if (rv == 4 ) {
-                        char *err = NULL;
-                        err = ogs_msprintf("Metrics Reporting Configuration [%s] does not exist.", message->h.resource.component[3]);
-                        ogs_error("%s", err);
-
-                        ogs_assert(true == nf_server_send_error(stream,
-                                                                404,
-                                                                3,
-                                                                message,
-                                                                "Metrics Reporting Configuration does not exist.",
-                                                                err,
-                                                                NULL,
-                                                                m1_metricsreportingprovisioning_api,
-                                                                app_meta));
-                        ogs_free(err);
+                            nf_server_populate_response(response, 0, NULL, 200);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                        } else {
+                            char *err = NULL;
+                            err = ogs_msprintf("Metrics Reporting Configuration [%s] not found or could not be deleted",
+                                               message->h.resource.component[3]);
+                            ogs_error("%s", err);
+                            ogs_assert(true == nf_server_send_error(stream,
+                                                                    404,
+                                                                    3, message,
+                                                                    "Metrics Reporting Configuration not found or could not be deleted.",
+                                                                    err,
+                                                                    NULL,
+                                                                    m1_metricsreportingprovisioning_api,
+                                                                    app_meta));
+                            ogs_free(err);
+                        }
                     } else {
                         char *err = NULL;
-                        err = ogs_msprintf("Metrics Reporting Configuration management problem for configuration [%s].", message->h.resource.component[3]);
+                        err = ogs_msprintf("Provisioning session [%s] not found",
+                                           message->h.resource.component[1]);
                         ogs_error("%s", err);
-
                         ogs_assert(true == nf_server_send_error(stream,
-                                                                500,
-                                                                3,
-                                                                message,
-                                                                "Metrics Reporting Configuration management problem.",
+                                                                404,
+                                                                3, message,
+                                                                "Provisioning session not found.",
                                                                 err,
                                                                 NULL,
                                                                 m1_metricsreportingprovisioning_api,
                                                                 app_meta));
                         ogs_free(err);
                     }
-
-                } else {
-                    char *err = NULL;
-                    err = ogs_msprintf("Provisioning Session [%s] does not exist.", message->h.resource.component[1]);
-                    ogs_error("%s", err);
-
-                    ogs_assert(true == nf_server_send_error(stream,
-                                                            404,
-                                                            3,
-                                                            message,
-                                                            "Provisioning session does not exist.",
-                                                            err,
-                                                            NULL,
-                                                            m1_metricsreportingprovisioning_api,
-                                                            app_meta));
-                    ogs_free(err);
                 }
             }
 

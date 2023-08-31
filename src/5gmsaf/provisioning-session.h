@@ -96,8 +96,8 @@ extern msaf_metrics_reporting_configuration_t* mrc_update(const char *metricsRep
 extern msaf_metrics_reporting_configuration_t* mrc_retrieve(const char *metricsReportingConfigurationId);
 extern cJSON *msaf_metrics_reporting_configuration_get_json(const char *metrics_reporting_configuration_id);
 extern int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId);
-extern int msaf_delete_metrics_reporting_configurations(const char *provisioning_session_id);
 extern void msaf_provisioning_session_mrc_hash_remove(const char *provisioning_session_id, const char *metricsReportingConfigurationId);
+extern int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId);
 
 extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
 
