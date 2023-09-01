@@ -294,55 +294,9 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
             m3_client_as_state_requests(as_state, purge_chc, "application/x-www-form-urlencoded", NULL, OGS_SBI_HTTP_METHOD_POST, component);
         }
         ogs_free(component);
-    }
-    else if (ogs_list_first(&as_state->upload_mrcs) != NULL) {
-        msaf_provisioning_session_t *provisioning_session;
-        msaf_metrics_reporting_configuration_t *metricsReportingConfiguration;
-        char *data;
-        char *component;
-        resource_id_node_t *mrc_id_node;
-        cJSON *json;
 
-        resource_id_node_t *upload_mrc = ogs_list_first(&as_state->upload_mrcs);
-        ogs_list_for_each(as_state->current_mrcs, mrc_id_node) {
-            if (!strcmp(mrc_id_node->state, upload_mrc->state)) {
-                break;
-            }
-        }
-        provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(upload_mrc->state);
-
-        // Retrieve the metrics reporting configuration
-        metricsReportingConfiguration = mrc_retrieve(upload_mrc->state);
-        if (metricsReportingConfiguration) {
-            json = msaf_metrics_reporting_configuration_get_json(metricsReportingConfiguration->metricsReportingConfigurationId);
-            data = cJSON_Print(json);
-
-            component = ogs_msprintf("metrics-reporting-configurations/%s", upload_mrc->state);
-
-            if (mrc_id_node) {
-                ogs_debug("M3 client: Sending PUT method to Application Server [%s] for Metrics Reporting Configuration: [%s]", as_state->application_server->canonicalHostname, upload_mrc->state);
-                m3_client_as_state_requests(as_state, NULL, "application/json", data, (char *)OGS_SBI_HTTP_METHOD_PUT, component);
-            } else {
-                ogs_debug("M3 client: Sending POST method to Application Server [%s] for Metrics Reporting Configuration:  [%s]", as_state->application_server->canonicalHostname, upload_mrc->state);
-                m3_client_as_state_requests(as_state, NULL, "application/json", data, (char *)OGS_SBI_HTTP_METHOD_POST, component);
-            }
-
-            ogs_free(component);
-            cJSON_Delete(json);
-            cJSON_free(data);
-        } else {
-            ogs_error("Failed to retrieve the Metrics Reporting Configuration with ID: %s", upload_mrc->state);
-        }
     }
 
-    else if (ogs_list_first(&as_state->delete_mrcs) !=  NULL) {
-        char *component;
-        resource_id_node_t *delete_mrc = ogs_list_first(&as_state->delete_mrcs);
-        ogs_debug("M3 client: Sending DELETE method for MRC [%s] to the Application Server [%s]", delete_mrc->state, as_state->application_server->canonicalHostname);
-        component = ogs_msprintf("metrics-reporting-configurations/%s", delete_mrc->state);
-        m3_client_as_state_requests(as_state, NULL, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_DELETE, component);
-        ogs_free(component);
-    }
 
 }
 

@@ -38,9 +38,6 @@ typedef struct msaf_application_server_state_node_s {
     ogs_list_t        upload_content_hosting_configurations;
     ogs_list_t        delete_content_hosting_configurations;
     ogs_list_t	      purge_content_hosting_cache;
-    ogs_list_t        *current_mrcs;
-    ogs_list_t        upload_mrcs;
-    ogs_list_t        delete_mrcs;
 } msaf_application_server_state_node_t;
 
 typedef struct assigned_provisioning_sessions_node_s {
