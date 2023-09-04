@@ -36,7 +36,7 @@ should be performed outside of this class.
 import datetime
 import json
 import logging
-from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List
+from typing import Optional, Union, Tuple, Dict, Any, TypedDict
 
 import httpx
 
@@ -119,11 +119,11 @@ class M1Client:
         self.__debug('M1Client.createProvisioningSession(%r, %r, asp_id=%r)',
                      provisioning_session_type, external_application_id, asp_id)
         send: ProvisioningSession = {
-                'provisioningSessionType': provisioning_session_type,
-                'externalApplicationId': external_application_id
-                }
+            'provisioningSessionType': provisioning_session_type,
+            'externalApplicationId': external_application_id
+        }
         if asp_id is not None:
-            send['aspId'] = asp_idprovisioning
+            send['aspId'] = asp_id
         result = await self.__do_request('POST', '/provisioning-sessions', json.dumps(send),
                                          'application/json')
         if result['status_code'] == 201:
@@ -155,9 +155,9 @@ class M1Client:
         if result['status_code'] == 200:
             ret: ProvisioningSessionResponse = self.__tag_and_date(result)
             ret.update({
-                    'ProvisioningSessionId': provisioning_session_id,
-                    'ProvisioningSession': ProvisioningSession.fromJSON(result['body'])
-                    })
+                'ProvisioningSessionId': provisioning_session_id,
+                'ProvisioningSession': ProvisioningSession.fromJSON(result['body'])
+            })
             return ret
         if result['status_code'] == 404:
             return None
@@ -186,7 +186,7 @@ class M1Client:
     # TS26512_M1_ContentHostingProvisioning
 
     async def createContentHostingConfiguration(self, provisioning_session_id: ResourceId,
-                                        content_hosting_configuration: ContentHostingConfiguration
+                                                content_hosting_configuration: ContentHostingConfiguration
                                                 ) -> Union[bool,ContentHostingConfigurationResponse]:
         '''
         Create a content hosting configuration for a provisioning session
@@ -201,19 +201,19 @@ class M1Client:
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('POST',
-                    f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
-                    json.dumps(content_hosting_configuration), 'application/json')
+                                         f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
+                                         json.dumps(content_hosting_configuration), 'application/json')
         if result['status_code'] == 201:
             if len(result['body']) > 0:
                 ret: ContentHostingConfigurationResponse = self.__tag_and_date(result)
                 ret.update({
                     'ProvisioningSessionId': provisioning_session_id,
-                    })
+                })
                 if len(result['body']) > 0:
                     ret.update({
                         'ContentHostingConfiguration': ContentHostingConfiguration.fromJSON(
-                                result['body'])
-                        })
+                            result['body'])
+                    })
                 return ret
             return True
         self.__default_response(result)
@@ -235,14 +235,14 @@ class M1Client:
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('GET',
-                    f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
+                                         f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
                                          '', 'application/json')
         if result['status_code'] == 200:
             ret: ContentHostingConfigurationResponse = self.__tag_and_date(result)
             ret.update({
                 'ProvisioningSessionId': provisioning_session_id,
                 'ContentHostingConfiguration': ContentHostingConfiguration.fromJSON(result['body'])
-                })
+            })
             return ret
         if result['status_code'] == 404:
             return None
@@ -290,7 +290,7 @@ class M1Client:
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('PATCH',
-                    f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
+                                         f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
 
                                          patch, 'application/json-patch+json')
         if result['status_code'] == 200:
@@ -300,7 +300,7 @@ class M1Client:
                     'ProvisioningSessionId': provisioning_session_id,
                     'ContentHostingConfiguration': ContentHostingConfiguration.fromJSON(
                         result['body'])
-                    })
+                })
                 return ret
             return True
         if result['status_code'] == 404:
@@ -321,7 +321,7 @@ class M1Client:
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('DELETE',
-                    f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
+                                         f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration',
                                          '', 'application/json')
         if result['status_code'] == 204 or result['status_code'] == 202:
             return True
@@ -346,8 +346,8 @@ class M1Client:
         if filter_regex is not None:
             body = f'pattern={filter_regex}'
         result = await self.__do_request('POST',
-              f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration/purge',
-              body, 'application/x-www-form-urlencoded')
+                                         f'/provisioning-sessions/{provisioning_session_id}/content-hosting-configuration/purge',
+                                         body, 'application/x-www-form-urlencoded')
         if result['status_code'] == 200:
             return int(result['body'])
         if result['status_code'] == 204:
@@ -357,19 +357,16 @@ class M1Client:
 
     # TS26512_M1_ServerCertificatesProvisioning
 
-    async def createOrReserveServerCertificate(self, provisioning_session_id: ResourceId, extra_domain_names: Optional[List[str]] = None, csr: bool = False) -> Optional[ServerCertificateSigningRequestResponse]:
+    async def createOrReserveServerCertificate(self, provisioning_session_id: ResourceId, csr=False) -> Optional[ServerCertificateSigningRequestResponse]:
         '''Create or reserve a server certificate for a provisioing session
 
         :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
-        :param extra_domain_names: An optional list of extra domain names to include a CSR as SubjectAltName entries.
         :param bool csr: Whether to reserve a certificate and return the CSR PEM data.
 
         If *csr* is ``True`` then this will reserve the certificate and request the CSR PEM data be returned along side the Id
-        of the newly reserved certificate. The *extra_domain_names* parameter may contain a list of extra domain names to include
-        in the SubjectAltNames extension.
+        of the newly reserved certificate.
 
-        If *csr* is ``False`` or not provided then create a new certificate and just return the new certificate Id. The
-        *extra_domain_names* must be an empty list or ``None``.
+        If *csr* is ``False`` or not provided then create a new certificate and just return the new certificate Id.
 
         :return: a `ServerCertificateSigningRequestResponse` containing the certificate id and metadata optionally with CSR PEM
                  data if *csr* was ``True``.
@@ -378,27 +375,20 @@ class M1Client:
         '''
 
         url = f'/provisioning-sessions/{provisioning_session_id}/certificates'
-        if extra_domain_names is not None and not isinstance(extra_domain_names,list):
-            raise M1ServerError(reason = f'Bad parameter passed during certificate creation', status_code = 500)
         if csr:
             url += '?csr=true'
-        elif extra_domain_names is not None and len(extra_domain_names) > 0:
-            raise M1ClientError(reason = f'Extra domain names cannot be specified when not generating a CSR', status_code = 400)
-        body=''
-        if len(extra_domain_names) > 0:
-            body = json.dumps(extra_domain_names)
-        result = await self.__do_request('POST', url, body, 'application/json')
+        result = await self.__do_request('POST', url, '', 'application/octet-stream')
         if result['status_code'] == 200:
             certificate_id = result['headers'].get('Location','').rsplit('/',1)[1]
             ret: ServerCertificateSigningRequestResponse = self.__tag_and_date(result)
             ret.update({
                 'ProvisioningSessionId': provisioning_session_id,
                 'ServerCertificateId': certificate_id,
-                })
+            })
             if csr and len(result['body']) > 0:
                 ret.update({
                     'CertificateSigningRequestPEM': result['body'],
-                    })
+                })
             return ret
         self.__default_response(result)
         return None
@@ -415,18 +405,17 @@ class M1Client:
         result = await self.createOrReserveServerCertificate(provisioning_session_id, csr=False)
         return result
 
-    async def reserveServerCertificate(self, provisioning_session_id: ResourceId, extra_domain_names: Optional[List[str]] = None) -> ServerCertificateSigningRequestResponse:
+    async def reserveServerCertificate(self, provisioning_session_id: ResourceId) -> ServerCertificateSigningRequestResponse:
         '''Reserve a certificate for a provisioning session and get the CSR PEM
 
         :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
-        :param extra_domain_names: An optional list of extra domain names to include as Subject Alt Names.
 
         :return: a `ServerCertificateSigningRequestResponse` containing the CSR as a PEM string plus metadata for the reserved
                  certificate.
         :raise M1ClientError: if there was a problem with the request.
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
-        result = await self.createOrReserveServerCertificate(provisioning_session_id, extra_domain_names=extra_domain_names, csr=True)
+        result = await self.createOrReserveServerCertificate(provisioning_session_id, csr=True)
         if result is None or 'CertificateSigningRequestPEM' not in result:
             raise M1ClientError(reason = f'Failed to retrieve CSR for session {provisioning_session_id}', status_code = 200)
         return result
@@ -443,8 +432,8 @@ class M1Client:
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('PUT',
-              f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
-              pem_data, 'application/x-pem-file')
+                                         f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
+                                         pem_data, 'application/x-pem-file')
         if result['status_code'] == 204:
             return True
         self.__default_response(result)
@@ -463,8 +452,8 @@ class M1Client:
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('GET',
-              f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
-              '', 'application/octet-stream')
+                                         f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
+                                         '', 'application/octet-stream')
         if result['status_code'] == 200:
             ret: ServerCertificateResponse = self.__tag_and_date(result)
             ret['ProvisioningSessionId'] = provisioning_session_id
@@ -489,8 +478,8 @@ class M1Client:
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('DELETE',
-              f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
-              '', 'application/octet-stream')
+                                         f'/provisioning-sessions/{provisioning_session_id}/certificates/{certificate_id}',
+                                         '', 'application/octet-stream')
         if result['status_code'] == 204 or result['status_code'] == 202:
             return True
         self.__default_response(result)
@@ -508,22 +497,14 @@ class M1Client:
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
         result = await self.__do_request('GET',
-                f'/provisioning-sessions/{provisioning_session_id}/protocols',
-                '', 'application/octet-stream')
+                                         f'/provisioning-sessions/{provisioning_session_id}/protocols',
+                                         '', 'application/octet-stream')
         if result['status_code'] == 200:
             ret: ContentProtocolsResponse = self.__tag_and_date(result)
             ret['ContentProtocols'] = ContentProtocols.fromJSON(result['body'])
             return ret
         self.__default_response(result)
         return None
-
-    # TS26512_M1_MetricsReportingProvisioning
-    #async def activateMetricsReporting(self, provisioning_session_id: ResourceId, metrics_reporting_config: MetricsReportingConfiguration) -> ResourceId:
-    #async def retrieveMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> MetricsReportingConfigurationResponse:
-    #async def updateMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, metrics_reporting_config: MetricsReportingConfiguration) -> bool:
-    #async def patchMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, patch: str) -> MetricsReportingConfigurationResponse:
-    #sync def destroyMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> bool:
-
 
     # TS26512_M1_ConsumptionReportingProvisioning
     #async def activateConsumptionReporting(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> Optional[ResourceId]:
@@ -552,6 +533,13 @@ class M1Client:
     #async def updateEventDataProcessingConfiguration(self, provisioning_session_id: ResourceId, event_data_processing_config_id: ResourceId, event_data_processing_config: EventDataProcessingConfiguration) -> bool:
     #async def patchEventDataProcessingConfiguration(self, provisioning_session_id: ResourceId, event_data_processing_config_id: ResourceId, patch: str) -> EventDataProcessingConfigurationResponse:
     #async def destroyEventDataProcessingConfiguration(self, provisioning_session_id: ResourceId, event_data_processing_config_id: ResourceId) -> bool:
+
+    # TS26512_M1_MetricsReportingProvisioning
+    #async def activateMetricsReporting(self, provisioning_session_id: ResourceId, metrics_reporting_config: MetricsReportingConfiguration) -> ResourceId:
+    #async def retrieveMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> MetricsReportingConfigurationResponse:
+    #async def updateMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, metrics_reporting_config: MetricsReportingConfiguration) -> bool:
+    #async def patchMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId, patch: str) -> MetricsReportingConfigurationResponse:
+    #sync def destroyMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> bool:
 
     # TS26512_M1_PolicyTemplatesProvisioning
     #async def createPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template: PolicyTemplate) -> Optional[ResourceId]:
@@ -628,15 +616,15 @@ class M1Client:
         if lm_dt is not None:
             try:
                 lm_dt = datetime.datetime.strptime(lm_dt, '%a, %d %b %Y %H:%M:%S %Z').replace(
-                        tzinfo=datetime.timezone.utc)
+                    tzinfo=datetime.timezone.utc)
             except ValueError:
                 try:
                     lm_dt = datetime.datetime.strptime(lm_dt, '%A, %d-%b-%y %H:%M:%S %Z').replace(
-                            tzinfo=datetime.timezone.utc)
+                        tzinfo=datetime.timezone.utc)
                 except ValueError:
                     try:
                         lm_dt = datetime.datetime.strptime(lm_dt, '%a %b %d %H:%M:%S %Y').replace(
-                                tzinfo=datetime.timezone.utc)
+                            tzinfo=datetime.timezone.utc)
                     except ValueError:
                         lm_dt = None
         ret['Last-Modified'] = lm_dt
@@ -666,12 +654,12 @@ class M1Client:
         self.__log.debug(*args, **kwargs)
 
 __all__ = [
-        # Types
-        'ProvisioningSessionResponse',
-        'ContentHostingConfigurationResponse',
-        'ServerCertificateResponse',
-        'ServerCertificateSigningRequestResponse',
-        'ContentProtocolsResponse',
-        # Classes
-        'M1Client',
-        ]
+    # Types
+    'ProvisioningSessionResponse',
+    'ContentHostingConfigurationResponse',
+    'ServerCertificateResponse',
+    'ServerCertificateSigningRequestResponse',
+    'ContentProtocolsResponse',
+    # Classes
+    'M1Client',
+]

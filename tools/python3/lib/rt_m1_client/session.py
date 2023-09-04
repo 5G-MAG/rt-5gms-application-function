@@ -35,7 +35,6 @@ Function via the interface at reference point M1.
 '''
 import datetime
 import importlib
-import inspect
 import logging
 import re
 from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List, Iterable
@@ -144,23 +143,6 @@ class M1Session:
             return None
         chc = chc_resp['ContentHostingConfiguration']
         return chc
-
-    async def provisioningSessionMetricsReportingConfiguration (self, provisioning_session_id: ResourceId) -> Optional[MetricsReportingConfiguration]:
-        ''' Get the MetricsReportingConfiguration associated with the provisioning session
-            :param ResourceId provisioning_session_id: The provisioning session id to get the `MetricsReportingConfiguration` for.
-            :return: ``None`` if the provisioning session does not exist or if there is no `MetricsReportingConfiguration` associated
-                 with the provisioning session, otherwise return the `MetricsReportingConfiguration`.
-        '''
-        if provisioning_session_id not in self.__provisioning_sessions:
-            return None
-        await self.__cacheMetricsReportingConfiguration(provisioning_session_id)
-        ps = self.__provisioning_sessions[provisioning_session_id]
-        mrc_resp = ps['metrics-reporting-configuration']
-        if mrc_resp is None:
-            # Nothing got cached from the AF, probably an error, but no MRC found
-            return None
-        mrc = mrc_resp['MetricsReportingConfiguration']
-        return mrc
 
     async def provisioningSessionDestroy(self, provisioning_session_id: ResourceId) -> Optional[bool]:
         '''Destroy a provisioning session
@@ -298,7 +280,7 @@ class M1Session:
         # Return the cached certificate
         return ps['certificates'][certificate_id]['servercertificate']
 
-    async def certificateNewSigningRequest(self, provisioning_session_id: ResourceId, extra_domain_names: Optional[List[str]] = None) -> Optional[Tuple[ResourceId,str]]:
+    async def certificateNewSigningRequest(self, provisioning_session_id: ResourceId) -> Optional[Tuple[ResourceId,str]]:
         '''Create a new CSR for a provisioning session
 
         This reserves a new certificate in the provisioning session and returns the new certificate id and CSR PEM string.
@@ -306,7 +288,6 @@ class M1Session:
         Server using the `certificateSet` method.
 
         :param provisioning_session_id: The provisioning session to reserve the new certificate in.
-        :param extra_domain_names: An optional list of extra domain names to add as SubjectAltName entries in a CSR.
 
         :return: a tuple of certificate id and CSR PEM string for the new certificate or ``None`` if the provisioning session does
                  not exist or if there was no response from the M1 Server.
@@ -315,7 +296,7 @@ class M1Session:
             return None
         await self.__connect()
         cert_resp: ServerCertificateSigningRequestResponse = await self.__m1_client.reserveServerCertificate(
-                provisioning_session_id, extra_domain_names=extra_domain_names)
+            provisioning_session_id)
         if cert_resp is None:
             return None
         cert_id = cert_resp['ServerCertificateId']
@@ -361,7 +342,7 @@ class M1Session:
             return False
         await self.__connect()
         chc_resp: Union[bool,ContentHostingConfigurationResponse] = await self.__m1_client.createContentHostingConfiguration(
-                provisioning_session, chc)
+            provisioning_session, chc)
         if isinstance(chc_resp,bool):
             return chc_resp
         ps = await self.__getProvisioningSessionCache(provisioning_session)
@@ -410,41 +391,31 @@ class M1Session:
         '''
         return await self.provisioningSessionCreate(PROVISIONING_SESSION_TYPE_DOWNLINK, app_id, asp_id)
 
-    async def createNewCertificate(self, provisioning_session: ResourceId, extra_domain_names: Optional[List[str]] = None) -> Optional[ResourceId]:
+    async def createNewCertificate(self, provisioning_session: ResourceId, domain_name_alias: Optional[str] = None) -> Optional[ResourceId]:
         '''Create a new certificate
 
         This will create a new certificate for the provisioning session. If *domain_name_alias* is not given this will leave
-        creation of the certificate up to the M1 server (5GMS Application Function). If *extra_domain_names* is given, is not
-        ``None`` and contains at least one entry then this will reserve a certificate for the provisioning session, sign the CSR
-        using the local `CertificateSigner` object and set the signed public certificate for the provisioning session.
+        creation of the certificate up to the M1 server (5GMS Application Function). If *domain_name_alias* is given and is not
+        ``None`` then this will reserve a certificate for the provisioning session, sign the CSR using the local `CertificateSigner`
+        object and set the signed public certificate for the provisioning session.
 
         :param provisioning_session: The provisioning session id of the provisioning session to create the certificate in.
-        :param extra_domain_names: An optional list of domain names to add as extra SubjectAltName entries.
+        :param domain_name_alias: An optional ``domainNameAlias`` to add to the certificate.
         :return: The certificate id of the newly created certificate or ``None`` if the certificate could not be created.
         '''
         # simple case just create the certificate
-        if extra_domain_names is not None and isinstance(extra_domain_names, bytes):
-            extra_domain_names = extra_domain_names.decode('utf-8')
-        if extra_domain_names is not None and isinstance(extra_domain_names, str):
-            if len(extra_domain_names) > 0:
-                extra_domain_names = [extra_domain_names]
-            else:
-                extra_domain_names = None
-        if extra_domain_names is not None and len(extra_domain_names) == 0:
-            extra_domain_names = None
-        if extra_domain_names is None:
+        if domain_name_alias is not None and len(domain_name_alias) == 0:
+            domain_name_alias = None
+        if domain_name_alias is None:
             return await self.certificateCreate(provisioning_session)
         # When domainNameAlias is used we need to use a CSR
-        csr: Optional[Tuple[ResourceId,str]] = await self.certificateNewSigningRequest(provisioning_session,extra_domain_names=extra_domain_names)
+        csr: Optional[Tuple[ResourceId,str]] = await self.certificateNewSigningRequest(provisioning_session)
         if csr is None:
             return None
         cert_id = csr[0]
         csr_pem = csr[1]
         cert_signer = await self.__getCertificateSigner()
-        cert: Optional[str] = await cert_signer.signCertificate(csr_pem)
-        if cert is None:
-            self.__log.error('Failed to generate certificate with domainNameAlias')
-            return None
+        cert: str = await cert_signer.signCertificate(csr_pem, domain_name_alias=domain_name_alias)
         # Send new cert to the AF
         if not await self.certificateSet(provisioning_session, cert_id, cert):
             self.__log.error('Failed to upload certificate with domainNameAlias')
@@ -490,7 +461,7 @@ class M1Session:
             raise RuntimeError('Failed to create a provisioning session')
         # Create an SSL certificate if requested
         if ssl:
-            cert: Optional[ResourceId] = await self.createNewCertificate(provisioning_session, extra_domaqin_names=[domain_name_alias])
+            cert: Optional[ResourceId] = await self.createNewCertificate(provisioning_session, domain_name_alias=domain_name_alias)
             if cert is None:
                 if insecure:
                     self.__log.warn('Failed to create hosting with HTTPS, continuing with just HTTP')
@@ -501,14 +472,14 @@ class M1Session:
             name = self.__next_auto_stream_name()
         # Build and send the ContentHostingConfiguration
         chc: ContentHostingConfiguration = {
-                'name': name,
-                'ingestConfiguration': {
-                    'pull': True,
-                    'protocol': 'urn:3gpp:5gms:content-protocol:http-pull-ingest',
-                    'baseURL': ingesturl,
-                    },
-                'distributionConfigurations': []
-                }
+            'name': name,
+            'ingestConfiguration': {
+                'pull': True,
+                'protocol': 'urn:3gpp:5gms:content-protocol:http-pull-ingest',
+                'baseURL': ingesturl,
+            },
+            'distributionConfigurations': []
+        }
         if entrypoints is None or len(entrypoints) == 0:
             entrypoints = [None]
         for ep in entrypoints:
@@ -533,25 +504,25 @@ class M1Session:
     # Private data
 
     __file_suffix_to_mime = {
-            'mpd': 'application/dash+xml',
-            'm3u8': 'application/vnd.apple.mpegurl',
-            }
+        'mpd': 'application/dash+xml',
+        'm3u8': 'application/vnd.apple.mpegurl',
+    }
 
     __regex_to_mime = [
-            (re.compile(r'mpd'), 'application/dash+xml'),
-            (re.compile(r'm3u8'), 'application/vnd.apple.mpegurl'),
-            (re.compile(r'dash', re.IGNORECASE), 'application/dash+xml'),
-            (re.compile(r'hls', re.IGNORECASE), 'application/vnd.apple.mpegurl'),
-            ]
+        (re.compile(r'mpd'), 'application/dash+xml'),
+        (re.compile(r'm3u8'), 'application/vnd.apple.mpegurl'),
+        (re.compile(r'dash', re.IGNORECASE), 'application/dash+xml'),
+        (re.compile(r'hls', re.IGNORECASE), 'application/vnd.apple.mpegurl'),
+    ]
 
     # Private methods
 
     async def __pathToContentType(self, path: str) -> str:
         self.__log.debug(f'__pathToContentType({path!r})')
         type_map = {
-                'mpd': 'application/dash+xml',
-                'm3u8': 'application/vnd.apple.mpegurl',
-                }
+            'mpd': 'application/dash+xml',
+            'm3u8': 'application/vnd.apple.mpegurl',
+        }
         suffix = path.rsplit('.',1)[-1]
         if suffix in self.__file_suffix_to_mime:
             return self.__file_suffix_to_mime[suffix]
@@ -562,7 +533,7 @@ class M1Session:
 
     async def __reloadFromDataStore(self) -> None:
         '''Reload persistent information from the DataStore
-        
+
         Checks the provisioning session ids retrieved from the DataStore against the M1 server and will delete any that are no
         longer available.
 
@@ -592,7 +563,7 @@ class M1Session:
         self.__provisioning_sessions = {}
         for prov_sess in sessions:
             self.__provisioning_sessions[prov_sess] = None
-        
+
     async def __getProvisioningSessionCache(self, provisioning_session_id: ResourceId) -> Optional[dict]:
         '''Find a provisioning session cache
 
@@ -637,7 +608,7 @@ class M1Session:
                     'protocols': None,
                     'content-hosting-configuration': None,
                     'certificates': None,
-                    })
+                })
                 if 'serverCertificateIds' in ps['provisioningsession']:
                     ps['certificates'] = {k: None for k in ps['provisioningsession']['serverCertificateIds']}
 
@@ -723,24 +694,17 @@ class M1Session:
         :return: a `CertificateSigner`
         :raise RuntimeError: if the certificate signer requested is not derived from `CertificateSigner`.
         '''
-        signer_args = {}
         if self.__cert_signer is None:
             self.__cert_signer = 'rt_m1_client.certificates.DefaultCertificateSigner'
         if isinstance(self.__cert_signer, str):
-            if '(' in self.__cert_signer:
-                self.__cert_signer, args_str = self.__cert_signer.split('(',1)
-                args_str = args_str[:-1]
-                signer_args = dict([tuple([p.strip() for p in kv.split('=')]) for kv in args_str.split(',')])
             cert_sign_cls_mod, cert_sign_cls_name = self.__cert_signer.rsplit('.', 1)
             cert_sign_cls_mod = importlib.import_module(cert_sign_cls_mod)
             self.__cert_signer = getattr(cert_sign_cls_mod, cert_sign_cls_name)
         try:
-            if inspect.isclass(self.__cert_signer) and issubclass(self.__cert_signer, CertificateSigner):
-                self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir, **signer_args)
+            if issubclass(self.__cert_signer, CertificateSigner):
+                self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir)
         except TypeError:
             pass
-        if inspect.iscoroutinefunction(self.__cert_signer):
-            self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir, **signer_args)
         if not isinstance(self.__cert_signer, CertificateSigner):
             raise RuntimeError('The certificate signer class given is not derived from CertificateSigner')
         return self.__cert_signer
@@ -752,13 +716,13 @@ class M1Session:
         '''
         if self.__m1_client is None:
             self.__m1_client = M1Client(self.__m1_host)
-            
+
     def _dump_state(self) -> None:
         '''Dump the current provisioning session cache to the log
         '''
         self.__log.debug(repr(self.__provisioning_sessions))
 
 __all__ = [
-        # Classes
-        'M1Session',
-        ]
+    # Classes
+    'M1Session',
+]
