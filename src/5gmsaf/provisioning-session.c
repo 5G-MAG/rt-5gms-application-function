@@ -368,7 +368,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_node_t *msaf_as = NULL;
     char *content_hosting_config_to_hash = NULL;
-    OpenAPI_list_t *media_entry_point_list;
+    OpenAPI_list_t *media_entry_point_list = NULL;
     OpenAPI_list_t *media_entry_point_profiles_list = NULL;
     OpenAPI_m5_media_entry_point_t *entry_point;
     char *locator_absolute_path;
@@ -487,7 +487,7 @@ cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const c
     {
         content_hosting_configuration_json = OpenAPI_content_hosting_configuration_convertToJSON(msaf_provisioning_session->contentHostingConfiguration);
     } else {
-        ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
+        ogs_error("Unable to retrieve ContentHostingConfiguration for Provisioning Session [%s]", provisioning_session_id);
     }
     return content_hosting_configuration_json;
 }

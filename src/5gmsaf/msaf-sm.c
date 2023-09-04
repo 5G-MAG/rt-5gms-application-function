@@ -54,7 +54,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     message = ogs_calloc(1, sizeof(*message));
     msaf_context_server_name_set();
-    char *nf_name = ogs_msprintf("5GMSdAF-%s", msaf_self()->server_name);
+    char *nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
     const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
     const nf_server_app_metadata_t *app_meta = &app_metadata;
 
@@ -132,7 +132,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             break;
 
             CASE("3gpp-m1")
-            if(check_event_addresses(e, msaf_self()->config.m1_server_sockaddr, msaf_self()->config.m1_server_sockaddr_v6)){
+            if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M1].ipv4, msaf_self()->config.servers[MSAF_SVR_M1].ipv6)){
                 e->message = message;
                 message = NULL;
                 ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
@@ -145,13 +145,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             break;
 
             CASE("5gmag-rt-management")
-            if(!msaf_self()->config.maf_mgmt_server_sockaddr && !msaf_self()->config.maf_mgmt_server_sockaddr_v6) {
-                if(check_event_addresses(e, msaf_self()->config.m1_server_sockaddr, msaf_self()->config.m1_server_sockaddr_v6)){
-                    e->message = message;
-                    message = NULL;
-                    ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
-                }
-            } else if(check_event_addresses(e, msaf_self()->config.maf_mgmt_server_sockaddr, msaf_self()->config.maf_mgmt_server_sockaddr_v6)){
+            if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv4, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv6)){
                 e->message = message;
                 message = NULL;
                 ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_maf_mgmt_sm, e);
@@ -165,11 +159,10 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             break;
 
             CASE("3gpp-m5")
-            if(check_event_addresses(e, msaf_self()->config.m5_server_sockaddr, msaf_self()->config.m5_server_sockaddr_v6)){
+            if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M5].ipv4, msaf_self()->config.servers[MSAF_SVR_M5].ipv6)){
                 e->message = message;
                 message = NULL;
                 ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
-
             } else {
                 char *error;
                 error = ogs_msprintf("Resource [%s] not found.", request->h.uri);
@@ -286,7 +279,12 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     ogs_assert(subscription_data);
 
                     ogs_assert(true ==
-                               ogs_nnrf_nfm_send_nf_status_subscribe(subscription_data));
+                               ogs_nnrf_nfm_send_nf_status_subscribe(
+                                       ogs_sbi_self()->nf_instance->nf_type,
+                                       subscription_data->req_nf_instance_id,
+                                       subscription_data->subscr_cond.nf_type,
+                                       subscription_data->subscr_cond.service_name));
+
 
                     ogs_debug("Subscription validity expired [%s]",
                               subscription_data->id);
