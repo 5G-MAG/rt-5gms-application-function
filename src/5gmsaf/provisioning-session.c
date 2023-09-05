@@ -16,6 +16,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "hash.h"
 
 #include "provisioning-session.h"
+#include "metrics-reporting-provisioning.h"
 
 typedef struct free_ogs_hash_provisioning_session_s {
     const char *provisioning_session;
@@ -90,6 +91,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     msaf_provisioning_session->provisioningSessionHash = calculate_provisioning_session_hash(provisioning_session);
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
+    msaf_provisioning_session->metricsReportingMap = msaf_metrics_reporting_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, msaf_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
     OpenAPI_provisioning_session_free(provisioning_session);
@@ -109,6 +111,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
     if (msaf_provisioning_session) {
         OpenAPI_provisioning_session_t *provisioning_session;
         ogs_hash_index_t *cert_node;
+        ogs_hash_index_t *metrics_node;
 
         provisioning_session = ogs_calloc(1,sizeof(OpenAPI_provisioning_session_t));
         ogs_assert(provisioning_session);
@@ -124,10 +127,22 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
             OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
         }
 
+        cJSON *metrics_reporting_configurations_json = cJSON_CreateArray();
+        for (metrics_node=ogs_hash_first(msaf_provisioning_session->metricsReportingMap); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
+            const char *config_id = (const char *)ogs_hash_this_key(metrics_node);
+            cJSON *config_json = msaf_metrics_reporting_configuration_get_json(config_id);
+            if (config_json) {
+                cJSON_AddItemToArray(metrics_reporting_configurations_json, config_json);
+            }
+        }
+
         provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
 
-	OpenAPI_list_free(provisioning_session->server_certificate_ids);
+        cJSON_AddItemToObject(provisioning_session_json, "metricsReportingConfigurations", metrics_reporting_configurations_json);
+
+        OpenAPI_list_free(provisioning_session->server_certificate_ids);
         ogs_free(provisioning_session);
+
     } else {
         ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
     }
