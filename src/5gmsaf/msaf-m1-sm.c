@@ -28,7 +28,7 @@
 #include "openapi/api/TS26512_M1_ContentProtocolsDiscoveryAPI-info.h"
 #include "openapi/api/Maf_ManagementAPI-info.h"
 #include "openapi/api/TS26512_M1_MetricsReportingProvisioningAPI-info.h"
-#include "metrics-reporting-provisioning.c"
+#include "metrics-reporting-provisioning.h"
 
 const nf_server_interface_metadata_t
 m1_provisioningsession_api_metadata = {
@@ -287,10 +287,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             // Parsing the data from POST body
 
-                            cJSON *jsonMetricsReportingConfigurationId = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metricsReportingConfigurationId");
-                            const char *metricsReportingConfigurationId = NULL;
-                            if (jsonMetricsReportingConfigurationId) metricsReportingConfigurationId = cJSON_GetStringValue(jsonMetricsReportingConfigurationId);
-
                             cJSON *jsonScheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
                             const char *scheme = NULL;
                             if (jsonScheme) scheme = cJSON_GetStringValue(jsonScheme);
@@ -353,7 +349,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 }
                             }
 
-                            msaf_metrics_reporting_configuration_t *new_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session, metricsReportingConfigurationId, scheme, dataNetworkName, isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, metrics);
+                            msaf_metrics_reporting_configuration_t *new_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session, msaf_strdup(scheme), msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, metrics);
 
                             if(new_mrc){
                                 if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
@@ -361,14 +357,14 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_debug("Metrics Reporting Configuration created successfully");
 
                                     char *text;
-                                    cJSON *mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(new_mrc);
+                                    cJSON *mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(new_mrc->config);
                                     if (mrc_json) {
                                         msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
                                                 message->h.resource.component[1]);
                                         response = nf_server_new_response(request->h.uri, "application/json",
-                                                                          msaf_provisioning_session->metricsReportingConfigurationReceived,
-                                                                          msaf_provisioning_session->metricsReportingConfigurationHash,
-                                                                          NULL,
+                                                                          new_mrc->receivedTime,
+                                                                          new_mrc->etag,
+                                                                          msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
                                                                           NULL,
                                                                           m1_metricsreportingprovisioning_api,
                                                                           app_meta);
@@ -791,7 +787,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         break;
                                     }
                                     ogs_sbi_response_t *response;
-                                    response = nf_server_new_response(NULL, "application/json", msaf_provisioning_session->metricsReportingConfigurationReceived, msaf_provisioning_session->metricsReportingConfigurationHash, NULL, NULL, m1_metricsreportingprovisioning_api, app_meta);
+                                    response = nf_server_new_response(NULL, "application/json",
+                                                        metricsReportingConfiguration->receivedTime,
+                                                        metricsReportingConfiguration->etag,
+                                                        msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
+                                                        NULL, m1_metricsreportingprovisioning_api, app_meta);
 
                                     cJSON *mrc_json_data = msaf_metrics_reporting_configuration_get_json(message->h.resource.component[3]);
                                     char *mrc_content = cJSON_Print(mrc_json_data);
@@ -1105,16 +1105,23 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         }
 
                                         char * current_id = message -> h.resource.component[3];
-                                        msaf_metrics_reporting_configuration_t * updated_metrics_reporting_configuration = msaf_metrics_reporting_configuration_update(current_id, scheme, dataNetworkName, isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, metrics);
+                                        msaf_metrics_reporting_configuration_t *updated_metrics_reporting_configuration =
+                                                msaf_metrics_reporting_configuration_update(current_id, msaf_strdup(scheme),
+                                                        msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval,
+                                                        isSamplePercentage, samplePercentage, urlFilters, metrics);
 
                                         if (updated_metrics_reporting_configuration) {
                                             if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
                                                 ogs_debug("Metrics Reporting Configuration created successfully");
                                                 char * text;
-                                                cJSON * mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(updated_metrics_reporting_configuration);
+                                                cJSON * mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(updated_metrics_reporting_configuration->config);
                                                 if (mrc_json) {
                                                     msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message -> h.resource.component[1]);
-                                                    response = nf_server_new_response(request -> h.uri, "application/json", msaf_provisioning_session -> metricsReportingConfigurationReceived, msaf_provisioning_session -> metricsReportingConfigurationHash, NULL, NULL, m1_metricsreportingprovisioning_api, app_meta);
+                                                    response = nf_server_new_response(request->h.uri, "application/json",
+                                                            updated_metrics_reporting_configuration->receivedTime,
+                                                            updated_metrics_reporting_configuration->etag,
+                                                            msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
+                                                            NULL, m1_metricsreportingprovisioning_api, app_meta);
                                                     ogs_assert(response);
                                                     text = cJSON_Print(mrc_json);
                                                     nf_server_populate_response(response, strlen(text), text, 201);
@@ -1313,7 +1320,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     int delete_result = msaf_metrics_reporting_configuration_delete(message->h.resource.component[3]);
                                     if (delete_result == 0) {
                                         ogs_sbi_response_t *response;
-                                        response = nf_server_new_response(NULL, "application/json", NULL, NULL, NULL, NULL, m1_metricsreportingprovisioning_api, app_meta);
+                                        response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, m1_metricsreportingprovisioning_api, app_meta);
                                         nf_server_populate_response(response, 0, NULL, 200);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 

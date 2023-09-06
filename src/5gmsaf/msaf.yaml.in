@@ -192,6 +192,7 @@ msaf:
         m1ContentHostingConfigurations: 60
         m1ServerCertificates: 60
         m1ContentProtocols: 86400
+        m1MetricsReportingConfiguration: 60
         m5ServiceAccessInformation: 60
 #
 # nrf:

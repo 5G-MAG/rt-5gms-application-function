@@ -129,7 +129,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 
         provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
         for (metrics_node=ogs_hash_first(msaf_provisioning_session->metricsReportingMap); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
-            OpenAPI_list_add(provisioning_session->metrics_reporting_configuration_ids, (const char *)ogs_hash_this_key(metrics_node));
+            OpenAPI_list_add(provisioning_session->metrics_reporting_configuration_ids, (void*)ogs_hash_this_key(metrics_node));
         }
 
         provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
