@@ -9,7 +9,6 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
 #include "metrics-reporting-provisioning.h"
-#include "openapi/model/metrics_reporting_configuration.c"
 #include "provisioning-session.h"
 
 typedef struct free_ogs_hash_provisioning_session_metrics_reporting_configuration_s{
@@ -17,6 +16,7 @@ typedef struct free_ogs_hash_provisioning_session_metrics_reporting_configuratio
     ogs_hash_t *hash;
 } free_ogs_hash_provisioning_session_metrics_reporting_configuration_t;
 
+static char *calculate_metrics_reporting_configuration_hash(OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration);
 static int free_ogs_hash_provisioning_session_metrics_reporting_configuration(void *rec, const void *key, int klen, const void *value);
 
 
@@ -55,8 +55,6 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
 
     char *hashKey = msaf_strdup(msaf_metrics_reporting_configuration->metricsReportingConfigurationId);
     ogs_hash_set(provisioning_session->metricsReportingMap, hashKey, OGS_HASH_KEY_STRING, msaf_metrics_reporting_configuration);
-
-    provisioning_session->metricsReportingConfigurationId = msaf_strdup(msaf_metrics_reporting_configuration->metricsReportingConfigurationId);
 
     return msaf_metrics_reporting_configuration;
 }

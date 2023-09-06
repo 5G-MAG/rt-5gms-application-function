@@ -49,7 +49,6 @@ extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configurat
                                                                                            OpenAPI_list_t *urlFilters,
                                                                                            OpenAPI_list_t *metrics);
 
-static char *calculate_metrics_reporting_configuration_hash(OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration);
 extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const char *metricsReportingConfigurationId);
 extern cJSON *msaf_metrics_reporting_configuration_get_json(const char *metricsReportingConfigurationId);
 extern int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId);

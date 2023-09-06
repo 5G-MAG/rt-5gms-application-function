@@ -118,7 +118,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 
         provisioning_session->provisioning_session_id = msaf_provisioning_session->provisioningSessionId;
         provisioning_session->provisioning_session_type = msaf_provisioning_session->provisioningSessionType;
-	provisioning_session->asp_id = msaf_provisioning_session->aspId;
+	    provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
 
         provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
@@ -127,18 +127,12 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
             OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
         }
 
-        cJSON *metrics_reporting_configurations_json = cJSON_CreateArray();
+        provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
         for (metrics_node=ogs_hash_first(msaf_provisioning_session->metricsReportingMap); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
-            const char *config_id = (const char *)ogs_hash_this_key(metrics_node);
-            cJSON *config_json = msaf_metrics_reporting_configuration_get_json(config_id);
-            if (config_json) {
-                cJSON_AddItemToArray(metrics_reporting_configurations_json, config_json);
-            }
+            OpenAPI_list_add(provisioning_session->metrics_reporting_configuration_ids, (const char *)ogs_hash_this_key(metrics_node));
         }
 
         provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
-
-        cJSON_AddItemToObject(provisioning_session_json, "metricsReportingConfigurations", metrics_reporting_configurations_json);
 
         OpenAPI_list_free(provisioning_session->server_certificate_ids);
         ogs_free(provisioning_session);
