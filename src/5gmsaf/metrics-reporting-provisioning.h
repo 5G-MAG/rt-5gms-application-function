@@ -14,24 +14,14 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 
 typedef struct msaf_metrics_reporting_configuration_s {
-    char *metricsReportingConfigurationId;
-    char *scheme;
-    char *dataNetworkName;
-    bool isReportingInterval;
-    int reportingInterval;
-    bool isSamplePercentage;
-    double samplePercentage;
-    OpenAPI_list_t *urlFilters;
-    OpenAPI_list_t *metrics;
+    OpenAPI_metrics_reporting_configuration_t *config;
     char *etag;
     time_t receivedTime;
-    char *metricsReportingConfigurationHash;
 } msaf_metrics_reporting_configuration_t;
 
 extern msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t *provisioning_session,
-                                                                                           const char *metricsReportingConfigurationId,
-                                                                                           const char *scheme,
-                                                                                           const char *dataNetworkName,
+                                                                                           char *scheme,
+                                                                                           char *dataNetworkName,
                                                                                            bool isReportingInterval,
                                                                                            int reportingInterval,
                                                                                            bool isSamplePercentage,
@@ -40,8 +30,8 @@ extern msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configurat
                                                                                            OpenAPI_list_t *metrics);
 
 extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_update(const char *metricsReportingConfigurationId,
-                                                                                           const char *scheme,
-                                                                                           const char *dataNetworkName,
+                                                                                           char *scheme,
+                                                                                           char *dataNetworkName,
                                                                                            bool isReportingInterval,
                                                                                            int reportingInterval,
                                                                                            bool isSamplePercentage,

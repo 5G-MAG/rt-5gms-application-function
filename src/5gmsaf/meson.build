@@ -59,6 +59,8 @@ libmsaf_dist_sources = files('''
     utilities.c
     init.c
     init.h
+    metrics-reporting-provisioning.c
+    metrics-reporting-provisioning.h
 '''.split())
 
 api_tag = latest_apis?'REL-'+fiveg_api_release:'TSG'+fiveg_api_approval+'-Rel'+fiveg_api_release
