@@ -249,8 +249,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             message->h.resource.component[1]);
 
                     if (msaf_provisioning_session) {
-                        //int rv;
-                        //cJSON *mrc_json;
                         cJSON *metrics_reporting_config;
 
                         ogs_debug("Request body: %s", request->http.content);
@@ -279,11 +277,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             ogs_free(err);
 
                         } else {
-                            if(msaf_provisioning_session->metricsReportingConfiguration) {
-                                OpenAPI_metrics_reporting_configuration_free(
-                                        msaf_provisioning_session->metricsReportingConfiguration);
-                                msaf_provisioning_session->metricsReportingConfiguration = NULL;
-                            }
 
                             // Parsing the data from POST body
 
@@ -1038,9 +1031,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
 
                                     } else {
-                                        if (msaf_provisioning_session -> metricsReportingConfiguration) { OpenAPI_metrics_reporting_configuration_free( msaf_provisioning_session -> metricsReportingConfiguration);
-                                            msaf_provisioning_session -> metricsReportingConfiguration = NULL;
-                                        }
 
                                         cJSON * jsonScheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
                                         const char * scheme = NULL;

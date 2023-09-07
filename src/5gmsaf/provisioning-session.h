@@ -41,11 +41,7 @@ typedef struct msaf_provisioning_session_s {
     ogs_hash_t *certificate_map;
     ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t *
     int marked_for_deletion;
-
     ogs_hash_t *metricsReportingMap;
-    OpenAPI_metrics_reporting_configuration_t *metricsReportingConfiguration;
-    time_t metricsReportingConfigurationReceived;
-    char *metricsReportingConfigurationHash;
 
 } msaf_provisioning_session_t;
 

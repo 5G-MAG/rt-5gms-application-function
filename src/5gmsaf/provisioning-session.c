@@ -135,6 +135,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
 
         OpenAPI_list_free(provisioning_session->server_certificate_ids);
+        OpenAPI_list_free(provisioning_session->metrics_reporting_configuration_ids);
         ogs_free(provisioning_session);
 
     } else {
