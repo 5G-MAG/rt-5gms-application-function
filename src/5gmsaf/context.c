@@ -200,6 +200,7 @@ int msaf_context_parse_config(void)
                     int m1_content_hosting_configurations_response_max_age = SERVER_RESPONSE_MAX_AGE;
                     int m1_server_certificates_response_max_age = SERVER_RESPONSE_MAX_AGE;
 	            int m1_content_protocols_response_max_age = M1_CONTENT_PROTOCOLS_RESPONSE_MAX_AGE;
+                    int m1_consumption_reporting_response_max_age = SERVER_RESPONSE_MAX_AGE;
 	            int m5_service_access_information_response_max_age = SERVER_RESPONSE_MAX_AGE;
                     while (ogs_yaml_iter_next(&cc_iter)) {
                         const char *cc_key = ogs_yaml_iter_key(&cc_iter);
@@ -212,11 +213,16 @@ int msaf_context_parse_config(void)
                             m1_content_hosting_configurations_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
                         } else if (!strcmp(cc_key, "m1ContentProtocols")) {
                             m1_content_protocols_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
+                        } else if (!strcmp(cc_key, "m1ConsumptionReportingConfiguration")) {
+                            m1_consumption_reporting_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
                         } else if (!strcmp(cc_key, "m5ServiceAccessInformation")) {
                             m5_service_access_information_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
                         }
                     }
-		            msaf_server_response_cache_control_set_from_config(m1_provisioning_session_response_max_age,  m1_content_hosting_configurations_response_max_age, m1_server_certificates_response_max_age, m1_content_protocols_response_max_age, m5_service_access_information_response_max_age);
+		    msaf_server_response_cache_control_set_from_config(
+                                m1_provisioning_session_response_max_age, m1_content_hosting_configurations_response_max_age,
+                                m1_server_certificates_response_max_age, m1_content_protocols_response_max_age,
+                                m1_consumption_reporting_response_max_age, m5_service_access_information_response_max_age);
  
                 }  else if (!strcmp(msaf_key, "sbi") || !strcmp(msaf_key, "m1") || !strcmp(msaf_key, "m5") || !strcmp(msaf_key, "maf")) {
                     if(!self->config.open5gsIntegration_flag) {
@@ -682,13 +688,13 @@ msaf_context_provisioning_session_free(msaf_provisioning_session_t *provisioning
     if (provisioning_session->provisioningSessionId) ogs_free(provisioning_session->provisioningSessionId);
     if (provisioning_session->aspId) ogs_free(provisioning_session->aspId);
     if (provisioning_session->externalApplicationId) ogs_free(provisioning_session->externalApplicationId);
-    if (provisioning_session->provisioningSessionHash) ogs_free(provisioning_session->provisioningSessionHash);
+    if (provisioning_session->httpMetadata.provisioningSession.hash) ogs_free(provisioning_session->httpMetadata.provisioningSession.hash);
 
     if (provisioning_session->contentHostingConfiguration) OpenAPI_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
-    if (provisioning_session->contentHostingConfigurationHash) ogs_free(provisioning_session->contentHostingConfigurationHash);
+    if (provisioning_session->httpMetadata.contentHostingConfiguration.hash) ogs_free(provisioning_session->httpMetadata.contentHostingConfiguration.hash);
 
     if (provisioning_session->serviceAccessInformation) OpenAPI_service_access_information_resource_free(provisioning_session->serviceAccessInformation);
-    if (provisioning_session->serviceAccessInformationHash) ogs_free(provisioning_session->serviceAccessInformationHash);
+    if (provisioning_session->httpMetadata.serviceAccessInformation.hash) ogs_free(provisioning_session->httpMetadata.serviceAccessInformation.hash);
     
     ogs_list_for_each_safe(&provisioning_session->application_server_states, next_as_state_ref, as_state_ref) {
         ogs_list_remove(&provisioning_session->application_server_states, as_state_ref);

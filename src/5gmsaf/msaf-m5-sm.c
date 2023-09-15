@@ -102,7 +102,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_sbi_response_t *response;
                                 char *text;
                                 text = cJSON_Print(service_access_information);
-                                response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->serviceAccessInformationCreated, msaf_provisioning_session->serviceAccessInformationHash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
+                                response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->httpMetadata.serviceAccessInformation.received, msaf_provisioning_session->httpMetadata.serviceAccessInformation.hash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
                                 nf_server_populate_response(response, strlen(text), text, 200);
                                 ogs_assert(response);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));

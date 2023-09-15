@@ -36,6 +36,7 @@ static char* url_path_create(const char* macro, const char* session_id, const ms
 static void tidy_relative_path_re(void);
 static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session);
 static char *calculate_service_access_information_hash(OpenAPI_service_access_information_resource_t *service_access_information);
+static ogs_hash_t *msaf_certificate_map();
 
 /***** Public functions *****/
 
@@ -86,8 +87,8 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
     msaf_provisioning_session->aspId = msaf_strdup(provisioning_session->asp_id);
     msaf_provisioning_session->externalApplicationId = msaf_strdup(provisioning_session->external_application_id);
-    msaf_provisioning_session->provisioningSessionReceived = time(NULL);
-    msaf_provisioning_session->provisioningSessionHash = calculate_provisioning_session_hash(provisioning_session);
+    msaf_provisioning_session->httpMetadata.provisioningSession.received = time(NULL);
+    msaf_provisioning_session->httpMetadata.provisioningSession.hash = calculate_provisioning_session_hash(provisioning_session);
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     ogs_hash_set(msaf_self()->provisioningSessions_map, msaf_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
@@ -268,13 +269,6 @@ msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioning
     return (msaf_provisioning_session_t*) ogs_hash_get(msaf_self()->provisioningSessions_map, provisioningSessionId, OGS_HASH_KEY_STRING);
 }
 
-ogs_hash_t *
-msaf_certificate_map(void)
-{
-    ogs_hash_t *certificate_map = ogs_hash_make();
-    return certificate_map;
-}
-
 const char *
 msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id)
 {
@@ -427,10 +421,10 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     if (provisioning_session->serviceAccessInformation)
         OpenAPI_service_access_information_resource_free(provisioning_session->serviceAccessInformation);
     provisioning_session->serviceAccessInformation = msaf_context_service_access_information_create(provisioning_session->provisioningSessionId, media_entry_point_list);
-    provisioning_session->serviceAccessInformationCreated = time(NULL);
-    if (provisioning_session->serviceAccessInformationHash)
-        ogs_free(provisioning_session->serviceAccessInformationHash);
-    provisioning_session->serviceAccessInformationHash = calculate_service_access_information_hash(provisioning_session->serviceAccessInformation);
+    provisioning_session->httpMetadata.serviceAccessInformation.received = time(NULL);
+    if (provisioning_session->httpMetadata.serviceAccessInformation.hash)
+        ogs_free(provisioning_session->httpMetadata.serviceAccessInformation.hash);
+    provisioning_session->httpMetadata.serviceAccessInformation.hash = calculate_service_access_information_hash(provisioning_session->serviceAccessInformation);
     
     if (provisioning_session->contentHostingConfiguration)
         OpenAPI_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
@@ -438,11 +432,11 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     if (provisioning_session->contentHostingConfiguration)
     {
         content_hosting_config_to_hash = cJSON_Print(content_hosting_config);
-        provisioning_session->contentHostingConfigurationReceived = time(NULL);
+        provisioning_session->httpMetadata.contentHostingConfiguration.received = time(NULL);
 
-        if (provisioning_session->contentHostingConfigurationHash)
-            ogs_free(provisioning_session->contentHostingConfigurationHash);
-        provisioning_session->contentHostingConfigurationHash = calculate_hash(content_hosting_config_to_hash);
+        if (provisioning_session->httpMetadata.contentHostingConfiguration.hash)
+            ogs_free(provisioning_session->httpMetadata.contentHostingConfiguration.hash);
+        provisioning_session->httpMetadata.contentHostingConfiguration.hash = calculate_hash(content_hosting_config_to_hash);
         cJSON_free(content_hosting_config_to_hash);
     }
     ogs_free(url_path);
@@ -559,6 +553,17 @@ char *enumerate_provisioning_sessions(void)
     }
     return provisioning_sessions;
 
+}
+
+/**********************************************************
+ * Private functions
+ **********************************************************/
+
+static ogs_hash_t *
+msaf_certificate_map(void)
+{
+    ogs_hash_t *certificate_map = ogs_hash_make();
+    return certificate_map;
 }
 
 static char *calculate_provisioning_session_hash(OpenAPI_provisioning_session_t *provisioning_session)
