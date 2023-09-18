@@ -116,7 +116,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 
         provisioning_session->provisioning_session_id = msaf_provisioning_session->provisioningSessionId;
         provisioning_session->provisioning_session_type = msaf_provisioning_session->provisioningSessionType;
-	provisioning_session->asp_id = msaf_provisioning_session->aspId;
+        provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
 
         provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
@@ -127,7 +127,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 
         provisioning_session_json = OpenAPI_provisioning_session_convertToJSON(provisioning_session);
 
-	OpenAPI_list_free(provisioning_session->server_certificate_ids);
+        OpenAPI_list_free(provisioning_session->server_certificate_ids);
         ogs_free(provisioning_session);
     } else {
         ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
@@ -315,8 +315,8 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
                         if (certificate->state) ogs_free(certificate->state);
                         ogs_free(certificate);
                     }
-		    ogs_free(certs);
-		    certs = NULL;
+                    ogs_free(certs);
+                    certs = NULL;
                     break;
                 }
             }
@@ -347,7 +347,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
 
     OpenAPI_content_hosting_configuration_t *content_hosting_configuration
         = OpenAPI_content_hosting_configuration_parseFromJSON(content_hosting_config);
-	
+
     if (content_hosting_configuration->distribution_configurations) {
         media_entry_point_list = OpenAPI_list_create();
         OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
@@ -538,15 +538,14 @@ char *enumerate_provisioning_sessions(void)
         for (hi = ogs_hash_first(msaf_self()->provisioningSessions_map); hi; hi = ogs_hash_next(hi)) {
             const char *key = NULL;
             const char *val = NULL;
-	        char *provisioning_session = NULL;
+            char *provisioning_session = NULL;
             key = ogs_hash_this_key(hi);
             ogs_assert(key);
             val = ogs_hash_this_val(hi);
             ogs_assert(val);
-		    provisioning_session = ogs_msprintf("\"%s\", ", key);
-	        strcat(provisioning_sessions, provisioning_session);
-	        ogs_free(provisioning_session);
-	
+            provisioning_session = ogs_msprintf("\"%s\", ", key);
+            strcat(provisioning_sessions, provisioning_session);
+            ogs_free(provisioning_session);
         }
         provisioning_sessions[strlen(provisioning_sessions) - 2] = ']';
         provisioning_sessions[strlen(provisioning_sessions) - 1] = '\0';
@@ -656,7 +655,7 @@ url_path_create(const char* macro, const char* session_id, const msaf_applicatio
     }
 
     if (url_path_prefix[i-1] != '/')
-	url_path_prefix[i++] = '/';
+        url_path_prefix[i++] = '/';
     url_path_prefix[i] = '\0';
 
     return url_path_prefix;

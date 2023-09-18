@@ -91,7 +91,7 @@ void msaf_context_final(void)
 
     if (self->config.server_response_cache_control)
     {
-        ogs_free(self->config.server_response_cache_control);	    
+        ogs_free(self->config.server_response_cache_control);    
     }
  
     if (self->config.certificateManager)
@@ -199,9 +199,9 @@ int msaf_context_parse_config(void)
                     int m1_provisioning_session_response_max_age = SERVER_RESPONSE_MAX_AGE;
                     int m1_content_hosting_configurations_response_max_age = SERVER_RESPONSE_MAX_AGE;
                     int m1_server_certificates_response_max_age = SERVER_RESPONSE_MAX_AGE;
-	            int m1_content_protocols_response_max_age = M1_CONTENT_PROTOCOLS_RESPONSE_MAX_AGE;
+                    int m1_content_protocols_response_max_age = M1_CONTENT_PROTOCOLS_RESPONSE_MAX_AGE;
                     int m1_consumption_reporting_response_max_age = SERVER_RESPONSE_MAX_AGE;
-	            int m5_service_access_information_response_max_age = SERVER_RESPONSE_MAX_AGE;
+                    int m5_service_access_information_response_max_age = SERVER_RESPONSE_MAX_AGE;
                     while (ogs_yaml_iter_next(&cc_iter)) {
                         const char *cc_key = ogs_yaml_iter_key(&cc_iter);
                         ogs_assert(cc_key);
@@ -219,7 +219,7 @@ int msaf_context_parse_config(void)
                             m5_service_access_information_response_max_age = ascii_to_long(ogs_yaml_iter_value(&cc_iter));
                         }
                     }
-		    msaf_server_response_cache_control_set_from_config(
+                    msaf_server_response_cache_control_set_from_config(
                                 m1_provisioning_session_response_max_age, m1_content_hosting_configurations_response_max_age,
                                 m1_server_certificates_response_max_age, m1_content_protocols_response_max_age,
                                 m1_consumption_reporting_response_max_age, m5_service_access_information_response_max_age);
@@ -521,15 +521,15 @@ static void msaf_context_server_addr_remove_all()
 {
     msaf_context_server_addr_t *msaf_server_addr = NULL, *next = NULL;
     ogs_list_for_each_safe(&msaf_self()->config.server_addr_list, next, msaf_server_addr)
-        msaf_context_server_addr_remove(msaf_server_addr);
+    msaf_context_server_addr_remove(msaf_server_addr);
 
 }
 
 static void msaf_context_server_addr_remove(msaf_context_server_addr_t *msaf_server_addr)
 {
-        ogs_assert(msaf_server_addr);
-	ogs_list_remove(&msaf_self()->config.server_addr_list, msaf_server_addr);
-	ogs_free(msaf_server_addr);
+    ogs_assert(msaf_server_addr);
+    ogs_list_remove(&msaf_self()->config.server_addr_list, msaf_server_addr);
+    ogs_free(msaf_server_addr);
 }
 
 static void msaf_context_application_server_state_certificates_remove_all(void) {

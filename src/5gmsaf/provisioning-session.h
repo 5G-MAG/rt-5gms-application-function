@@ -38,10 +38,10 @@ typedef struct msaf_provisioning_session_s {
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
     OpenAPI_service_access_information_resource_t *serviceAccessInformation;
     struct {
-	msaf_http_metadata_t provisioningSession;
-	msaf_http_metadata_t consumptionReportingConfiguration;
-	msaf_http_metadata_t contentHostingConfiguration;
-	msaf_http_metadata_t serviceAccessInformation;
+        msaf_http_metadata_t provisioningSession;
+        msaf_http_metadata_t consumptionReportingConfiguration;
+        msaf_http_metadata_t contentHostingConfiguration;
+        msaf_http_metadata_t serviceAccessInformation;
     } httpMetadata;
     ogs_hash_t *certificate_map;          //Type: char* => n/a (just used as a set - external tool manages data)
     ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t*

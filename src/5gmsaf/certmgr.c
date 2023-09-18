@@ -289,10 +289,10 @@ char *check_in_cert_list(const char *canonical_domain_name)
 
     while(fgets(buf, OGS_HUGE_LEN, out)) {
 
-	ogs_debug("buf=\"%s\", canonical_domain_name=\"%s\"", buf, canonical_domain_name);
+        ogs_debug("buf=\"%s\", canonical_domain_name=\"%s\"", buf, canonical_domain_name);
         if (str_match(buf, canonical_domain_name)) {
             certificate = strtok_r(buf,"\t",&cert_id);
-	    ogs_debug("buf=\"%s\", certificate=\"%s\", cert_id=\"%s\"", buf, certificate, cert_id);
+            ogs_debug("buf=\"%s\", certificate=\"%s\", cert_id=\"%s\"", buf, certificate, cert_id);
             break;
         }
     }
@@ -326,28 +326,28 @@ static msaf_certificate_t *msaf_certificate_populate(const char *certid, const c
 
     line = cert;
     while ((eol = strchr(line, '\n')) != NULL) {
-	const char *end_field;
-	/* Stop when we get to the certificate, key or CSR */
+        const char *end_field;
+        /* Stop when we get to the certificate, key or CSR */
         if (strncmp(line, begin_marker, sizeof(begin_marker)-1) == 0)
-	    break;
+            break;
         /* otherwise try and interpret as "Field: Value" */
-	end_field = strchr(line, ':');
-	if (end_field) {
-	    char *field;
-	    char *value;
-	    const char *value_start;
-	    const char *value_end;
+        end_field = strchr(line, ':');
+        if (end_field) {
+            char *field;
+            char *value;
+            const char *value_start;
+            const char *value_end;
             field = ogs_strndup(line, end_field-line);
             value_start = end_field+1;
             while (*value_start && *value_start == ' ') value_start++;
-	    value_end = eol-1;
-	    while (value_end>value_start && *value_end == ' ') value_end--;
-	    value = ogs_strndup(value_start, value_end-value_start+1);
+            value_end = eol-1;
+            while (value_end>value_start && *value_end == ' ') value_end--;
+            value = ogs_strndup(value_start, value_end-value_start+1);
             nf_headers_set(msaf_certificate->headers, field, value);
-	    ogs_free(field);
-	    ogs_free(value);
-	}
-	line = eol+1;
+            ogs_free(field);
+            ogs_free(value);
+        }
+        line = eol+1;
     }
 
     msaf_certificate->certificate = msaf_strdup(line);

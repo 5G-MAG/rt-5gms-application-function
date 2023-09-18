@@ -25,7 +25,6 @@ typedef struct msaf_fsm_s {
 
 extern void msaf_fsm_init(void);
 extern void msaf_fsm_fini(void);
-	
 
 #ifdef __cplusplus
 }

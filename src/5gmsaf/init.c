@@ -39,8 +39,8 @@ int msaf_initialize()
     }
 
     if (!msaf_distribution_certificate_check()) {
-	ogs_error("Consistency checks failed, aborting");
-	return OGS_ERROR;
+        ogs_error("Consistency checks failed, aborting");
+        return OGS_ERROR;
     }
 
     rv = ogs_log_config_domain(ogs_app()->logger.domain, ogs_app()->logger.level);
@@ -132,14 +132,17 @@ static int msaf_set_time(void)
     if(ogs_env_set("TZ", "GMT") != OGS_OK)
     {
         ogs_error("Failed to set TZ to GMT");
-	return OGS_ERROR;
+        return OGS_ERROR;
     }
 
     if(ogs_env_set("LC_TIME", "C") != OGS_OK)
     {
         ogs_error("Failed to set LC_TIME to C");
-	return OGS_ERROR;
+        return OGS_ERROR;
     }
     return OGS_OK;
 
 }
+
+/* vim:ts=8:sts=4:sw=4:expandtab:
+ */

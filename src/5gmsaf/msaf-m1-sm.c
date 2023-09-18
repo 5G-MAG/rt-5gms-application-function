@@ -1414,7 +1414,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         ogs_error("%s", err);
                         ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, message, "Invalid resource name", err, NULL, NULL, app_meta));
                         ogs_free(err);
-                END	
+                END
                 break;
             DEFAULT
                 ogs_error("Invalid API name [%s]", message->h.service.name);
