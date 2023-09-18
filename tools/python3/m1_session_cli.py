@@ -58,15 +58,25 @@ Syntax:
     m1-session-cli renew-certificates -h
     m1-session-cli renew-certificates -p <provisioning-session-id>
     m1-session-cli renew-certificates <ingest-URL> [<entry-point-suffix-URL>]
+    m1-session-cli set-consumption-reporting -h
+    m1-session-cli set-consumption-reporting -p <provisioning-session-id> [-i <interval>] [-s <sample-percent>] [-l] [-A]
+    m1-session-cli show-consumption-reporting -h
+    m1-session-cli show-consumption-reporting -p <provisioning-session-id>
+    m1-session-cli del-consumption-reporting -h
+    m1-session-cli del-consumption-reporting -p <provisioning-session-id>
 
 Parameters:
     -a ID   --asp-id ID                   The application service provider id.
+    -A      --access-reporting            Include access reporting.
     -c ID   --certificate-id ID           The certificate id to operate on.
     -d FQDN --domain-name-alias FQDN      The alternate domain name to use.
     -e ID   --external-app-id ID          The external application id.
     -h      --help                        Display the help message.
+    -i SEC  --interval SEC                The reporting interval in seconds.
+    -l      --location-reporting          Include location reporting
     -n NAME --name NAME                   The hosting name.
     -p ID   --provisioning-session-id ID  The provisioning session id to use.
+    -s PCT  --sample-percentage PCT       The sampling percentage.
             --ssl-only                    Provide HTTPS only.
             --with-ssl                    Provide both HTTPS and HTTP.
             --csr                         When reserving a cetrificate, pass back the CSR.
@@ -105,7 +115,7 @@ if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.p
 from rt_m1_client.session import M1Session
 from rt_m1_client.exceptions import M1Error
 from rt_m1_client.data_store import JSONFileDataStore
-from rt_m1_client.types import ContentHostingConfiguration
+from rt_m1_client.types import ContentHostingConfiguration, ConsumptionReportingConfiguration
 
 class Configuration:
     '''Application configuration container
@@ -368,6 +378,12 @@ async def cmd_list_verbose(args: argparse.Namespace, config: Configuration) -> i
             print('\n'.join(['    '+line for line in ContentHostingConfiguration.format(chc).split('\n')]))
         else:
             print('    Not defined')
+        crc = await session.consumptionReportingConfigurationGet(ps_id)
+        print('  ConsumptionReportingConfiguration:')
+        if crc is not None:
+            print(ConsumptionReportingConfiguration.format(crc, indent=4))
+        else:
+            print('    Not defined')
     return 0
 
 async def cmd_list(args: argparse.Namespace, config: Configuration) -> int:
@@ -617,6 +633,55 @@ async def cmd_renew_certs(args: argparse.Namespace, config: Configuration) -> in
     sys.stderr.write('renew-certs not yet implemented\n')
     return 1
 
+async def cmd_set_consumption(args: argparse.Namespace, config: Configuration) -> int:
+    '''Activate or set consumption reporting parameters on a provisioning session
+
+    '''
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    crc: ConsumptionReportingConfiguration = {}
+    if args.interval is not None:
+        crc['reportingInterval'] = args.interval
+    if args.sample_percentage is not None:
+        crc['samplePercentage'] = args.sample_percentage
+    if args.location_reporting:
+        crc['locationReporting'] = True
+    if args.access_reporting:
+        crc['accessReporting'] = True
+    result: bool = await session.setOrUpdateConsumptionReporting(ps_id, crc)
+    if result:
+        print('Consumption reporting parameters set')
+        return 0
+    print('Failed to set consumption reporting parameters')
+    return 1
+
+async def cmd_show_consumption(args: argparse.Namespace, config: Configuration) -> int:
+    '''Display current consumption reporting parameters for a provisioning session
+
+    '''
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    crc: Optional[ConsumptionReportingConfiguration] = await session.consumptionReportingConfigurationGet(ps_id)
+    if crc is None:
+        print('No consumption reporting configured')
+    else:
+        print('Consumption Reporting:')
+        print(ConsumptionReportingConfiguration.format(crc, indent=2))
+    return 0
+
+async def cmd_del_consumption(args: argparse.Namespace, config: Configuration) -> int:
+    '''Remove the consumption reporting parameters for a provisioning session
+
+    '''
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    result: bool = await session.consumptionReportingConfigurationDelete(ps_id)
+    if result:
+        print('Consumption reporting removed')
+        return 0
+    print('No consumption reporting to remove')
+    return 1
+
 async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     '''Parse command line options and load app configuration
 
@@ -760,6 +825,31 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     # The entry-point-path should go with ingest-URL, but argparser lacks the ability to do subgroups
     #parser_renewcert.add_argument('entrypoint', metavar='entry-point-path', nargs='?', help='The media player entry point suffix.')
 
+    # m1-session-cli set-consumption-reporting -p <provisioning-session-id> [-i <interval>] [-s <sample-percent>] [-l] [-A]
+    parser_set_consumption = subparsers.add_parser('set-consumption-reporting', help='Activate/set consumption reporting')
+    parser_set_consumption.set_defaults(command=cmd_set_consumption)
+    parser_set_consumption.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to set the consumption reporting for')
+    parser_set_consumption.add_argument('-i', '--interval', type=int, help='The reporting interval to request in seconds')
+    parser_set_consumption.add_argument('-s', '--sample-percentage', dest='sample_percentage', type=float,
+                                        help='The sampling percentage to request')
+    parser_set_consumption.add_argument('-l', '--location-reporting', dest='location_reporting', action='store_true',
+                                        help='Include location reporting')
+    parser_set_consumption.add_argument('-A', '--access-reporting', dest='access_reporting', action='store_true',
+                                        help='Include access reporting')
+
+    # m1-session-cli show-consumption-reporting -p <provisioning-session-id>
+    parser_show_consumption = subparsers.add_parser('show-consumption-reporting', help='Display the consumption reporting parameters')
+    parser_show_consumption.set_defaults(command=cmd_show_consumption)
+    parser_show_consumption.add_argument('-p', '--provisioning-session', required=True,
+                                         help='Provisioning session id to get the consumption reporting for')
+
+    # m1-session-cli del-consumption-reporting -p <provisioning-session-id>
+    parser_del_consumption = subparsers.add_parser('del-consumption-reporting', help='Deactivate consumption reporting')
+    parser_del_consumption.set_defaults(command=cmd_del_consumption)
+    parser_del_consumption.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to remove the consumption reporting for')
+
     args = parser.parse_args()
 
     return (args,cfg)
@@ -809,7 +899,10 @@ async def main():
         log = logging.getLogger()
         for lgr in log.manager.loggerDict.values():
             if isinstance(lgr, logging.Logger):
-                lgr.setLevel(log_lvl)
+                if not args.debug and lgr.name == 'httpx':
+                    lgr.setLevel(logging.WARN)
+                else:
+                    lgr.setLevel(log_lvl)
         if hasattr(args, 'command'):
             return await args.command(args, config)
         else:

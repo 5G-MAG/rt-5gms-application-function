@@ -40,12 +40,17 @@ Syntax:
     m1-client hosting update [-h] <address:port> <provisioning-session-id> <CHC-JSON-file>
     m1-client hosting delete [-h] <address:port> <provisioning-session-id>
     m1-client hosting purge [-h] <address:port> <provisioning-session-id> [<path-regex>]
+    m1-client consumption create [-h] <address:port> <provisioning-session-id> [-i <interval>] [-p <percentage>] [-l] [-a]
+    m1-client consumption show [-h] <address:port> <provisioning-session-id>
+    m1-client consumption update [-h] <address:port> <provisioning-session-id> [-i <interval>] [-p <percentage>] [-l] [-a]
+    m1-client consumption delete [-h] <address:port> <provisioning-session-id>
 '''
 
 import aiofiles
 import argparse
 import asyncio
 import datetime
+import os.path
 import sys
 from typing import Optional, Union
 
@@ -56,8 +61,8 @@ installed_packages_dir = '@python_packages_dir@'
 if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.path:
     sys.path.append(installed_packages_dir)
 
-from rt_m1_client.client import M1Client, ProvisioningSessionResponse, ContentProtocolsResponse, ServerCertificateSigningRequestResponse, ServerCertificateResponse, ContentHostingConfigurationResponse
-from rt_m1_client.types import PROVISIONING_SESSION_TYPE_DOWNLINK, PROVISIONING_SESSION_TYPE_UPLINK, ContentHostingConfiguration
+from rt_m1_client.client import M1Client, ProvisioningSessionResponse, ContentProtocolsResponse, ServerCertificateSigningRequestResponse, ServerCertificateResponse, ContentHostingConfigurationResponse, ConsumptionReportingConfigurationResponse
+from rt_m1_client.types import PROVISIONING_SESSION_TYPE_DOWNLINK, PROVISIONING_SESSION_TYPE_UPLINK, ContentHostingConfiguration, ConsumptionReportingConfiguration
 from rt_m1_client.exceptions import M1Error
 
 async def cmd_provisioning_create(args: argparse.Namespace) -> int:
@@ -403,6 +408,61 @@ async def cmd_hosting_purge(args: argparse.Namespace) -> int:
         print(f'There were {resp} entries purged from the cache')
     return 0
 
+async def __consumptionReportingConfigurationFromArgs(args: argparse.Namespace) -> ConsumptionReportingConfiguration:
+    crc: ConsumptionReportingConfiguration = {}
+    if args.interval is not None:
+        crc['reportingInterval'] = args.interval
+    if args.percentage is not None:
+        crc['samplePercentage'] = args.percentage
+    if args.locationReport:
+        crc['locationReporting'] = True
+    if args.accessReport:
+        crc['accessReporting'] = True
+    return crc
+
+async def cmd_consumption_create(args: argparse.Namespace) -> int:
+    client = await getClient(args)
+    provisioning_session_id: ResourceId = args.provisioning_session_id
+    crc: ConsumptionReportingConfiguration = await __consumptionReportingConfigurationFromArgs(args)
+    resp: Union[bool, ConsumptionReportingConfigurationResponse] = await client.activateConsumptionReportingConfiguration(provisioning_session_id, crc)
+    if isinstance(resp, bool) and resp or isinstance(resp, ConsumptionReportingConfigurationResponse):
+        print('ConsumptionReportingConfiguration created')
+    return 0
+
+async def cmd_consumption_show(args: argparse.Namespace) -> int:
+    client = await getClient(args)
+    provisioning_session_id: ResourceId = args.provisioning_session_id
+    try:
+        resp: ConsumptionReportingConfigurationResponse = await client.retrieveConsumptionReportingConfiguration(provisioning_session_id)
+        print(ConsumptionReportingConfiguration.format(resp['ConsumptionReportingConfiguration']))
+    except M1ClientError as err:
+        if err.args[1] == 404:
+            print('No ConsumptionReportingConfiguration for provisioning session')
+        else:
+            raise err
+    return 0
+
+async def cmd_consumption_update(args: argparse.Namespace) -> int:
+    client = await getClient(args)
+    provisioning_session_id: ResourceId = args.provisioning_session_id
+    crc: ConsumptionReportingConfiguration = await __consumptionReportingConfigurationFromArgs(args)
+    resp: bool = await client.updateConsumptionReportingConfiguration(provisioning_session_id, crc)
+    if resp:
+        print('ConsumptionReportingConfiguration updated')
+    else:
+        print('ConsumptionReportingConfiguration update failed')
+    return 0
+
+async def cmd_consumption_delete(args: argparse.Namespace) -> int:
+    client = await getClient(args)
+    provisioning_session_id: ResourceId = args.provisioning_session_id
+    resp: bool = await client.destroyConsumptionReportingConfiguration(provisioning_session_id)
+    if resp:
+        print('ConsumptionReportingConfiguration deleted')
+    else:
+        print('ConsumptionReportingConfiguration failed to delete')
+    return 0
+
 async def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog='m1-client', description='M1 Client API tool')
     subparsers = parser.add_subparsers(required=True)
@@ -509,6 +569,46 @@ async def parse_args() -> argparse.Namespace:
     parser_hosting_purge.set_defaults(command=cmd_hosting_purge)
     parser_hosting_purge.add_argument('path_regex', metavar='path-regex', nargs='?',
                                       help='Regular expression to match for entries to purge')
+
+    # m1-client consumption ...
+    parser_consumption = subparsers.add_parser('consumption', help='ConsumptionReportingProvisioing APIs')
+    consumption_subparsers = parser_consumption.add_subparsers(required=True)
+
+    # m1-client consumption create [-h] <address:port> <provisioning-session-id> [-i <interval>] [-p <percentage>] [-l] [-a]
+    parser_consumption_create = consumption_subparsers.add_parser('create', parents=[parent_addr_prov],
+                                                                  help='Activate Consumption Reporting for a provisioning session')
+    parser_consumption_create.set_defaults(command=cmd_consumption_create)
+    parser_consumption_create.add_argument('-i','--interval', type=int, nargs=1,
+                                      help='The reporting interval for consumption reporting in whole seconds')
+    parser_consumption_create.add_argument('-p','--percentage', type=float, nargs=1,
+                                      help='The sample percentage to request for consumption reporting')
+    parser_consumption_create.add_argument('-l', '--location-reporting', action='store_true', dest='location_reporting',
+                                      help='Indicates that location reporting should be requested')
+    parser_consumption_create.add_argument('-a', '--access-reporting', action='store_true', dest='access_reporting',
+                                      help='Indicates that access reporting should be requested')
+
+    # m1-client consumption show [-h] <address:port> <provisioning-session-id>
+    parser_consumption_show = consumption_subparsers.add_parser('show', parents=[parent_addr_prov],
+                                                    help='Retrieve a ConsumptionReportingConfiguration for a provisioning session')
+    parser_consumption_show.set_defaults(command=cmd_consumption_show)
+
+    # m1-client consumption update [-h] <address:port> <provisioning-session-id> [-i <interval>] [-p <percentage>] [-l] [-a]
+    parser_consumption_update = consumption_subparsers.add_parser('update', parents=[parent_addr_prov],
+                                                                  help='Update Consumption Reporting for a provisioning session')
+    parser_consumption_update.set_defaults(command=cmd_consumption_update)
+    parser_consumption_update.add_argument('-i','--interval', type=int, nargs=1,
+                                      help='The reporting interval for consumption reporting in whole seconds')
+    parser_consumption_update.add_argument('-p','--percentage', type=float, nargs=1,
+                                      help='The sample percentage to request for consumption reporting')
+    parser_consumption_update.add_argument('-l', '--location-reporting', action='store_true', dest='location_reporting',
+                                      help='Indicates that location reporting should be requested')
+    parser_consumption_update.add_argument('-a', '--access-reporting', action='store_true', dest='access_reporting',
+                                      help='Indicates that access reporting should be requested')
+
+    # m1-client consumption delete [-h] <address:port> <provisioning-session-id>
+    parser_consumption_delete = consumption_subparsers.add_parser('delete', parents=[parent_addr_prov],
+                                                                  help='Delete the Consumption Reporting for a provisioning session')
+    parser_consumption_delete.set_defaults(command=cmd_consumption_delete)
 
     return parser.parse_args()
 

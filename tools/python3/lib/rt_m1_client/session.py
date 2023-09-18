@@ -44,9 +44,9 @@ import OpenSSL
 
 from .exceptions import (M1ClientError, M1ServerError, M1Error)
 from .types import (ApplicationId, ContentHostingConfiguration, ContentProtocols, ProvisioningSessionType, ProvisioningSession,
-                    ResourceId, PROVISIONING_SESSION_TYPE_DOWNLINK)
+                    ConsumptionReportingConfiguration, ResourceId, PROVISIONING_SESSION_TYPE_DOWNLINK)
 from .client import (M1Client, ProvisioningSessionResponse, ContentHostingConfigurationResponse, ServerCertificateResponse,
-                     ServerCertificateSigningRequestResponse, ContentProtocolsResponse)
+                     ServerCertificateSigningRequestResponse, ContentProtocolsResponse, ConsumptionReportingConfigurationResponse)
 from .data_store import DataStore
 from .certificates import CertificateSigner, DefaultCertificateSigner
 
@@ -382,6 +382,72 @@ class M1Session:
         await self.__connect()
         return await self.__m1_client.updateContentHostingConfiguration(provisioning_session, chc)
 
+    # ConsumptionReportingConfiguration methods
+
+    async def consumptionReportingConfigurationCreate(self, provisioning_session: ResourceId, crc: ConsumptionReportingConfiguration) -> bool:
+        '''Store a new `ConsumptionReportingConfiguration` for a provisioning session
+
+        :param provisioning_session: The provisioning session id of the provisioning session to set the
+                                     `ConsumptionReportingConfiguration` in.
+        :param crc: The `ConsumptionReportingConfiguration` to set in the provisioning session.
+        :return: ``True`` if the new `ConsumptionReportingConfiguration` was successfully set in the provisioning session or
+                 ``False`` if the operation failed (e.g. because there was already a `ConsumptionReportingConfiguration` set).
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        crc_resp: Union[bool,ConsumptionReportingConfigurationResponse,None] = \
+                await self.__m1_client.activateConsumptionReportingConfiguration(provisioning_session, crc)
+        if isinstance(crc_resp,bool):
+            return crc_resp
+        ps = await self.__getProvisioningSessionCache(provisioning_session)
+        if ps is not None:
+            ps['consumption-reporting-configuration'] = {k.lower(): v for k,v in crc_resp.items()}
+        return True
+
+    async def consumptionReportingConfigurationGet(self, provisioning_session: ResourceId) -> Optional[ConsumptionReportingConfiguration]:
+        '''Retrieve the `ConsumptionReportingConfiguration` set on a provisioning session
+
+        :param provisioning_session: The provisioning session id to retrieve the `ConsumptionReportingConfiguration` for.
+
+        :return: a `ConsumptionReportingConfiguration` for the provisioning session or ``None`` if the provisioning session does not
+                 exist or if it has no `ConsumptionReportingConfiguration` set.
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return None
+        await self.__cacheConsumptionReportingConfiguration(provisioning_session)
+        ps = await self.__getProvisioningSessionCache(provisioning_session)
+        if ps is None or ps['consumption-reporting-configuration'] is None:
+            return None
+        return ConsumptionReportingConfiguration(ps['consumption-reporting-configuration']['consumptionreportingconfiguration'])
+
+    async def consumptionReportingConfigurationUpdate(self, provisioning_session: ResourceId, crc: ConsumptionReportingConfiguration) -> bool:
+        '''Update the `ConsumptionReportingConfiguration` for a provisioning session
+
+        :param provisioning_session: The provisioning session id of the provisioning session to set the
+                                     `ConsumptionReportingConfiguration` in.
+        :param chc: The `ConsumptionReportingConfiguration` to set in the provisioning session.
+        :return: ``True`` if the new `ConsumptionReportingConfiguration` was successfully set in the provisioning session or
+                 ``False`` if the operation failed (e.g. because there was no `ConsumptionReportingConfiguration` set).
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.updateConsumptionReportingConfiguration(provisioning_session, crc)
+
+    async def consumptionReportingConfigurationDelete(self, provisioning_session: ResourceId) -> bool:
+        '''Remove the `ConsumptionReportingConfiguration` for a provisioning session
+
+        :param provisioning_session: The provisioning session id of the provisioning session to remove the
+                                     `ConsumptionReportingConfiguration` in.
+
+        :return: ``True`` if the `ConsumptionReportingConfiguration` was successfully removed or ``False`` if the operation failed.
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.destroyConsumptionReportingConfiguration(provisioning_session)
+
     # Convenience methods
 
     async def createDownlinkPullProvisioningSession(self, app_id: ApplicationId, asp_id: Optional[ApplicationId] = None) -> Optional[ResourceId]:
@@ -513,6 +579,22 @@ class M1Session:
             raise RuntimeError('Failed to create the content hosting configuration')
         return provisioning_session
 
+    async def setOrUpdateConsumptionReporting(self, provisioning_session: ResourceId, crc: ConsumptionReportingConfiguration) -> bool:
+        '''Set or update the consumption reporting parameters for a provisioning session
+
+        :param ResourceId provisioning_session: The provisioning session to set the consumption report on.
+        :param ConsumptionReportingConfiguration crc: The ConsumptionReportingConfiguration to set.
+
+        :return: ``True`` if the configuration was set or ``False`` if the setting failed.
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__cacheConsumptionReportingConfiguration(provisioning_session)
+        ps = await self.__getProvisioningSessionCache(provisioning_session)
+        if ps is None or ps['consumption-reporting-configuration'] is None:
+            return await self.consumptionReportingConfigurationCreate(provisioning_session, crc)
+        return await self.consumptionReportingConfigurationUpdate(provisioning_session, crc)
+
     # Private data
 
     __file_suffix_to_mime = {
@@ -619,6 +701,7 @@ class M1Session:
                 ps.update({
                     'protocols': None,
                     'content-hosting-configuration': None,
+                    'consumption-reporting-configuration': None,
                     'certificates': None,
                     })
                 if 'serverCertificateIds' in ps['provisioningsession']:
@@ -696,6 +779,30 @@ class M1Session:
                 chc.update({k.lower(): v for k,v in result.items()})
             else:
                 ps['content-hosting-configuration'] = None
+
+    async def __cacheConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId) -> None:
+        '''Cache the `ConsumptionReportingConfiguration` for a provisioning session
+
+        Will only cache if the old cache didn't exist or has expired.
+
+        :meta private:
+        :param provisioning_session_id: The id of provisioning session to cache the `ConsumptionReportingConfiguration` for.
+        '''
+        await self.__cacheProvisioningSession(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        crc = ps['consumption-reporting-configuration']
+        if crc is None or crc['cache-until'] is None or crc['cache-until'] < now:
+            await self.__connect()
+            result: Optional[ConsumptionReportingConfigurationResponse] = \
+                    await self.__m1_client.retrieveConsumptionReportingConfiguration(provisioning_session_id)
+            if result is not None:
+                if crc is None:
+                    crc = {}
+                    ps['consumption-reporting-configuration'] = crc
+                crc.update({k.lower(): v for k,v in result.items()})
+            else:
+                ps['consumption-reporting-configuration'] = None
 
     async def __getCertificateSigner(self) -> CertificateSigner:
         '''Get the `CertificateSigner`
