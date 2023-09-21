@@ -45,6 +45,13 @@ typedef enum {
 
 } msaf_server_type_e;
 
+typedef enum {
+
+    MSAF_LOCAL_EVENT_POLICY_TEMPLATE_STATE_CHANGE,
+
+} msaf_local_event_e;
+
+
 typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;
 typedef struct msaf_network_assistance_session_s msaf_network_assistance_session_t;
 typedef struct purge_resource_id_node_s purge_resource_id_node_t;
@@ -52,6 +59,7 @@ typedef struct purge_resource_id_node_s purge_resource_id_node_t;
 typedef struct msaf_event_s {
     ogs_event_t h;
     int local_id;
+    void *data;
     msaf_application_server_state_node_t *application_server_state;
     purge_resource_id_node_t *purge_node;
     ogs_sbi_message_t *message;

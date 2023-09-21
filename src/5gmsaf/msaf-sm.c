@@ -18,6 +18,7 @@
 #include "context.h"
 #include "certmgr.h"
 #include "server.h"
+#include "local.h"
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
@@ -58,12 +59,10 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     if (bsf_process_event(&e->h)) return;
     if (pcf_session_process_event(&e->h)) return;
+    if (local_process_event(e)) return;
 
     message = ogs_calloc(1, sizeof(*message));
-    msaf_context_server_name_set();
-    char *nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
-    const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
-    const nf_server_app_metadata_t *app_meta = &app_metadata;
+    const nf_server_app_metadata_t *app_meta = msaf_app_metadata();
 
     ogs_assert(s);
 
@@ -350,7 +349,26 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             break;
     }
     if (message) ogs_free(message);
-    ogs_free(nf_name);
+}
+
+static char *nf_name = NULL;
+static nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, NULL };
+
+const nf_server_app_metadata_t *msaf_app_metadata()
+{
+    if (!nf_name) {
+        if (!msaf_self()->server_name[0]) msaf_context_server_name_set();
+        nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
+        ogs_assert(nf_name);
+        app_metadata.server_name = nf_name;
+    }
+
+    return &app_metadata;
+}
+
+void msaf_free_agent_name()
+{
+    if (nf_name) ogs_free(nf_name);
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

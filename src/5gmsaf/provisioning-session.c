@@ -50,6 +50,9 @@ static char* url_path_create(const char* macro, const char* session_id, const ms
 static void tidy_relative_path_re(void);
 static char *calculate_provisioning_session_hash(msaf_api_provisioning_session_t *provisioning_session);
 static ogs_hash_t *msaf_certificate_map();
+static ogs_hash_t *msaf_policy_templates_new(void);
+
+static msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data_populate(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_policy_template_state_change_callback callback, void *user_data);
 
 /***** Public functions *****/
 
@@ -104,6 +107,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     msaf_provisioning_session->httpMetadata.provisioningSession.hash = calculate_provisioning_session_hash(provisioning_session);
 
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
+    msaf_provisioning_session->policy_templates = msaf_policy_templates_new();
     ogs_hash_set(msaf_self()->provisioningSessions_map, msaf_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
 
     msaf_api_provisioning_session_free(provisioning_session);
@@ -316,6 +320,13 @@ msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioning
 {
     if (!msaf_self()->provisioningSessions_map) return NULL;
     return (msaf_provisioning_session_t*) ogs_hash_get(msaf_self()->provisioningSessions_map, provisioningSessionId, OGS_HASH_KEY_STRING);
+}
+
+msaf_policy_template_node_t *
+msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session_t *provisioning_session, const char *policy_template_id)
+{
+    if(!provisioning_session->policy_templates)	return NULL;
+    return (msaf_policy_template_node_t *) ogs_hash_get(provisioning_session->policy_templates, policy_template_id, OGS_HASH_KEY_STRING);
 }
 
 const char *
@@ -567,9 +578,79 @@ char *enumerate_provisioning_sessions(void)
 
 }
 
+bool msaf_provisioning_session_add_policy_template(msaf_provisioning_session_t *provisioning_session, msaf_api_policy_template_t *policy_template, time_t creation_time) {
+    
+    ogs_uuid_t uuid;
+    char id[OGS_UUID_FORMATTED_LENGTH + 1];
+    msaf_policy_template_node_t *msaf_policy_template;
+
+    ogs_uuid_get(&uuid);
+    ogs_uuid_format(id, &uuid);
+
+    msaf_policy_template_set_id(policy_template, msaf_strdup(id));
+    
+    msaf_policy_template = msaf_policy_template_populate(policy_template, creation_time);
+    if(!msaf_policy_template) return false;
+
+    ogs_hash_set(provisioning_session->policy_templates, msaf_strdup(id), OGS_HASH_KEY_STRING, msaf_policy_template);
+
+    msaf_provisioning_session_send_policy_template_state_change_event(provisioning_session, msaf_policy_template, msaf_api_policy_template_STATE_PENDING, NULL, NULL);
+
+    return true;
+
+}
+
+bool msaf_provisioning_session_send_policy_template_state_change_event(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_policy_template_state_change_callback callback, void *user_data)
+{
+    msaf_event_t *event;
+    int rv;	    
+
+    ogs_assert(provisioning_session);
+    ogs_assert(policy_template);
+
+    event = (msaf_event_t*)ogs_event_new(MSAF_EVENT_SBI_LOCAL);
+    event->local_id = MSAF_LOCAL_EVENT_POLICY_TEMPLATE_STATE_CHANGE;
+    event->data = (msaf_policy_template_change_state_event_data_t *)msaf_policy_template_change_state_event_data_populate(provisioning_session, policy_template, new_state, callback, user_data);
+
+    rv = ogs_queue_push(ogs_app()->queue, event);
+    if (rv !=OGS_OK) {
+        ogs_error("OGS Queue Push failed %d", rv);
+        ogs_event_free(event);
+        return OGS_ERROR;
+    }
+    return OGS_OK;
+
+}
+
 /**********************************************************
  * Private functions
  **********************************************************/
+
+static ogs_hash_t *msaf_policy_templates_new(void)
+{
+    ogs_hash_t *policy_templates = ogs_hash_make();
+    return policy_templates;
+}
+
+static msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data_populate(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_policy_template_state_change_callback callback, void *user_data)
+{
+    msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data;
+
+    msaf_policy_template_change_state_event_data = ogs_calloc(1, sizeof(msaf_policy_template_change_state_event_data_t));
+    ogs_assert(msaf_policy_template_change_state_event_data);
+
+    msaf_policy_template_change_state_event_data->provisioning_session = provisioning_session;
+    msaf_policy_template_change_state_event_data->policy_template_node = policy_template;
+    msaf_policy_template_change_state_event_data->new_state = new_state;
+    msaf_policy_template_change_state_event_data->callback = callback;
+    msaf_policy_template_change_state_event_data->callback_user_data = user_data;
+    
+    return msaf_policy_template_change_state_event_data; 
+
+
+}
+
+
 
 static void safe_ogs_free(void *ptr)
 {

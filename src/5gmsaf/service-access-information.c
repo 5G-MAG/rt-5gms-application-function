@@ -33,7 +33,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
 {
     msaf_api_service_access_information_resource_t *service_access_information;
     msaf_api_service_access_information_resource_streaming_access_t *streaming_access;
-    //msaf_configuration_t *config = &msaf_self()->config;
+    msaf_configuration_t *config = &msaf_self()->config;
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
     msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points = NULL;

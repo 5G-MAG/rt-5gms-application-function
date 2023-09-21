@@ -41,7 +41,7 @@ typedef struct {{classname}}_s {{classname}}_t;
         {{#isPrimitiveType}}
             {{#isEnum}}
                 {{#allowableValues}}
-typedef enum { {{classname}}_{{enumName}}_NULL = 0{{#enumVars}}, {{classname}}_{{enumName}}_{{{value}}}{{/enumVars}} } {{classname}}_{{name}}_e;
+typedef enum { {{classname}}_{{#lambda.uppercase}}{{name}}{{/lambda.uppercase}}_NULL = 0{{#enumVars}}, {{classname}}_{{#lambda.uppercase}}{{baseName}}{{/lambda.uppercase}}_{{{value}}}{{/enumVars}} } {{classname}}_{{name}}_e;
                 {{/allowableValues}}
 
 const char* {{classname}}_{{name}}_ToString(const {{classname}}_{{name}}_e {{name}});

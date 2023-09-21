@@ -8,7 +8,6 @@
  * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
  */
 
-
 #include "ogs-sbi.h"
 
 #include "sbi-path.h"
@@ -21,6 +20,7 @@
 #include "msaf-sm.h"
 #include "utilities.h"
 #include "consumption-report-configuration.h"
+#include "provisioning-session.h"
 #include "ContentProtocolsDiscovery_body.h"
 #include "openapi/api/TS26512_M1_ProvisioningSessionsAPI-info.h"
 #include "openapi/api/TS26512_M1_ServerCertificatesProvisioningAPI-info.h"
@@ -29,47 +29,56 @@
 #include "openapi/api/M3_ServerCertificatesProvisioningAPI-info.h"
 #include "openapi/api/M3_ContentHostingProvisioningAPI-info.h"
 #include "openapi/api/TS26512_M1_ContentProtocolsDiscoveryAPI-info.h"
+#include "openapi/api/TS26512_M1_PolicyTemplatesProvisioningAPI-info.h"
 #include "openapi/api/Maf_ManagementAPI-info.h"
 #include "openapi/model/msaf_api_content_hosting_configuration.h"
 #include "openapi/model/msaf_api_consumption_reporting_configuration.h"
 
-const nf_server_interface_metadata_t
+#include "msaf-m1-sm.h"
+
+static const nf_server_interface_metadata_t
 m1_provisioningsession_api_metadata = {
     M1_PROVISIONINGSESSIONS_API_NAME,
     M1_PROVISIONINGSESSIONS_API_VERSION
 };
 
-const nf_server_interface_metadata_t
+static const nf_server_interface_metadata_t
 m1_contenthostingprovisioning_api_metadata = {
     M1_CONTENTHOSTINGPROVISIONING_API_NAME,
     M1_CONTENTHOSTINGPROVISIONING_API_VERSION
 };
 
-const nf_server_interface_metadata_t
+static const nf_server_interface_metadata_t
 m1_contentprotocolsdiscovery_api_metadata = {
     M1_CONTENTPROTOCOLSDISCOVERY_API_NAME,
     M1_CONTENTPROTOCOLSDISCOVERY_API_VERSION
 };
 
-const nf_server_interface_metadata_t
+static const nf_server_interface_metadata_t
 m1_servercertificatesprovisioning_api_metadata = {
     M1_SERVERCERTIFICATESPROVISIONING_API_NAME,
-    M1_SERVERCERTIFICATESPROVISIONING_API_VERSION
+   M1_SERVERCERTIFICATESPROVISIONING_API_VERSION
 };
 
-const nf_server_interface_metadata_t
+static const nf_server_interface_metadata_t
 m1_consumptionreportingprovisioning_api_metadata = {
     M1_CONSUMPTIONREPORTINGPROVISIONING_API_NAME,
     M1_CONSUMPTIONREPORTINGPROVISIONING_API_VERSION
 };
 
-const nf_server_interface_metadata_t
+static const nf_server_interface_metadata_t
 m3_contenthostingprovisioning_api_metatdata = {
     M3_CONTENTHOSTINGPROVISIONING_API_NAME,
     M3_CONTENTHOSTINGPROVISIONING_API_VERSION
 };
 
-const nf_server_interface_metadata_t
+static const nf_server_interface_metadata_t
+m1_policytemplatesprovisioning_api_metadata = {
+    M1_POLICYTEMPLATESPROVISIONING_API_NAME,
+    M1_POLICYTEMPLATESPROVISIONING_API_VERSION
+};
+
+static const nf_server_interface_metadata_t
 maf_management_api_metadata = {
     MAF_MANAGEMENT_API_NAME,
     MAF_MANAGEMENT_API_VERSION
@@ -100,16 +109,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     msaf_sm_debug(e);
 
-    char *nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
-    const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
-    const nf_server_interface_metadata_t *m1_provisioningsession_api = &m1_provisioningsession_api_metadata;
-    const nf_server_interface_metadata_t *m1_contenthostingprovisioning_api = &m1_contenthostingprovisioning_api_metadata;
-    const nf_server_interface_metadata_t *m1_contentprotocolsdiscovery_api = &m1_contentprotocolsdiscovery_api_metadata;
-    const nf_server_interface_metadata_t *m1_servercertificatesprovisioning_api = &m1_servercertificatesprovisioning_api_metadata;
-    const nf_server_interface_metadata_t *m1_consumptionreportingprovisioning_api = &m1_consumptionreportingprovisioning_api_metadata;
-    const nf_server_interface_metadata_t *m3_contenthostingprovisioning_api = &m3_contenthostingprovisioning_api_metatdata;
-    const nf_server_interface_metadata_t *maf_management_api = &maf_management_api_metadata;
-    const nf_server_app_metadata_t *app_meta = &app_metadata;
+    static const nf_server_interface_metadata_t *m1_provisioningsession_api = &m1_provisioningsession_api_metadata;
+    static const nf_server_interface_metadata_t *m1_contenthostingprovisioning_api = &m1_contenthostingprovisioning_api_metadata;
+    static const nf_server_interface_metadata_t *m1_contentprotocolsdiscovery_api = &m1_contentprotocolsdiscovery_api_metadata;
+    static const nf_server_interface_metadata_t *m1_servercertificatesprovisioning_api = &m1_servercertificatesprovisioning_api_metadata;
+    static const nf_server_interface_metadata_t *m1_consumptionreportingprovisioning_api = &m1_consumptionreportingprovisioning_api_metadata;
+    static const nf_server_interface_metadata_t *m3_contenthostingprovisioning_api = &m3_contenthostingprovisioning_api_metatdata;
+    static const nf_server_interface_metadata_t *m1_policytemplatesprovisioning_api = &m1_policytemplatesprovisioning_api_metadata;
+    static const nf_server_interface_metadata_t *maf_management_api = &maf_management_api_metadata;
+    const nf_server_app_metadata_t *app_meta = msaf_app_metadata();
 
     ogs_assert(s);
 
@@ -257,6 +265,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 break;
                             CASE("certificates")
                                 api = m1_servercertificatesprovisioning_api;
+                                break;
+                            CASE("policy-templates")
+                                api = m1_policytemplatesprovisioning_api;
                                 break;
                             DEFAULT
                             END
@@ -518,6 +529,55 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                     }
                                 }
+                            } else if (api == m1_policytemplatesprovisioning_api) {
+                                cJSON *policy_template =  NULL;
+                                msaf_api_policy_template_t *policy_temp = NULL;
+                                char *pol_temp;
+                                cJSON *created_policy_template = NULL;
+                                char *created_pol_temp;
+
+                                policy_template = cJSON_Parse(request->http.content);
+                                pol_temp = cJSON_Print(policy_template);
+                                ogs_debug("PT: %s", pol_temp);
+                                policy_temp = msaf_policy_template_parseFromJSON(policy_template);
+                                if(policy_temp) {
+                                    //policy_template_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m1_policytemplatesprovisioning_api_metadata, app_meta);
+                                    if (msaf_provisioning_session_add_policy_template(msaf_provisioning_session, policy_temp, time(NULL))) {
+                                        char *location;
+                                        msaf_policy_template_node_t *msaf_policy_template;
+
+                                        created_policy_template = msaf_policy_template_convertToJSON(policy_temp);
+                                        created_pol_temp = cJSON_Print(created_policy_template);
+                                        ogs_debug("CREATED PT: %s", created_pol_temp);
+
+                                        msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session, msaf_strdup(policy_temp->policy_template_id));
+                                        location = ogs_msprintf("%s/%s", request->h.uri, msaf_policy_template->policy_template->policy_template_id);
+
+
+                                        //response = nf_server_new_response(location, NULL,  msaf_policy_template->last_modified, msaf_policy_template->hash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_policytemplatesprovisioning_api, app_meta);
+                                        response = nf_server_new_response(location, NULL, 0, NULL, 0, NULL, api, app_meta);
+
+                                        nf_server_populate_response(response, 0, NULL, 201);
+                                        ogs_assert(response);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    } else {
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Problem adding the policy template to the provisioning session [%s].", message->h.resource.component[1]);
+                                        ogs_error("%s",err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Problem adding the policy template.", err, NULL, api, app_meta));
+                                        ogs_free(err);
+                                   }
+
+                                    ogs_info("policy template id: %s", policy_temp->policy_template_id);
+                                } else {
+                                    char *err = NULL;
+                                    err = ogs_msprintf("Problem parsing Policy template JSON.");
+                                    ogs_error("%s",err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Problem parsing Policy template JSON.", err, NULL, api, app_meta));
+                                    ogs_free(err);
+                                }
+
+                                ogs_debug("In policy-templates POST");
                             }
 
                         } else if (message->h.resource.component[1] && !message->h.resource.component[2]){
@@ -626,7 +686,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                     CASE(OGS_SBI_HTTP_METHOD_GET)
                         if (message->h.resource.component[1] && message->h.resource.component[2] && message->h.resource.component[3] && !message->h.resource.component[4]) {
-                            if (!strcmp(message->h.resource.component[2],"certificates") ) {
+                            if (!strcmp(message->h.resource.component[2],"policy-templates") ) {
+                            }            
+                            else if (!strcmp(message->h.resource.component[2],"certificates") ) {
                                 msaf_provisioning_session_t *msaf_provisioning_session;
                                 msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
                                 if (msaf_provisioning_session) {
@@ -2097,7 +2159,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
         ogs_sbi_message_free(message);
         ogs_free(message);
     }
-    ogs_free(nf_name);
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

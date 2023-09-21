@@ -12,10 +12,9 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #define MSAF_NETWORK_ASSISTANCE_SESSION_H
 
 
-#include "openapi/model/network_assistance_session.h"
-#include "openapi/model/m5_qo_s_specification.h"
-#include "openapi/model/service_data_flow_description.h"
-#include "openapi/model/m5_qo_s_specification.h"
+#include "openapi/model/msaf_api_network_assistance_session.h"
+#include "openapi/model/msaf_api_m5_qo_s_specification.h"
+#include "openapi/model/msaf_api_service_data_flow_description.h"
 #include "openapi/api/TS26512_M5_NetworkAssistanceAPI-info.h"
 #include "server.h"
 #include "bsf-service-consumer.h"
@@ -39,7 +38,7 @@ typedef struct msaf_network_assistance_session_s {
     ogs_lnode_t node;	
     char *naSessionId;
     msaf_network_assistance_session_internal_metadata_t *metadata;
-    OpenAPI_network_assistance_session_t *NetworkAssistanceSession;
+    msaf_api_network_assistance_session_t *NetworkAssistanceSession;
     pcf_app_session_t *pcf_app_session;
     time_t na_sess_created;
     bool active_delivery_boost;
@@ -62,7 +61,7 @@ extern void msaf_network_assistance_session_delete_by_session_id(const char *na_
 
 void msaf_network_assistance_session_remove_all_pcf_app_session(void);
 
-extern ue_network_identifier_t *populate_ue_connection_details(OpenAPI_service_data_flow_description_t *service_data_flow_information);
+extern ue_network_identifier_t *populate_ue_connection_details(msaf_api_service_data_flow_description_t *service_data_flow_information);
 
 extern void msaf_network_assistance_session_remove_all(void);
 

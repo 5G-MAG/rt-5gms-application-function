@@ -321,7 +321,7 @@ cJSON *{{classname}}_convertToJSON(const {{classname}}_t *{{classname}}, bool as
         {{/isEnum}}
         {{#isEnum}}
             {{#isPrimitiveType}}
-    if ({{{classname}}}->{{{name}}} == {{classname}}_{{enumName}}_NULL) {
+    if ({{{classname}}}->{{{name}}} == {{classname}}_{{#lambda.uppercase}}{{name}}{{/lambda.uppercase}}_NULL) {
         ogs_error("{{classname}}_convertToJSON() failed [{{{name}}}]");
         return NULL;
     }
@@ -350,7 +350,7 @@ cJSON *{{classname}}_convertToJSON(const {{classname}}_t *{{classname}}, bool as
         {{/isEnum}}
         {{#isEnum}}
             {{#isPrimitiveType}}
-    if ({{{classname}}}->{{{name}}} != {{classname}}_{{enumName}}_NULL) {
+    if ({{{classname}}}->{{{name}}} != {{classname}}_{{#lambda.uppercase}}{{name}}{{/lambda.uppercase}}_NULL) {
             {{/isPrimitiveType}}
             {{^isPrimitiveType}}
     if ({{{classname}}}->{{{name}}} != {{complexType}}_NULL) {

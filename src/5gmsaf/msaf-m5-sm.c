@@ -8,7 +8,6 @@
  * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
  */
 
-
 #include "ogs-sbi.h"
 #include "sbi-path.h"
 #include "context.h"
@@ -29,6 +28,9 @@
 #include "openapi/api/TS26512_M5_NetworkAssistanceAPI-info.h"
 #include "openapi/model/consumption_report.h"
 #include "openapi/model/operation_success_response.h"
+#include "openapi/model/msaf_api_operation_success_response.h"
+
+#include "msaf-m5-sm.h"
 
 static const nf_server_interface_metadata_t
 m5_serviceaccessinformation_api_metadata = {
@@ -73,12 +75,10 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     msaf_sm_debug(e);
 
-    char *nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
-    const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
-    const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
-    const nf_server_interface_metadata_t *m5_consumptionreporting_api = &m5_consumptionreporting_api_metadata;
-    const nf_server_interface_metadata_t *m5_networkassistance_api = &m5_networkassistance_api_metadata;
-    const nf_server_app_metadata_t *app_meta = &app_metadata;
+    static const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
+    static const nf_server_interface_metadata_t *m5_consumptionreporting_api = &m5_consumptionreporting_api_metadata;
+    static const nf_server_interface_metadata_t *m5_networkassistance_api = &m5_networkassistance_api_metadata;
+    const nf_server_app_metadata_t *app_meta = msaf_app_metadata();
 
     ogs_assert(s);
 
@@ -224,7 +224,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 			    }
 			    if(!is_ue_allowed_to_request_delivery_boost(na_sess)) {
 			        char *reason = NULL;
-				OpenAPI_operation_success_response_t *operation_success_response;
+				msaf_api_operation_success_response_t *operation_success_response;
 				cJSON *op_success_response;
 				char *success_response;
 				ogs_sbi_response_t *response;
@@ -234,8 +234,8 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 reason = ogs_msprintf("The AF has an active delivery boost for the network assistance session [%s].", message->h.resource.component[1]);
                                 ogs_debug("%s", reason);
 				
-				operation_success_response = OpenAPI_operation_success_response_create(reason, 0);
-				op_success_response = OpenAPI_operation_success_response_convertToJSON(operation_success_response);
+				operation_success_response = msaf_api_operation_success_response_create(reason, 0);
+				op_success_response = msaf_api_operation_success_response_convertResponseToJSON(operation_success_response);
 				success_response = cJSON_Print(op_success_response);
 
 				response = nf_server_new_response(NULL, "application/json", 0, NULL, 0, NULL, m5_networkassistance_api, app_meta);
@@ -246,46 +246,13 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 				cJSON_Delete(op_success_response);
 				cJSON_free(success_response);
 				//ogs_free(reason);
-				OpenAPI_operation_success_response_free(operation_success_response);
+				msaf_api_operation_success_response_free(operation_success_response);
 				break;
 
 			    }
 
                             nw_assist_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m5_networkassistance_api, app_meta); 
 			    msaf_nw_assistance_session_update_pcf(na_sess, nw_assist_event);
-			      
-			    /*
-
-			    if(msaf_nw_assistance_session_update_pcf(na_sess)) {
-				char *reason = NULL;    
-			        OpenAPI_operation_success_response_t *operation_success_response;
-                                cJSON *op_success_response;
-                                char *success_response;
-                                ogs_sbi_response_t *response;
-                                int response_code = 200;
-				int cache_control_max_age;
-
-				operation_success_response = OpenAPI_operation_success_response_create(reason, 1);
-                                op_success_response = OpenAPI_operation_success_response_convertToJSON(operation_success_response);
-                                success_response = cJSON_Print(op_success_response);
-
-				cache_control_max_age = msaf_self()->config.network_assistance_delivery_boost->delivery_boost_period;
-
-
-                                response = nf_server_new_response(NULL, "application/json", 0, NULL, cache_control_max_age, NULL, m5_networkassistance_api, app_meta);
-                                ogs_assert(response);
-                                nf_server_populate_response(response, strlen(success_response), ogs_strdup(success_response), response_code);
-                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-
-			
-
-                                cJSON_Delete(op_success_response);
-                                cJSON_free(success_response);
-	    
-			    }
-			    */
-
-
 
 			} else {
 				
@@ -564,8 +531,6 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
         ogs_sbi_message_free(message);
         ogs_free(message);
     }
-
-    ogs_free(nf_name);
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

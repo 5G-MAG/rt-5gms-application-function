@@ -102,7 +102,7 @@ void msaf_context_final(void)
     msaf_network_assistance_delivery_boost_free();
 
      if(self->config.offerNetworkAssistance){
-        msaf_na_policy_template_remove_all();
+        //msaf_na_policy_template_remove_all();
 	msaf_network_assistance_session_remove_all_pcf_app_session();
         msaf_network_assistance_session_remove_all();
         msaf_pcf_session_remove_all();

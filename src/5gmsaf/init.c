@@ -12,6 +12,8 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "context.h"
 #include "sbi-path.h"
+#include "msaf-sm.h"
+
 #include "init.h"
 
 static ogs_thread_t *thread;
@@ -95,6 +97,8 @@ void msaf_terminate(void)
 
     msaf_context_final();
     ogs_sbi_context_final();
+
+    msaf_free_agent_name();
 }
 
 static void msaf_main(void *data)

@@ -23,20 +23,8 @@ void msaf_state_final(ogs_fsm_t *s, msaf_event_t *e);
 void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e);
 void msaf_state_exception(ogs_fsm_t *s, msaf_event_t *e);
 
-void msaf_m1_state_initial(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_m1_state_final(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_m1_state_exception(ogs_fsm_t *s, msaf_event_t *e);
-
-void msaf_m5_state_initial(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_m5_state_final(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_m5_state_exception(ogs_fsm_t *s, msaf_event_t *e);
-
-void msaf_maf_mgmt_state_initial(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_maf_mgmt_state_final(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e);
-void msaf_maf_mgmt_state_exception(ogs_fsm_t *s, msaf_event_t *e);
+const nf_server_app_metadata_t *msaf_app_metadata();
+void msaf_free_agent_name();
 
 #define msaf_sm_debug(__pe) \
     ogs_debug("%s(): %s", __func__, msaf_event_get_name(__pe))

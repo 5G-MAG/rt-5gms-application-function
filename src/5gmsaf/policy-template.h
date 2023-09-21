@@ -10,23 +10,31 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #ifndef MSAF_POLICY_TEMPLATE_H
 #define MSAF_POLICY_TEMPLATE_H
 
-#include "openapi/model/policy_template.h"
+#include "provisioning-session.h"
+#include "openapi/model/msaf_api_policy_template.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct msaf_network_assistance_policy_template_s {
-    ogs_lnode_t node;
-    char *policy_template_id;
-    OpenAPI_policy_template_t *policy_template;
-} msaf_network_assistance_policy_template_t;
+#define msaf_policy_template_free(policy_template) msaf_api_policy_template_free(policy_template)
 
-extern int msaf_na_policy_template_create(cJSON *policy_template);
-extern void msaf_na_policy_template_remove_all(void);
-extern msaf_network_assistance_policy_template_t *get_policy_template_by_id(char *policy_template_id);
+extern msaf_api_policy_template_t *msaf_policy_template_new(const char *external_reference, msaf_api_m1_qo_s_specification_t *qos_specification, msaf_api_policy_template_application_session_context_t *application_session_context, msaf_api_charging_specification_t *charging_specification);
 
+extern bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_provisioning_session_t *provisioning_session);
 
+extern void msaf_policy_template_set_id(msaf_api_policy_template_t *policy_template, const char *policy_template_id);
+
+extern msaf_api_policy_template_t *msaf_policy_template_create(cJSON *policy_template);
+
+extern msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON);
+
+extern cJSON *msaf_policy_template_convertToJSON(msaf_api_policy_template_t *policy_template);
+
+extern char *calculate_policy_template_hash(msaf_api_policy_template_t *policy_template);
+
+extern msaf_policy_template_node_t *msaf_policy_template_populate(msaf_api_policy_template_t *policy_template, time_t creation_time);
 	
 #ifdef __cplusplus
 }

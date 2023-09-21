@@ -9,6 +9,10 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
 #include "msaf-sm.h"
+#include "msaf-m1-sm.h"
+#include "msaf-m5-sm.h"
+#include "msaf-mgmt-sm.h"
+
 #include "msaf-fsm.h"
 
 void msaf_fsm_init(void) {

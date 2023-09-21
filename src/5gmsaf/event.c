@@ -51,7 +51,7 @@ int check_event_addresses(msaf_event_t *e, ogs_sockaddr_t *sockaddr_v4, ogs_sock
 }
 
 
-msaf_event_t *populate_msaf_event_with_metadata( msaf_event_t *e, const nf_server_interface_metadata_t *m5_networkassistance_api, const nf_server_app_metadata_t *app_meta)
+msaf_event_t *populate_msaf_event_with_metadata( msaf_event_t *e, const nf_server_interface_metadata_t *nf_server_interface_metadata, const nf_server_app_metadata_t *app_meta)
 {
 	msaf_event_t *event;
         event = (msaf_event_t*) ogs_event_new(OGS_EVENT_SBI_SERVER);
@@ -61,14 +61,8 @@ msaf_event_t *populate_msaf_event_with_metadata( msaf_event_t *e, const nf_serve
         ogs_assert(event->h.sbi.data);
         event->message = e->message;
     
-	event->nf_server_interface_metadata = ogs_calloc(1, sizeof(nf_server_interface_metadata_t));
-        event->app_meta = ogs_calloc(1, sizeof(nf_server_app_metadata_t));
-
-        event->nf_server_interface_metadata->api_title = msaf_strdup(m5_networkassistance_api->api_title);
-        event->nf_server_interface_metadata->api_version = msaf_strdup(m5_networkassistance_api->api_version);
-        event->app_meta->app_name = msaf_strdup(app_meta->app_name);
-        event->app_meta->app_version = msaf_strdup(app_meta->app_version);
-        event->app_meta->server_name = msaf_strdup(app_meta->server_name);
+	event->nf_server_interface_metadata = nf_server_interface_metadata;
+        event->app_meta = app_meta;
 
 	return event;
 
@@ -76,14 +70,6 @@ msaf_event_t *populate_msaf_event_with_metadata( msaf_event_t *e, const nf_serve
 
 
 void msaf_event_free(msaf_event_t *e) {
-    if(e->nf_server_interface_metadata->api_title) ogs_free(e->nf_server_interface_metadata->api_title);
-    if(e->nf_server_interface_metadata->api_version) ogs_free(e->nf_server_interface_metadata->api_version);
-    if(e->app_meta->app_name) ogs_free(e->app_meta->app_name);
-    if(e->app_meta->app_version) ogs_free(e->app_meta->app_version);
-    if(e->app_meta->server_name) ogs_free(e->app_meta->server_name);
-    if(e->nf_server_interface_metadata) ogs_free(e->nf_server_interface_metadata);
-    if(e->app_meta) ogs_free(e->app_meta);
-	
     if (e->message) ogs_sbi_message_free(e->message);
 
     ogs_event_free(e);
