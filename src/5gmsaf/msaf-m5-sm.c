@@ -14,6 +14,7 @@
 #include "context.h"
 #include "certmgr.h"
 #include "server.h"
+#include "sai-cache.h"
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
@@ -86,42 +87,53 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 CASE("service-access-information")
                     SWITCH(message->h.method)
                     CASE(OGS_SBI_HTTP_METHOD_GET)
-                        cJSON *service_access_information;
-                        msaf_provisioning_session_t *msaf_provisioning_session = NULL;
-                        msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                        const msaf_sai_cache_entry_t *sai_entry;
 
-                        if(msaf_provisioning_session == NULL) {
+                        sai_entry = msaf_context_retrieve_service_access_information(message->h.resource.component[1],
+                                            strncmp(request->h.uri,"https:",6)==0,
+                                            ogs_hash_get(request->http.headers, "Host", OGS_HASH_KEY_STRING));
+
+                        if(!sai_entry) {
                             char *err = NULL;
                             err = ogs_msprintf("Provisioning Session [%s] not found.", message->h.resource.component[1]);
                             ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Provisioning Session not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
                             ogs_free(err);
-                        } else if (msaf_provisioning_session->serviceAccessInformation) {
-                            service_access_information = msaf_context_retrieve_service_access_information(message->h.resource.component[1]);
-                            if (service_access_information != NULL) {
-                                ogs_sbi_response_t *response;
-                                char *text;
-                                text = cJSON_Print(service_access_information);
-                                response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->httpMetadata.serviceAccessInformation.received, msaf_provisioning_session->httpMetadata.serviceAccessInformation.hash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
-                                nf_server_populate_response(response, strlen(text), text, 200);
-                                ogs_assert(response);
-                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                cJSON_Delete(service_access_information);
-                            } else {
-                                char *err = NULL;
-                                err = ogs_msprintf("Service Access Information for the Provisioning Session [%s] not found.", message->h.resource.component[1]);
-                                ogs_error("%s", err);
-
-                                ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Service Access Information not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
-                                ogs_free(err);
-                            }
                         } else {
-                            char *err = NULL;
-                            err = ogs_msprintf("Provisioning Session [%s] has no Service Access Information associated with it.", message->h.resource.component[1]);
-                            ogs_error("%s", err);
+                            const char *if_none_match;
+                            const char *if_modified_since;
+                            int response_code = 200;
+                            const char *response_body = sai_entry->sai_body;
 
-                            ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Service Access Information not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
-                            ogs_free(err);
+                            if_none_match = ogs_hash_get(request->http.headers, "If-None-Match", OGS_HASH_KEY_STRING);
+                            if (if_none_match) {
+                                if (strcmp(sai_entry->hash, if_none_match)==0) {
+                                    /* ETag hasn't changed */
+                                    response_code = 304;
+                                    response_body = NULL;
+                                }
+                            }
+
+                            if_modified_since = ogs_hash_get(request->http.headers, "If-Modified-Since", OGS_HASH_KEY_STRING);
+                            if (if_modified_since) {
+                                struct tm tm = {0};
+                                ogs_time_t modified_since;
+                                ogs_strptime(if_modified_since, "%a, %d %b %Y %H:%M:%S GMT", &tm);
+                                ogs_debug("IMS: sec=%i, min=%i, hour=%i, mday=%i, mon=%i, year=%i, gmtoff=%li", tm.tm_sec, tm.tm_min, tm.tm_hour, tm.tm_mday, tm.tm_mon, tm.tm_year, tm.tm_gmtoff);
+                                ogs_time_from_gmt(&modified_since, &tm, 0);
+                                ogs_debug("If-Modified-Since: %li < %li?", modified_since, sai_entry->generated);
+                                if (modified_since >= sai_entry->generated) {
+                                    /* Not modified since the time given */
+                                    response_code = 304;
+                                    response_body = NULL;
+                                }
+                            }
+
+                            ogs_sbi_response_t *response;
+                            response = nf_server_new_response(NULL, "application/json", ogs_time_sec(sai_entry->generated)+1, sai_entry->hash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
+                            ogs_assert(response);
+                            nf_server_populate_response(response, response_body?strlen(response_body):0, ogs_strdup(response_body), response_code);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                         }
                         break;
                     DEFAULT

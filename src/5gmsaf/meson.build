@@ -26,41 +26,50 @@ fiveg_api_release = get_option('fiveg_api_release')
 fs = import('fs')
 
 libmsaf_dist_sources = files('''
+    application-server-context.h
+    application-server-context.c
+    certmgr.c
+    certmgr.h
+    consumption-report-configuration.c
+    consumption-report-configuration.h
     context.c
     context.h
     event.c
     event.h
-    server.h
-    server.c
-    certmgr.c
-    certmgr.h
     hash.h
     hash.c
-    headers.c
     headers.h
+    headers.c
+    init.h
+    init.c
+    msaf-fsm.h
+    msaf-fsm.c
+    msaf-m1-sm.c
+    msaf-m5-sm.c
+    msaf-mgmt-sm.c
+    msaf-sm.h
+    msaf-sm.c
     response-cache-control.h
     response-cache-control.c
     provisioning-session.h
     provisioning-session.c
-    application-server-context.h
-    application-server-context.c   
-    sbi-path.c
+    sai-cache.h
+    sai-cache.c
     sbi-path.h
+    sbi-path.c
+    server.h
+    server.c
     service-access-information.h
     service-access-information.c
-    msaf-fsm.h
-    msaf-fsm.c
-    msaf-sm.h
-    msaf-sm.c
-    msaf-mgmt-sm.c
-    msaf-m1-sm.c
-    msaf-m5-sm.c
     utilities.h
     utilities.c
-    init.h
-    init.c
-    consumption-report-configuration.c
-    consumption-report-configuration.h
+'''.split())
+
+msaf_test_sources = files('''
+    hash.c
+    hash.h
+    sai-cache.c
+    sai-cache.h
 '''.split())
 
 api_tag = latest_apis?'REL-'+fiveg_api_release:'TSG'+fiveg_api_approval+'-Rel'+fiveg_api_release
@@ -70,6 +79,8 @@ message('Generating OpenAPI bindings for version '+api_tag+' of the 5G APIs...')
 openapi_dep_file = meson.current_source_dir() / '.openapi.deps'
 openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','"$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf" -M '+openapi_dep_file+' -b '+api_tag], check: true, capture: false)
 libmsaf_gen_sources = files(fs.read(openapi_dep_file).split())
+
+msaf_test_sources += libmsaf_gen_sources
 
 json_file = files(['ContentProtocolsDiscovery_body.json'])
 file_content = ''

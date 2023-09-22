@@ -15,6 +15,7 @@
 #include "context.h"
 #include "certmgr.h"
 #include "server.h"
+#include "sai-cache.h"
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
@@ -297,14 +298,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         OpenAPI_content_hosting_configuration_free(
                                                 msaf_provisioning_session->contentHostingConfiguration);
                                         msaf_provisioning_session->contentHostingConfiguration = NULL;
+                                        msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
                                     }
 
-                                    if (msaf_provisioning_session->serviceAccessInformation) {
-                                        OpenAPI_service_access_information_resource_free(
-                                                msaf_provisioning_session->serviceAccessInformation);
-                                        msaf_provisioning_session->serviceAccessInformation = NULL;
-                                    }
-    
                                     rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
                                     content_hosting_config = NULL;
     
@@ -866,11 +862,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     if(msaf_provisioning_session->contentHostingConfiguration) {
                                         OpenAPI_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
                                         msaf_provisioning_session->contentHostingConfiguration = NULL;
-                                    }
-
-                                    if (msaf_provisioning_session->serviceAccessInformation) {
-                                        OpenAPI_service_access_information_resource_free(msaf_provisioning_session->serviceAccessInformation);
-                                        msaf_provisioning_session->serviceAccessInformation = NULL;
+                                        msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
                                     }
 
                                     rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);

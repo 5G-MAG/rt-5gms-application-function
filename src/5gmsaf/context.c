@@ -674,34 +674,9 @@ free_ogs_hash_entry(void *rec, const void *key, int klen, const void *value)
 void
 msaf_context_provisioning_session_free(msaf_provisioning_session_t *provisioning_session)
 {
-    msaf_application_server_state_ref_node_t *next_as_state_ref, *as_state_ref;
-
     ogs_assert(provisioning_session);
-    if (provisioning_session->certificate_map) {
-        free_ogs_hash_context_t fohc = {
-            safe_ogs_free,
-            provisioning_session->certificate_map
-        };
-        ogs_hash_do(free_ogs_hash_entry, &fohc, provisioning_session->certificate_map);
-        ogs_hash_destroy(provisioning_session->certificate_map);
-    }
-    if (provisioning_session->provisioningSessionId) ogs_free(provisioning_session->provisioningSessionId);
-    if (provisioning_session->aspId) ogs_free(provisioning_session->aspId);
-    if (provisioning_session->externalApplicationId) ogs_free(provisioning_session->externalApplicationId);
-    if (provisioning_session->httpMetadata.provisioningSession.hash) ogs_free(provisioning_session->httpMetadata.provisioningSession.hash);
 
-    if (provisioning_session->contentHostingConfiguration) OpenAPI_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
-    if (provisioning_session->httpMetadata.contentHostingConfiguration.hash) ogs_free(provisioning_session->httpMetadata.contentHostingConfiguration.hash);
-
-    if (provisioning_session->serviceAccessInformation) OpenAPI_service_access_information_resource_free(provisioning_session->serviceAccessInformation);
-    if (provisioning_session->httpMetadata.serviceAccessInformation.hash) ogs_free(provisioning_session->httpMetadata.serviceAccessInformation.hash);
-    
-    ogs_list_for_each_safe(&provisioning_session->application_server_states, next_as_state_ref, as_state_ref) {
-        ogs_list_remove(&provisioning_session->application_server_states, as_state_ref);
-        ogs_free(as_state_ref);
-    }
-    
-    ogs_free(provisioning_session);
+    msaf_provisioning_session_free(provisioning_session);
 }
 
 static void

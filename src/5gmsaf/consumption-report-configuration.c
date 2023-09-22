@@ -34,6 +34,8 @@ bool msaf_consumption_report_configuration_register(msaf_provisioning_session_t 
 
     time(&session->httpMetadata.consumptionReportingConfiguration.received);
 
+    msaf_sai_cache_clear(session->sai_cache);
+
     return true;
 }
 
@@ -61,6 +63,8 @@ bool msaf_consumption_report_configuration_update(msaf_provisioning_session_t *s
 
     time(&session->httpMetadata.consumptionReportingConfiguration.received);
 
+    msaf_sai_cache_clear(session->sai_cache);
+
     return true;
 }
 
@@ -79,6 +83,8 @@ bool msaf_consumption_report_configuration_deregister(msaf_provisioning_session_
     }
     
     session->httpMetadata.consumptionReportingConfiguration.received = 0;
+
+    msaf_sai_cache_clear(session->sai_cache);
 
     return true;
 }
