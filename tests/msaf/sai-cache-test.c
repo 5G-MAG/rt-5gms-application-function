@@ -12,7 +12,7 @@
 
 /* MSAF includes */
 #include "sai-cache.h"
-#include "openapi/model/service_access_information_resource.h"
+#include "openapi/model/msaf_api_service_access_information_resource.h"
 
 /* Test includes */
 #include "sai-cache-test.h"
@@ -36,9 +36,9 @@ static void test_sai_cache_create(abts_case *tc, void *data)
 
 static void test_sai_cache_add(abts_case *tc, void *data)
 {
-    OpenAPI_service_access_information_resource_t *sai;
-    OpenAPI_service_access_information_resource_streaming_access_t *streams = NULL;
-    OpenAPI_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
+    msaf_api_service_access_information_resource_t *sai;
+    msaf_api_service_access_information_resource_streaming_access_t *streams = NULL;
+    msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points;
     OpenAPI_list_t *dash_profiles;
     OpenAPI_list_t *nac_addresses;
@@ -51,25 +51,25 @@ static void test_sai_cache_add(abts_case *tc, void *data)
 
     entry_points = OpenAPI_list_create();
     ABTS_PTR_NOTNULL(tc, entry_points);
-    OpenAPI_list_add(entry_points, OpenAPI_m5_media_entry_point_create(ogs_strdup("http://as.exmaple.com/m4d/manifest.mpd"), ogs_strdup("application/dash+xml"), dash_profiles));
-    OpenAPI_list_add(entry_points, OpenAPI_m5_media_entry_point_create(ogs_strdup("http://as.exmaple.com/m4d/manifest.m3u8"), ogs_strdup("application/vnd.apple.mpegurl"), NULL));
+    OpenAPI_list_add(entry_points, msaf_api_m5_media_entry_point_create(ogs_strdup("http://as.exmaple.com/m4d/manifest.mpd"), ogs_strdup("application/dash+xml"), dash_profiles));
+    OpenAPI_list_add(entry_points, msaf_api_m5_media_entry_point_create(ogs_strdup("http://as.exmaple.com/m4d/manifest.m3u8"), ogs_strdup("application/vnd.apple.mpegurl"), NULL));
 
-    streams = OpenAPI_service_access_information_resource_streaming_access_create(entry_points, NULL);
+    streams = msaf_api_service_access_information_resource_streaming_access_create(entry_points, NULL);
     ABTS_PTR_NOTNULL(tc, streams);
 
     nac_addresses = OpenAPI_list_create();
     ABTS_PTR_NOTNULL(tc, nac_addresses);
     OpenAPI_list_add(nac_addresses, ogs_strdup("http://af.example.com:9876/3gpp-m5/v2/"));
 
-    nac = OpenAPI_service_access_information_resource_network_assistance_configuration_create(nac_addresses);
+    nac = msaf_api_service_access_information_resource_network_assistance_configuration_create(nac_addresses);
     ABTS_PTR_NOTNULL(tc, nac);
 
-    sai = OpenAPI_service_access_information_resource_create(ogs_strdup("Provisioning-Session-Id"), OpenAPI_provisioning_session_type_DOWNLINK, streams, NULL, NULL, NULL, nac, NULL);
+    sai = msaf_api_service_access_information_resource_create(ogs_strdup("Provisioning-Session-Id"), msaf_api_provisioning_session_type_DOWNLINK, streams, NULL, NULL, NULL, nac, NULL);
     ABTS_PTR_NOTNULL(tc, sai);
 
     ABTS_TRUE(tc, msaf_sai_cache_add(cache, true, "af.example.com:443", sai));
 
-    OpenAPI_service_access_information_resource_free(sai);
+    msaf_api_service_access_information_resource_free(sai);
 }
 
 static void test_sai_cache_find_exists(abts_case *tc, void *data)

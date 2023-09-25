@@ -21,7 +21,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 extern "C" {
 #endif
 
-typedef struct OpenAPI_service_access_information_resource_s OpenAPI_service_access_information_resource_t;
+typedef struct msaf_api_service_access_information_resource_s msaf_api_service_access_information_resource_t;
 
 typedef struct msaf_sai_cache_entry_s {
     char *sai_body;
@@ -33,13 +33,13 @@ typedef ogs_hash_t msaf_sai_cache_t;
 
 msaf_sai_cache_t *msaf_sai_cache_new(void);
 void msaf_sai_cache_free(msaf_sai_cache_t*);
-bool msaf_sai_cache_add(msaf_sai_cache_t*, bool tls, const char *authority, const OpenAPI_service_access_information_resource_t *);
+bool msaf_sai_cache_add(msaf_sai_cache_t*, bool tls, const char *authority, const msaf_api_service_access_information_resource_t *);
 bool msaf_sai_cache_del(msaf_sai_cache_t*, bool tls, const char *authority);
 const msaf_sai_cache_entry_t *msaf_sai_cache_find(msaf_sai_cache_t*, bool tls, const char *authority);
 bool msaf_sai_cache_clear(msaf_sai_cache_t*);
 bool msaf_sai_cache_clear_authority(msaf_sai_cache_t*, bool tls, const char *authority);
 
-msaf_sai_cache_entry_t *msaf_sai_cache_entry_new(const OpenAPI_service_access_information_resource_t *);
+msaf_sai_cache_entry_t *msaf_sai_cache_entry_new(const msaf_api_service_access_information_resource_t *);
 void msaf_sai_cache_entry_free(msaf_sai_cache_entry_t*);
 
 #ifdef __cplusplus

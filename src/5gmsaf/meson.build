@@ -79,7 +79,7 @@ api_tag = latest_apis?'REL-'+fiveg_api_release:'TSG'+fiveg_api_approval+'-Rel'+f
 gen_5gmsaf_openapi = find_program('sh')
 message('Generating OpenAPI bindings for version '+api_tag+' of the 5G APIs...')
 openapi_dep_file = meson.current_source_dir() / '.openapi.deps'
-openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','"$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf" -M '+openapi_dep_file+' -b '+api_tag], check: true, capture: false)
+openapi_gen_result = run_command([gen_5gmsaf_openapi,'-c','"$MESON_SOURCE_ROOT/$MESON_SUBDIR/generator-5gmsaf" -M '+openapi_dep_file+' -b '+api_tag], check: true, capture: true)
 libmsaf_gen_sources = files(fs.read(openapi_dep_file).split())
 
 msaf_test_sources += libmsaf_gen_sources

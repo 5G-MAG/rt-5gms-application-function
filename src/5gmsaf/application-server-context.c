@@ -8,9 +8,15 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
+#include "ogs-core.h"
+#include "ogs-sbi.h"
+
 #include "certmgr.h"
 #include "context.h"
+#include "provisioning-session.h"
 #include "utilities.h"
+
+#include "openapi/model/msaf_api_content_hosting_configuration.h"
 
 #include "application-server-context.h"
 
@@ -234,7 +240,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
     } else if (ogs_list_first(&as_state->upload_content_hosting_configurations) !=  NULL) {
 
         msaf_provisioning_session_t *provisioning_session;
-        OpenAPI_content_hosting_configuration_t *chc_with_af_unique_cert_id;
+        msaf_api_content_hosting_configuration_t *chc_with_af_unique_cert_id;
         char *data;
         char *component;
         resource_id_node_t *chc_id_node;
@@ -251,7 +257,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
 
         chc_with_af_unique_cert_id = msaf_content_hosting_configuration_with_af_unique_cert_id(provisioning_session);
 
-        json = OpenAPI_content_hosting_configuration_convertToJSON(chc_with_af_unique_cert_id);
+        json = msaf_api_content_hosting_configuration_convertResponseToJSON(chc_with_af_unique_cert_id);
         data = cJSON_Print(json);
 
         component = ogs_msprintf("content-hosting-configurations/%s", upload_chc->state);
@@ -263,7 +269,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
             ogs_debug("M3 client: Sending POST method to Application Server [%s] for Content Hosting Configuration:  [%s]", as_state->application_server->canonicalHostname, upload_chc->state);
             m3_client_as_state_requests(as_state, NULL, "application/json", data, (char *)OGS_SBI_HTTP_METHOD_POST, component);
         }
-        if (chc_with_af_unique_cert_id) OpenAPI_content_hosting_configuration_free(chc_with_af_unique_cert_id);
+        if (chc_with_af_unique_cert_id) msaf_api_content_hosting_configuration_free(chc_with_af_unique_cert_id);
         ogs_free(component);
         cJSON_Delete(json);
         cJSON_free(data);

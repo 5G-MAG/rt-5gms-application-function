@@ -10,14 +10,14 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "ogs-core.h"
 
-#include "openapi/model/consumption_reporting_configuration.h"
+#include "openapi/model/msaf_api_consumption_reporting_configuration.h"
 #include "provisioning-session.h"
 #include "hash.h"
 
 #include "consumption-report-configuration.h"
 
 bool msaf_consumption_report_configuration_register(msaf_provisioning_session_t *session /* [no-transfer, not-null] */,
-                                                  OpenAPI_consumption_reporting_configuration_t *config /* [transfer, not-null] */)
+                                                  msaf_api_consumption_reporting_configuration_t *config /* [transfer, not-null] */)
 {
     char *body;
 
@@ -40,7 +40,7 @@ bool msaf_consumption_report_configuration_register(msaf_provisioning_session_t 
 }
 
 bool msaf_consumption_report_configuration_update(msaf_provisioning_session_t *session /* [no-transfer, not-null] */,
-                                                OpenAPI_consumption_reporting_configuration_t *config /* [transfer, not-null] */)
+                                                msaf_api_consumption_reporting_configuration_t *config /* [transfer, not-null] */)
 {
     char *body;
 
@@ -49,7 +49,7 @@ bool msaf_consumption_report_configuration_update(msaf_provisioning_session_t *s
 
     if (!session->consumptionReportingConfiguration) return false;
 
-    OpenAPI_consumption_reporting_configuration_free(session->consumptionReportingConfiguration);
+    msaf_api_consumption_reporting_configuration_free(session->consumptionReportingConfiguration);
 
     if (session->httpMetadata.consumptionReportingConfiguration.hash) {
         ogs_free(session->httpMetadata.consumptionReportingConfiguration.hash);
@@ -74,7 +74,7 @@ bool msaf_consumption_report_configuration_deregister(msaf_provisioning_session_
 
     if (!session->consumptionReportingConfiguration) return false;
 
-    OpenAPI_consumption_reporting_configuration_free(session->consumptionReportingConfiguration);
+    msaf_api_consumption_reporting_configuration_free(session->consumptionReportingConfiguration);
     session->consumptionReportingConfiguration = NULL;
 
     if (session->httpMetadata.consumptionReportingConfiguration.hash) {
@@ -89,13 +89,13 @@ bool msaf_consumption_report_configuration_deregister(msaf_provisioning_session_
     return true;
 }
 
-OpenAPI_consumption_reporting_configuration_t *msaf_consumption_report_configuration_parseJSON(cJSON *json /* [no-transfer, not-null] */, const char **err_out /* [out, not-null] */)
+msaf_api_consumption_reporting_configuration_t *msaf_consumption_report_configuration_parseJSON(cJSON *json /* [no-transfer, not-null] */, const char **err_out /* [out, not-null] */)
 {
-    OpenAPI_consumption_reporting_configuration_t *crc;
+    msaf_api_consumption_reporting_configuration_t *crc;
 
     *err_out = NULL;
 
-    crc = OpenAPI_consumption_reporting_configuration_parseFromJSON(json);
+    crc = msaf_api_consumption_reporting_configuration_parseRequestFromJSON(json);
     if (!crc) {
         *err_out = "Failed to convert JSON to a ConsumptionReportingConfiguration";
         return NULL;
@@ -103,13 +103,13 @@ OpenAPI_consumption_reporting_configuration_t *msaf_consumption_report_configura
 
     if (crc->is_sample_percentage && (crc->sample_percentage < 0.0 || crc->sample_percentage > 100.0)) {
         *err_out = "Bad value: samplePercentage out of range, should be between 0.0 and 100.0 inclusive";
-        OpenAPI_consumption_reporting_configuration_free(crc);
+        msaf_api_consumption_reporting_configuration_free(crc);
         return NULL;
     }
 
     if (crc->is_reporting_interval && crc->reporting_interval <= 0) {
         *err_out = "Bad value: reportingInterval must be greater than 0";
-        OpenAPI_consumption_reporting_configuration_free(crc);
+        msaf_api_consumption_reporting_configuration_free(crc);
         return NULL;
     }
 
@@ -124,7 +124,7 @@ cJSON *msaf_consumption_report_configuration_json(msaf_provisioning_session_t *s
 
     if (!session->consumptionReportingConfiguration) return NULL;
 
-    json = OpenAPI_consumption_reporting_configuration_convertToJSON(session->consumptionReportingConfiguration);
+    json = msaf_api_consumption_reporting_configuration_convertResponseToJSON(session->consumptionReportingConfiguration);
 
     if (!json) {
         ogs_error("Failed to convert ConsumptionReportingConfiguration to JSON");

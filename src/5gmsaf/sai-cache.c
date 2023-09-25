@@ -14,7 +14,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "ogs-core.h"
 
-#include "openapi/model/service_access_information_resource.h"
+#include "openapi/model/msaf_api_service_access_information_resource.h"
 #include "hash.h"
 
 #include "sai-cache.h"
@@ -52,7 +52,7 @@ void msaf_sai_cache_free(msaf_sai_cache_t *cache)
     ogs_hash_destroy(cache);
 }
 
-bool msaf_sai_cache_add(msaf_sai_cache_t *cache, bool tls, const char *authority, const OpenAPI_service_access_information_resource_t *sai)
+bool msaf_sai_cache_add(msaf_sai_cache_t *cache, bool tls, const char *authority, const msaf_api_service_access_information_resource_t *sai)
 {
     msaf_sai_cache_entry_t *entry;
     msaf_sai_cache_key_t *key;
@@ -137,7 +137,7 @@ bool msaf_sai_cache_clear_authority(msaf_sai_cache_t *cache, bool tls, const cha
     return msaf_sai_cache_del(cache, tls, authority);
 }
 
-msaf_sai_cache_entry_t *msaf_sai_cache_entry_new(const OpenAPI_service_access_information_resource_t *sai)
+msaf_sai_cache_entry_t *msaf_sai_cache_entry_new(const msaf_api_service_access_information_resource_t *sai)
 {
     msaf_sai_cache_entry_t *entry;
     cJSON *sai_json;
@@ -145,7 +145,7 @@ msaf_sai_cache_entry_t *msaf_sai_cache_entry_new(const OpenAPI_service_access_in
     entry = ogs_calloc(1, sizeof(*entry));
     ogs_assert(entry);
 
-    sai_json = OpenAPI_service_access_information_resource_convertToJSON((OpenAPI_service_access_information_resource_t*)sai);
+    sai_json = msaf_api_service_access_information_resource_convertResponseToJSON((msaf_api_service_access_information_resource_t*)sai);
     ogs_assert(sai_json);
 
     entry->sai_body = cJSON_Print(sai_json);

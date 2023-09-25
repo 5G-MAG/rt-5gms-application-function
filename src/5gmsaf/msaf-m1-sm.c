@@ -30,6 +30,8 @@
 #include "openapi/api/M3_ContentHostingProvisioningAPI-info.h"
 #include "openapi/api/TS26512_M1_ContentProtocolsDiscoveryAPI-info.h"
 #include "openapi/api/Maf_ManagementAPI-info.h"
+#include "openapi/model/msaf_api_content_hosting_configuration.h"
+#include "openapi/model/msaf_api_consumption_reporting_configuration.h"
 
 const nf_server_interface_metadata_t
 m1_provisioningsession_api_metadata = {
@@ -295,7 +297,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_free(err);
                                 } else {
                                     if(msaf_provisioning_session->contentHostingConfiguration) {
-                                        OpenAPI_content_hosting_configuration_free(
+                                        msaf_api_content_hosting_configuration_free(
                                                 msaf_provisioning_session->contentHostingConfiguration);
                                         msaf_provisioning_session->contentHostingConfiguration = NULL;
                                         msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
@@ -488,7 +490,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
                                     ogs_free(err);
                                 } else {
-                                    OpenAPI_consumption_reporting_configuration_t *report_config;
+                                    msaf_api_consumption_reporting_configuration_t *report_config;
                                     const char *parse_err = NULL;
 
                                     report_config = msaf_consumption_report_configuration_parseJSON(json, &parse_err);
@@ -506,7 +508,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 408, 2, message, "Already a ConsumptionReportingConfiguration registered.", err, NULL, api, app_meta));
                                         ogs_free(err);
-                                        OpenAPI_consumption_reporting_configuration_free(report_config);
+                                        msaf_api_consumption_reporting_configuration_free(report_config);
                                     } else {
                                         ogs_sbi_response_t *response;
     
@@ -861,7 +863,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     }
 
                                     if(msaf_provisioning_session->contentHostingConfiguration) {
-                                        OpenAPI_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
+                                        msaf_api_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
                                         msaf_provisioning_session->contentHostingConfiguration = NULL;
                                         msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
                                     }
@@ -1002,7 +1004,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
                                     ogs_free(err);
                                 } else {
-                                    OpenAPI_consumption_reporting_configuration_t *config;
+                                    msaf_api_consumption_reporting_configuration_t *config;
                                     const char *parse_err = NULL;
 
                                     config = msaf_consumption_report_configuration_parseJSON(json, &parse_err);
@@ -1083,7 +1085,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_sbi_response_t *response;
                                     if(provisioning_session && provisioning_session->contentHostingConfiguration) {
                                         msaf_delete_content_hosting_configuration(message->h.resource.component[1]);
-                                        OpenAPI_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
+                                        msaf_api_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
                                         provisioning_session->contentHostingConfiguration = NULL;
                                         response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_contenthostingprovisioning_api, app_meta);
                                         ogs_assert(response);

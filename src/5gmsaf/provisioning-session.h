@@ -15,16 +15,14 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "sai-cache.h"
 
-#include "openapi/model/consumption_reporting_configuration.h"
-#include "openapi/model/content_hosting_configuration.h"
-#include "openapi/model/provisioning_session.h"
-#include "openapi/model/provisioning_session_type.h"
-#include "openapi/model/m1_media_entry_point.h"
-#include "openapi/model/m5_media_entry_point.h"
+#include "openapi/model/msaf_api_provisioning_session_type.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef struct msaf_api_consumption_reporting_configuration_s msaf_api_consumption_reporting_configuration_t;
+typedef struct msaf_api_content_hosting_configuration_s msaf_api_content_hosting_configuration_t;
 
 typedef struct msaf_http_metadata_s {
     time_t received;
@@ -33,11 +31,11 @@ typedef struct msaf_http_metadata_s {
 
 typedef struct msaf_provisioning_session_s {
     char *provisioningSessionId;
-    OpenAPI_provisioning_session_type_e provisioningSessionType;
+    msaf_api_provisioning_session_type_e provisioningSessionType;
     char *aspId;
     char *externalApplicationId;
-    OpenAPI_consumption_reporting_configuration_t *consumptionReportingConfiguration;
-    OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
+    msaf_api_consumption_reporting_configuration_t *consumptionReportingConfiguration;
+    msaf_api_content_hosting_configuration_t *contentHostingConfiguration;
     msaf_sai_cache_t *sai_cache;
     struct {
         msaf_http_metadata_t provisioningSession;
@@ -60,7 +58,7 @@ extern void msaf_provisioning_session_free(msaf_provisioning_session_t *provisio
 extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
 extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 
-extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
+extern msaf_api_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
 
 extern int msaf_content_hosting_configuration_certificate_check(msaf_provisioning_session_t *provisioning_session);
 extern int msaf_distribution_certificate_check(void);
@@ -68,7 +66,7 @@ extern int msaf_distribution_certificate_check(void);
 extern const char *msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id);
 extern ogs_list_t *msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session);
 
-extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session);
+extern msaf_api_content_hosting_configuration_t *msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_session_t *provisioning_session);
 
 extern void msaf_delete_content_hosting_configuration(const char *provisioning_session_id);
 

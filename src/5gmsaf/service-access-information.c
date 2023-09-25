@@ -16,20 +16,25 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "ogs-core.h"
 
 #include "context.h"
-#include "utilities.h"
 #include "provisioning-session.h"
+#include "sai-cache.h"
+#include "utilities.h"
 
-#include "openapi/model/service_access_information_resource.h"
+#include "openapi/model/msaf_api_consumption_reporting_configuration.h"
+#include "openapi/model/msaf_api_content_hosting_configuration.h"
+#include "openapi/model/msaf_api_m5_media_entry_point.h"
+#include "openapi/model/msaf_api_provisioning_session.h"
+#include "openapi/model/msaf_api_service_access_information_resource.h"
 
 #include "service-access-information.h"
 
-OpenAPI_service_access_information_resource_t *
+msaf_api_service_access_information_resource_t *
 msaf_context_service_access_information_create(msaf_provisioning_session_t *provisioning_session, bool is_tls, const char *svr_hostname)
 {
-    OpenAPI_service_access_information_resource_t *service_access_information;
-    OpenAPI_service_access_information_resource_streaming_access_t *streaming_access;
+    msaf_api_service_access_information_resource_t *service_access_information;
+    msaf_api_service_access_information_resource_streaming_access_t *streaming_access;
     //msaf_configuration_t *config = &msaf_self()->config;
-    OpenAPI_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
+    msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
     OpenAPI_list_t *entry_points = NULL;
 
     /* streaming entry points */
@@ -37,9 +42,9 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     if (provisioning_session->contentHostingConfiguration) {
         OpenAPI_lnode_t *node;
         OpenAPI_list_for_each(provisioning_session->contentHostingConfiguration->distribution_configurations, node) {
-            OpenAPI_distribution_configuration_t *dist_conf = node->data;
+            msaf_api_distribution_configuration_t *dist_conf = node->data;
 	    if (dist_conf->entry_point && dist_conf->base_url) {
-		OpenAPI_m5_media_entry_point_t *m5_entry;
+		msaf_api_m5_media_entry_point_t *m5_entry;
 	        char *url;
                 OpenAPI_list_t *m5_profiles = NULL;
 
@@ -52,14 +57,14 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
 		}
 
 		url = ogs_msprintf("%s%s", dist_conf->base_url, dist_conf->entry_point->relative_path);
-		m5_entry = OpenAPI_m5_media_entry_point_create(url, ogs_strdup(dist_conf->entry_point->content_type), m5_profiles);
+		m5_entry = msaf_api_m5_media_entry_point_create(url, ogs_strdup(dist_conf->entry_point->content_type), m5_profiles);
 		ogs_assert(m5_entry);
 		if (!entry_points) entry_points = OpenAPI_list_create();
 		OpenAPI_list_add(entry_points, m5_entry);
 	    }
 	}
     }
-    streaming_access = OpenAPI_service_access_information_resource_streaming_access_create(entry_points, NULL);
+    streaming_access = msaf_api_service_access_information_resource_streaming_access_create(entry_points, NULL);
 
     /* client consumption reporting configuration */
     if (provisioning_session->consumptionReportingConfiguration) {
@@ -71,7 +76,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
         ccrc_svr_list = OpenAPI_list_create();
 	ogs_assert(ccrc_svr_list);
         OpenAPI_list_add(ccrc_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
-        ccrc = OpenAPI_service_access_information_resource_client_consumption_reporting_configuration_create(
+        ccrc = msaf_api_service_access_information_resource_client_consumption_reporting_configuration_create(
                     provisioning_session->consumptionReportingConfiguration->is_reporting_interval,
                     provisioning_session->consumptionReportingConfiguration->reporting_interval,
                     ccrc_svr_list,
@@ -90,9 +95,9 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     }
 
     /* Create SAI */
-    service_access_information = OpenAPI_service_access_information_resource_create(
+    service_access_information = msaf_api_service_access_information_resource_create(
                 msaf_strdup(provisioning_session->provisioningSessionId),
-                OpenAPI_provisioning_session_type_DOWNLINK,
+                msaf_api_provisioning_session_type_DOWNLINK,
                 streaming_access,
                 ccrc /* client_consumption_reporting_configuration */,
                 NULL /* dynamic_policy */,
@@ -122,13 +127,13 @@ const msaf_sai_cache_entry_t *msaf_context_retrieve_service_access_information(c
     }
 
     if (!sai_entry) {
-	OpenAPI_service_access_information_resource_t *sai;
+	msaf_api_service_access_information_resource_t *sai;
 
         ogs_debug("Create new SAI for http%s://%s on provisioning session [%s]", is_tls?"s":"", authority, provisioning_session_id);
 
 	sai = msaf_context_service_access_information_create(provisioning_session_context, is_tls, authority);
 	msaf_sai_cache_add(provisioning_session_context->sai_cache, is_tls, authority, sai);
-	OpenAPI_service_access_information_resource_free(sai);
+	msaf_api_service_access_information_resource_free(sai);
 	sai_entry = msaf_sai_cache_find(provisioning_session_context->sai_cache, is_tls, authority);
     } else {
         ogs_debug("Found existing SAI cache entry");
