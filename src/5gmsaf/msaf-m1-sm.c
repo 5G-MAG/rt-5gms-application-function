@@ -533,24 +533,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 cJSON *policy_template =  NULL;
                                 msaf_api_policy_template_t *policy_temp = NULL;
                                 char *pol_temp;
-                                cJSON *created_policy_template = NULL;
-                                char *created_pol_temp;
 
                                 policy_template = cJSON_Parse(request->http.content);
                                 pol_temp = cJSON_Print(policy_template);
-                                ogs_debug("PT: %s", pol_temp);
+                                ogs_debug("Requested Policy Template: %s", pol_temp);
                                 policy_temp = msaf_policy_template_parseFromJSON(policy_template);
                                 if(policy_temp) {
-                                    //policy_template_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m1_policytemplatesprovisioning_api_metadata, app_meta);
                                     if (msaf_provisioning_session_add_policy_template(msaf_provisioning_session, policy_temp, time(NULL))) {
                                         char *location;
                                         msaf_policy_template_node_t *msaf_policy_template;
 
-                                        created_policy_template = msaf_policy_template_convertToJSON(policy_temp);
-                                        created_pol_temp = cJSON_Print(created_policy_template);
-                                        ogs_debug("CREATED PT: %s", created_pol_temp);
-
-                                        msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session, msaf_strdup(policy_temp->policy_template_id));
+                                        msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session, policy_temp->policy_template_id);
                                         location = ogs_msprintf("%s/%s", request->h.uri, msaf_policy_template->policy_template->policy_template_id);
 
 
@@ -560,6 +553,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         nf_server_populate_response(response, 0, NULL, 201);
                                         ogs_assert(response);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+					ogs_free(location);
                                     } else {
                                         char *err = NULL;
                                         err = ogs_msprintf("Problem adding the policy template to the provisioning session [%s].", message->h.resource.component[1]);
@@ -576,8 +571,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Problem parsing Policy template JSON.", err, NULL, api, app_meta));
                                     ogs_free(err);
                                 }
-
-                                ogs_debug("In policy-templates POST");
+				if (policy_template) cJSON_Delete(policy_template);
+                                if (pol_temp) cJSON_free(pol_temp);
                             }
 
                         } else if (message->h.resource.component[1] && !message->h.resource.component[2]){
@@ -685,10 +680,65 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         break;
 
                     CASE(OGS_SBI_HTTP_METHOD_GET)
+			    
                         if (message->h.resource.component[1] && message->h.resource.component[2] && message->h.resource.component[3] && !message->h.resource.component[4]) {
-                            if (!strcmp(message->h.resource.component[2],"policy-templates") ) {
-                            }            
-                            else if (!strcmp(message->h.resource.component[2],"certificates") ) {
+			    msaf_provisioning_session_t *msaf_provisioning_session;
+                            const nf_server_interface_metadata_t *api = NULL;
+
+                            SWITCH(message->h.resource.component[2])
+                            CASE("policy-templates")
+                                api = m1_policytemplatesprovisioning_api;
+                                break;
+                            CASE("certificates")
+                                api = m1_servercertificatesprovisioning_api;
+                                break;
+                            DEFAULT
+                            END
+
+			    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                            if (!msaf_provisioning_session) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Provisioning session [%s] is not available.", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, api, app_meta));
+                                ogs_free(err);
+                            } else if (!api) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Unknown sub-resource [%s] for provisioning session [%s].", message->h.resource.component[2], message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unknown provisioning session sub-resource.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_free(err);
+                            } else if (api == m1_policytemplatesprovisioning_api) {
+				msaf_provisioning_session_t *msaf_provisioning_session;
+                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                                if (msaf_provisioning_session) {
+                                    msaf_policy_template_node_t *msaf_policy_template;
+                                    msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session, message->h.resource.component[3]);
+                                    if(msaf_policy_template) {
+                                        cJSON *policy_template;
+                                        char *policy_template_body;
+    
+                                        policy_template = msaf_policy_template_convertToJSON(msaf_policy_template->policy_template);
+                                        policy_template_body = cJSON_Print(policy_template);
+
+                                        response = nf_server_new_response(NULL, "application/json", msaf_policy_template->last_modified, msaf_policy_template->hash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_policytemplatesprovisioning_api, app_meta);
+                                        nf_server_populate_response(response, strlen(policy_template_body), policy_template_body, 200);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        response = NULL;
+                  
+                                        cJSON_Delete(policy_template);
+
+                                    } else {
+					char *err = NULL;
+                                        err = ogs_msprintf("Provisioning session [%s] has no policy template [%s].", message->h.resource.component[1], message->h.resource.component[3]);
+				        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Policy template does not exists.", err, NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                        ogs_free(err);
+                                    }
+
+                                }    
+
+			    } else if (api == m1_servercertificatesprovisioning_api) {
                                 msaf_provisioning_session_t *msaf_provisioning_session;
                                 msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
                                 if (msaf_provisioning_session) {
@@ -883,6 +933,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 break;
                             CASE("certificates")
                                 api = m1_servercertificatesprovisioning_api;
+                                break;
+                            CASE("policy-templates")
+                                api = m1_policytemplatesprovisioning_api;
                                 break;
                             DEFAULT
                             END
@@ -1093,7 +1146,76 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     }
                                     cJSON_Delete(json);
                                 }
-                            }
+                            } else if (api == m1_policytemplatesprovisioning_api) {
+			        ogs_sbi_response_t *response;
+                                msaf_provisioning_session_t *msaf_provisioning_session;
+				msaf_api_policy_template_t *policy_template;
+
+				if(!check_http_content_type(request->http,"application/json")){
+                                    ogs_assert(true == nf_server_send_error(stream, 415, 3, message, "Unsupported Media Type.", "Expected content type: application/json", NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                    ogs_sbi_message_free(message);
+                                    ogs_free(message);
+			            return;
+                                }
+
+				if(!request->http.content) {
+			            ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Bad request.", "Request has no content", NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                    ogs_sbi_message_free(message);
+                                    ogs_free(message);
+                                    return;
+				         	     
+				}
+				     
+				msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+
+                                if(msaf_provisioning_session) {
+                                    msaf_policy_template_node_t *msaf_policy_template;
+                                    msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session, message->h.resource.component[3]);
+                                    if(msaf_policy_template) {
+			                cJSON *policy_template_received;
+					
+					policy_template_received = cJSON_Parse(request->http.content); 	
+				    	     	    
+					policy_template = msaf_policy_template_parseFromJSON(policy_template_received);
+
+					if (!policy_template) {
+                                            const char *err = "Updating policy template: Could not parse request body as JSON";
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Updating policy template failed.", 
+						    err, NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                            break;
+                                        }
+
+					if(msaf_provisioning_session_update_policy_template(msaf_provisioning_session, msaf_policy_template, policy_template)) {
+					        
+				            response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, m1_policytemplatesprovisioning_api, app_meta);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+					    
+					} else {
+					    const char *err = ogs_msprintf("Internal server error while updating policy template [%s]", message->h.resource.component[3]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Updating policy template failed.",
+                                                    err, NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                            break;
+                                        }
+					cJSON_Delete(policy_template_received);
+					       	
+
+				    } else {
+				     	    
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Provisioning session [%s] has no policy template [%s].", message->h.resource.component[1], message->h.resource.component[3]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Policy template does not exists.", err, NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                        ogs_free(err);
+					    
+                                    } 
+
+				}       	    
+
+			    }
 
                         } else {
                             char *err = NULL;
@@ -1121,6 +1243,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 break;
                             CASE("certificates")
                                 api = m1_servercertificatesprovisioning_api;
+                                break;
+                            CASE("policy-templates")
+                                api = m1_policytemplatesprovisioning_api;
                                 break;
                             DEFAULT
                             END
@@ -1212,7 +1337,31 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request", err, NULL, api, app_meta));
                                     ogs_free(err);
                                 }
-                            } else if (api == m1_consumptionreportingprovisioning_api) {
+                            } else if (api == m1_policytemplatesprovisioning_api) {
+			        if (message->h.resource.component[3]) {
+				    if (!message->h.resource.component[4]) {
+				        ogs_sbi_response_t *response;
+                                        msaf_provisioning_session_t *provisioning_session = NULL;
+                                        provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                                        if (provisioning_session) {
+                                            if (msaf_provisioning_session_delete_policy_template_by_id(provisioning_session, message->h.resource.component[3])) {
+                                                response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_policytemplatesprovisioning_api, app_meta);
+                                                nf_server_populate_response(response, 0, NULL, 204);
+                                                ogs_assert(response);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                            } else {
+                                            char *err = NULL;
+                                            err = ogs_msprintf("Provisioning session [%s]: Policy template [%s] does not exist.", 
+							    message->h.resource.component[1], message->h.resource.component[3]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Policy template does not exist.", err, NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                            ogs_free(err);
+
+                                            }
+                                        } 	    
+				    }	    
+				}
+			    } else if (api == m1_consumptionreportingprovisioning_api) {
                                 if (!message->h.resource.component[3]) {
                                     /* Delete consumption reporting configuration */
                                     if (msaf_consumption_report_configuration_deregister(provisioning_session)) {
@@ -1288,8 +1437,35 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 if (provisioning_session) {
                                     if (message->h.resource.component[2]) {
 
+					if (!strcmp(message->h.resource.component[2],"policy-templates")) {
+                                            if (message->h.resource.component[3]) {
+                                                msaf_policy_template_node_t *msaf_policy_template;
+                                                msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(provisioning_session, message->h.resource.component[3]);
+                                                if(msaf_policy_template) {
+						    methods = ogs_msprintf("%s, %s, %s, %s",OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                                    response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_policytemplatesprovisioning_api, app_meta);
+                                                    nf_server_populate_response(response, 0, NULL, 204);
+                                                    ogs_assert(response);
+                                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));	
+     
+					        } else {
+                                                    char *err = NULL;
+                                                    err = ogs_msprintf("Policy template [%s] does not exists", message->h.resource.component[3]);
+                                                    ogs_error("%s", err);
+                                                    ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Problem obtaining the specified policy template.", err, NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                                    ogs_free(err);
+                                                    break;
+                                                }
 
-                                        if (!strcmp(message->h.resource.component[2],"certificates")) {
+					    } else {
+                                                methods = ogs_msprintf("%s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                                response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_policytemplatesprovisioning_api, app_meta);
+                                                nf_server_populate_response(response, 0, NULL, 204);
+                                                ogs_assert(response);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                            }
+
+					} else if (!strcmp(message->h.resource.component[2],"certificates")) {
                                             if (message->h.resource.component[3]) {
                                                 msaf_certificate_t *cert;
                                                 cert = server_cert_retrieve(message->h.resource.component[3]);

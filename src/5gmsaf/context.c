@@ -117,8 +117,6 @@ void msaf_context_final(void)
     if (self->config.data_collection_dir)
         ogs_free(self->config.data_collection_dir);
 
-    msaf_context_server_addr_remove_all();
-
     msaf_application_server_remove_all();
 
     msaf_context_application_server_state_certificates_remove_all();

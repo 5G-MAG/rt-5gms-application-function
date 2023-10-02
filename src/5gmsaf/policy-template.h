@@ -35,6 +35,12 @@ extern cJSON *msaf_policy_template_convertToJSON(msaf_api_policy_template_t *pol
 extern char *calculate_policy_template_hash(msaf_api_policy_template_t *policy_template);
 
 extern msaf_policy_template_node_t *msaf_policy_template_populate(msaf_api_policy_template_t *policy_template, time_t creation_time);
+
+extern bool msaf_policy_template_clear(ogs_hash_t *policy_templates);
+
+extern void msaf_policy_template_node_free(msaf_policy_template_node_t *node);
+
+cJSON *msaf_policy_template_convert_to_json(msaf_api_policy_template_t *policy_template);
 	
 #ifdef __cplusplus
 }

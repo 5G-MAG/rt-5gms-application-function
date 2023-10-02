@@ -19,6 +19,8 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 extern "C" {
 #endif
 
+static void policy_template_state_change_local_event_data_free(msaf_event_t *e);
+
 bool local_process_event(msaf_event_t *e)
 {
    ogs_debug("local_process_event: %s", msaf_event_get_name(e));
@@ -38,13 +40,13 @@ bool local_process_event(msaf_event_t *e)
                msaf_policy_template_change_state_event_data =  (msaf_policy_template_change_state_event_data_t *)e->data;
 	       provisioning_session = msaf_policy_template_change_state_event_data->provisioning_session;
                msaf_policy_template_node = msaf_policy_template_change_state_event_data->policy_template_node;
-	       policy_template_id = msaf_strdup(msaf_policy_template_node->policy_template->policy_template_id);
+	       policy_template_id = msaf_policy_template_node->policy_template->policy_template_id;
 
-	       provisioning_session_id = msaf_strdup(provisioning_session->provisioningSessionId);
+	       provisioning_session_id = provisioning_session->provisioningSessionId;
 
 	       provisioning_sess = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
 	       if(provisioning_sess) {
-		   msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(provisioning_session, msaf_strdup(policy_template_id));    
+		   msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(provisioning_session, policy_template_id);    
 	           if(msaf_policy_template && (msaf_policy_template_node == msaf_policy_template)) {
 			   
 		       if(msaf_policy_template_set_state(msaf_policy_template->policy_template, msaf_policy_template_change_state_event_data->new_state, provisioning_sess)) {
@@ -67,7 +69,8 @@ bool local_process_event(msaf_event_t *e)
 		       }	 
 
 		   } else {
-		        ogs_error("Policy template not found"); 
+		        ogs_error("Policy template not found");
+		        policy_template_state_change_local_event_data_free(e);
                         return false;
 			   
 
@@ -76,6 +79,7 @@ bool local_process_event(msaf_event_t *e)
 	       }
 
                ogs_debug("taking event for OGS_EVENT_SBI_LOCAL");
+	       policy_template_state_change_local_event_data_free(e);
 	       return true;
 
 	   }
@@ -94,6 +98,11 @@ bool local_process_event(msaf_event_t *e)
 
    return false;    
 }
+
+static void policy_template_state_change_local_event_data_free(msaf_event_t *e) {
+    if(e->data) ogs_free(e->data);
+}
+
 
 #ifdef __cplusplus
 }

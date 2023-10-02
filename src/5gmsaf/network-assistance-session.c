@@ -43,7 +43,7 @@ static void retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data_t *cb
 static OpenAPI_list_t *update_media_component(char *mir_bw_dl_bit_rate);
 static char *flow_description_port(int port);
 static char *flow_description_protocol_to_string(int protocol);
-static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_api_ip_packet_filter_set_t *flow_description, msaf_api_m5_qo_s_specification_t *requested_qos);
+static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_api_ip_packet_filter_set_t *flow_description, msaf_api_m5_qo_s_specification_t *requested_qos, msaf_api_media_type_e media_type);
 static void activate_delivery_boost_and_send_response(msaf_network_assistance_session_t *na_sess);
 static void delivery_boost_send_response(msaf_network_assistance_session_t *na_sess);
 
@@ -59,6 +59,7 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
     OpenAPI_list_t *media_component = NULL;
 
     nas =  msaf_api_network_assistance_session_parseRequestFromJSON(network_assistance_sess);
+    if(!nas) return 0;
 
     na_sess = msaf_network_assistance_session_init();
     ogs_assert(na_sess);
@@ -73,27 +74,41 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
             ue_network_identifier_t *ue_connection;
 
             service_data_flow_description = (msaf_api_service_data_flow_description_t *)node->data;
-            if (!service_data_flow_description->flow_description->direction) {
+
+	    if(service_data_flow_description->domain_name) {
+	        ogs_debug("Service Data Flow Descriptions specified using a domain name are not yet supported by this implementation");
+                msaf_network_assistance_session_remove(na_sess);
+                return 0;		
+	    }	
+		    
+
+	    if(service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
+	        ogs_error("Validation of service data flow description failed: Exactly one of flowDescription or domainName must be present");
                 msaf_network_assistance_session_remove(na_sess);
                 return 0;
+	    }
+
+	    if(service_data_flow_description->flow_description){
+
+                if (!service_data_flow_description->flow_description->direction) {
+                    msaf_network_assistance_session_remove(na_sess);
+                    return 0;
+                }
+
+                ue_connection = populate_ue_connection_details(service_data_flow_description);
+
+                media_component = populate_media_component(na_sess->NetworkAssistanceSession->policy_template_id, service_data_flow_description->flow_description, na_sess->NetworkAssistanceSession->requested_qo_s, na_sess->NetworkAssistanceSession->media_type?na_sess->NetworkAssistanceSession->media_type: OpenAPI_media_type_VIDEO);
+
+                pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, ue_connection->address);
+
+                if (pcf_address) {
+                    create_pcf_app_session(pcf_address, ue_connection, media_component, na_sess);
+                } else {
+                    retrieve_pcf_binding_and_create_app_session(ue_connection, media_component, na_sess);
+                }
+                ue_connection_details_free(ue_connection);
             }
-
-            ue_connection = populate_ue_connection_details(service_data_flow_description);
-
-
-            media_component = populate_media_component(na_sess->NetworkAssistanceSession->policy_template_id, service_data_flow_description->flow_description, na_sess->NetworkAssistanceSession->requested_qo_s);
-
-
-            pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, ue_connection->address);
-
-            if (pcf_address) {
-                create_pcf_app_session(pcf_address, ue_connection, media_component, na_sess);
-            } else {
-                retrieve_pcf_binding_and_create_app_session(ue_connection, media_component, na_sess);
-            }
-            ue_connection_details_free(ue_connection);
-
-        }
+	}
     }
     msaf_api_network_assistance_session_free(nas);
     return 1;
@@ -302,7 +317,7 @@ static msaf_network_assistance_session_t *msaf_network_assistance_session_init(v
 }
 
 
-static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_api_ip_packet_filter_set_t *flow_description, msaf_api_m5_qo_s_specification_t *requested_qos) {
+static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_api_ip_packet_filter_set_t *flow_description, msaf_api_m5_qo_s_specification_t *requested_qos, msaf_api_media_type_e media_type) {
 
     OpenAPI_list_t *MediaComponentList = NULL;
     OpenAPI_map_t *MediaComponentMap = NULL;
@@ -377,7 +392,7 @@ static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_a
     MediaComponent = OpenAPI_media_component_create(NULL, NULL, NULL, false, 0, NULL, NULL,
             false, 0, NULL, false, 0.0, false, 0.0, NULL, OpenAPI_flow_status_NULL,
             msaf_strdup(requested_qos->mar_bw_dl_bit_rate), msaf_strdup(requested_qos->mar_bw_ul_bit_rate),
-            false, 0, false, 0, NULL, NULL, 0, media_sub_comp_list, OpenAPI_media_type_VIDEO,
+            false, 0, false, 0, NULL, NULL, 0, media_sub_comp_list, media_type,
             msaf_strdup(requested_qos->min_des_bw_dl_bit_rate), msaf_strdup(requested_qos->min_des_bw_ul_bit_rate),
             msaf_strdup(requested_qos->mir_bw_dl_bit_rate), msaf_strdup(requested_qos->mir_bw_ul_bit_rate),
             OpenAPI_preemption_capability_NULL, OpenAPI_preemption_vulnerability_NULL,

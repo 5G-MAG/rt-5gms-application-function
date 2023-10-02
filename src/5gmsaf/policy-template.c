@@ -19,6 +19,8 @@ static msaf_api_policy_template_application_session_context_t *msaf_policy_templ
 static msaf_api_charging_specification_t *msaf_policy_template_charging_specification(cJSON *policy_template);
 #endif
 
+static void msaf_policy_template_set_state_reason(msaf_api_policy_template_t *policy_template, char *cause, char *detail, char *instance, char *nrf_id, char *supported_features, char *title, char *type);
+
 /***** Public functions *****/
 
 msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON)
@@ -30,7 +32,7 @@ void msaf_policy_template_set_id(msaf_api_policy_template_t *policy_template, co
 {
     ogs_assert(policy_template);
     if(policy_template->policy_template_id) ogs_free(policy_template->policy_template_id);
-    policy_template->policy_template_id = msaf_strdup(policy_template_id);
+    policy_template->policy_template_id = policy_template_id;
 }
 
 char *calculate_policy_template_hash(msaf_api_policy_template_t *policy_template)
@@ -38,7 +40,7 @@ char *calculate_policy_template_hash(msaf_api_policy_template_t *policy_template
     cJSON *policy_template_json = NULL;
     char *policy_template_to_hash;
     char *policy_template_hashed = NULL;
-    policy_template_json = msaf_policy_template_convertToJSON(policy_template);
+    policy_template_json = msaf_policy_template_convert_to_json(policy_template);
     policy_template_to_hash = cJSON_Print(policy_template_json);
     cJSON_Delete(policy_template_json);
     policy_template_hashed = calculate_hash(policy_template_to_hash);
@@ -72,6 +74,7 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 
        if(new_state == msaf_api_policy_template_STATE_PENDING) {
 	   policy_template->state = msaf_api_policy_template_STATE_PENDING;
+           msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
            return true;
        }
 
@@ -85,6 +88,7 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 
        if(new_state == msaf_api_policy_template_STATE_NULL) {
            policy_template->state = msaf_api_policy_template_STATE_NULL;
+	   msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	   return true;
        }
 
@@ -94,11 +98,16 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 	   if(provisioning_session->sai_cache)    
                msaf_sai_cache_clear(provisioning_session->sai_cache);
 	   policy_template->state = msaf_api_policy_template_STATE_READY;
+           msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
 	   return true;
        }
        
        if(new_state == msaf_api_policy_template_STATE_INVALID) {
+	   char *detail = "Policy template state transitioned from PENDING to INVALID.";
+	   char *title = "Provider decision.";
            policy_template->state = msaf_api_policy_template_STATE_INVALID;
+	   msaf_policy_template_set_state_reason(policy_template, NULL, msaf_strdup(detail), NULL, NULL, NULL, msaf_strdup(title), NULL);
            return true;
        }
        
@@ -116,6 +125,7 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 	   if (provisioning_session->sai_cache)    
                msaf_sai_cache_clear(provisioning_session->sai_cache);
            policy_template->state = msaf_api_policy_template_STATE_NULL;
+           msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
            return true;
        }	
 
@@ -123,6 +133,7 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 	   if(provisioning_session->sai_cache)    
                msaf_sai_cache_clear(provisioning_session->sai_cache);
            policy_template->state = msaf_api_policy_template_STATE_PENDING;
+           msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
            return true;
        }
        
@@ -139,6 +150,7 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
            if (provisioning_session->sai_cache)    
 	       msaf_sai_cache_clear(provisioning_session->sai_cache);
            policy_template->state = msaf_api_policy_template_STATE_SUSPENDED;
+	   msaf_policy_template_set_state_reason(policy_template, NULL, msaf_strdup(detail), NULL, NULL, NULL, msaf_strdup(title), NULL);
            return true;
        }
    }
@@ -147,11 +159,13 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
    
        if(new_state == msaf_api_policy_template_STATE_NULL) {
            policy_template->state = msaf_api_policy_template_STATE_NULL;
+           msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	   return true;
        }
 
        if(new_state == msaf_api_policy_template_STATE_PENDING) {
            policy_template->state = msaf_api_policy_template_STATE_PENDING;
+           msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	   return true;
        }
 
@@ -167,11 +181,13 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
        	   
        if(new_state == msaf_api_policy_template_STATE_NULL) {
            policy_template->state = msaf_api_policy_template_STATE_NULL;
+           msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	   return true;
        }
 
        if(new_state == msaf_api_policy_template_STATE_PENDING) {
            policy_template->state = msaf_api_policy_template_STATE_PENDING;
+           msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	   return true;
        }
 
@@ -203,7 +219,49 @@ cJSON *msaf_policy_template_convertToJSON(msaf_api_policy_template_t *policy_tem
     return msaf_api_policy_template_convertResponseToJSON(policy_template);
 }
 
+cJSON *msaf_policy_template_convert_to_json(msaf_api_policy_template_t *policy_template) {
+
+    return msaf_api_policy_template_convertRequestToJSON(policy_template);
+}
+
+
+bool msaf_policy_template_clear(ogs_hash_t *policy_templates)
+{
+    ogs_hash_index_t *hi;
+
+    for (hi = ogs_hash_first(policy_templates); hi; hi = ogs_hash_next(hi)) {
+        const void *key;
+        int key_len;
+        msaf_policy_template_node_t *node;
+
+        ogs_hash_this(hi, &key, &key_len, (void**)(&node));
+        ogs_hash_set(policy_templates, key, key_len, NULL);
+        msaf_policy_template_node_free(node);
+        ogs_free(key);
+    }
+
+    return true;
+}
+
+void msaf_policy_template_node_free(msaf_policy_template_node_t *node)
+{
+    if (!node) return;
+
+    if (node->policy_template) msaf_policy_template_free(node->policy_template);
+    if (node->hash) ogs_free(node->hash);
+
+    ogs_free(node);
+}
+
 /***** Private functions *****/
+
+static void msaf_policy_template_set_state_reason(msaf_api_policy_template_t *policy_template, char *cause, char *detail, char *instance, char *nrf_id, char *supported_features, char *title, char *type)
+{
+
+    if(policy_template->state_reason) msaf_api_problem_details_free(policy_template->state_reason);
+    policy_template->state_reason = msaf_api_problem_details_create(NULL, NULL, cause, detail, instance, NULL, nrf_id, 0, 0, supported_features, title, type);
+
+}
 
 #if 0
 static msaf_api_m1_qo_s_specification_t *msaf_policy_template_qos_specification_new(cJSON *policy_template)
