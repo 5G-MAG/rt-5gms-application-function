@@ -68,6 +68,8 @@ typedef struct msaf_configuration_s {
     
     msaf_server_response_cache_control_t *server_response_cache_control;
     int  number_of_application_servers;
+
+    char *data_collection_dir;
 } msaf_configuration_t;
 
 typedef struct msaf_context_s {

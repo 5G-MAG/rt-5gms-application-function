@@ -97,6 +97,9 @@ void msaf_context_final(void)
     if (self->config.certificateManager)
         ogs_free(self->config.certificateManager);
  
+    if (self->config.data_collection_dir)
+        ogs_free(self->config.data_collection_dir);
+
     msaf_context_server_addr_remove_all();
 
     msaf_application_server_remove_all();
@@ -495,6 +498,8 @@ int msaf_context_parse_config(void)
                     /* handle config in sbi library */
                 } else if (!strcmp(msaf_key, "discovery")) {
                     /* handle config in sbi library */
+                } else if (!strcmp(msaf_key, "dataCollectionDir")) {
+                    self->config.data_collection_dir = msaf_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else
                     ogs_warn("unknown key `%s`", msaf_key);
             }

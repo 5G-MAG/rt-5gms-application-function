@@ -34,6 +34,8 @@ libmsaf_dist_sources = files('''
     consumption-report-configuration.h
     context.c
     context.h
+    data-collection.c
+    data-collection.h
     event.c
     event.h
     hash.h
