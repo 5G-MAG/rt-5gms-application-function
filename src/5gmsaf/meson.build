@@ -147,6 +147,7 @@ executable('open5gs-msafd',
 meson.add_install_script(python3_exe, '-c', mkdir_p.format(open5gs_sysconfdir))
 conf_configuration = configuration_data()
 conf_configuration.set('default-certmgr', get_option('prefix') / self_signed_certmgr_runtime)
+conf_configuration.set('data-collection-dir', get_option('prefix') / get_option('localstatedir') / 'log' / 'open5gs' / 'reports')
 foreach conf_file : msaf_config_source
     gen = configure_file(input : conf_file + '.in', configuration : conf_configuration, output : conf_file)
     meson.add_install_script(python3_exe, '-c', install_conf.format(gen, open5gs_sysconfdir))

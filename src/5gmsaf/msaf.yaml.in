@@ -194,6 +194,7 @@ msaf:
         m1ContentProtocols: 86400
         m1ConsumptionReportingConfiguration: 60
         m5ServiceAccessInformation: 60
+    dataCollectionDir: @data-collection-dir@
 #
 # nrf:
 #
