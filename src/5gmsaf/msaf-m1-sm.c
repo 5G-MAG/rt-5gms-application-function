@@ -323,6 +323,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 }
                             }
 
+                            cJSON *jsonSamplingPeriod = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplingPeriod");
+                            int samplingPeriod = 0;
+                            if (jsonSamplingPeriod) samplingPeriod = jsonSamplingPeriod->valueint;
+
                             cJSON *jsonMetrics = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics");
                             OpenAPI_list_t *metrics = NULL;
                             if (jsonMetrics && cJSON_IsArray(jsonMetrics)) {
@@ -342,7 +346,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 }
                             }
 
-                            msaf_metrics_reporting_configuration_t *new_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session, msaf_strdup(scheme), msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, metrics);
+                            msaf_metrics_reporting_configuration_t *new_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session, msaf_strdup(scheme), msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, samplingPeriod, metrics);
 
                             if(new_mrc){
                                 if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
@@ -1075,6 +1079,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
                                         }
 
+                                        cJSON *jsonSamplingPeriod = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplingPeriod");
+                                        int samplingPeriod = 0;
+                                        if (jsonSamplingPeriod) samplingPeriod = jsonSamplingPeriod->valueint;
+
                                         cJSON * jsonMetrics = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics");
                                         OpenAPI_list_t * metrics = NULL;
                                         if (jsonMetrics && cJSON_IsArray(jsonMetrics)) {
@@ -1098,7 +1106,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         msaf_metrics_reporting_configuration_t *updated_metrics_reporting_configuration =
                                                 msaf_metrics_reporting_configuration_update(current_id, msaf_strdup(scheme),
                                                         msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval,
-                                                        isSamplePercentage, samplePercentage, urlFilters, metrics);
+                                                        isSamplePercentage, samplePercentage, urlFilters, samplingPeriod, metrics);
 
                                         if (updated_metrics_reporting_configuration) {
                                             if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {

@@ -27,6 +27,7 @@ extern msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configurat
                                                                                            bool isSamplePercentage,
                                                                                            double samplePercentage,
                                                                                            OpenAPI_list_t *urlFilters,
+                                                                                           int samplingPeriod,
                                                                                            OpenAPI_list_t *metrics);
 
 extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_update(const char *metricsReportingConfigurationId,
@@ -37,6 +38,7 @@ extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configurat
                                                                                            bool isSamplePercentage,
                                                                                            double samplePercentage,
                                                                                            OpenAPI_list_t *urlFilters,
+                                                                                           int samplingPeriod,
                                                                                            OpenAPI_list_t *metrics);
 
 extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const char *metricsReportingConfigurationId);

@@ -33,6 +33,7 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
                                                                                     bool isSamplePercentage,
                                                                                     double samplePercentage,
                                                                                     OpenAPI_list_t *urlFilters,
+                                                                                    int samplingPeriod,
                                                                                     OpenAPI_list_t *metrics)
 {
     ogs_uuid_t uuid;
@@ -46,7 +47,7 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
 
-    msaf_metrics_reporting_configuration->config = OpenAPI_metrics_reporting_configuration_create(msaf_strdup(id), scheme, dataNetworkName, isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, metrics);
+    msaf_metrics_reporting_configuration->config = OpenAPI_metrics_reporting_configuration_create(msaf_strdup(id), scheme, dataNetworkName, isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, samplingPeriod, metrics);
     msaf_metrics_reporting_configuration->etag = calculate_metrics_reporting_configuration_hash(msaf_metrics_reporting_configuration->config);
     msaf_metrics_reporting_configuration->receivedTime = time(NULL);
 
@@ -68,6 +69,7 @@ msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_upd
                                                                                     bool isSamplePercentage,
                                                                                     double samplePercentage,
                                                                                     OpenAPI_list_t *urlFilters,
+                                                                                    int samplingPeriod,
                                                                                     OpenAPI_list_t *metrics)
 {
     msaf_metrics_reporting_configuration_t *existing_mrc = msaf_metrics_reporting_configuration_retrieve(metricsReportingConfigurationId);
@@ -78,7 +80,7 @@ msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_upd
     }
 
     OpenAPI_metrics_reporting_configuration_free(existing_mrc->config);
-    existing_mrc->config = OpenAPI_metrics_reporting_configuration_create(msaf_strdup(metricsReportingConfigurationId), scheme, dataNetworkName, isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, metrics);
+    existing_mrc->config = OpenAPI_metrics_reporting_configuration_create(msaf_strdup(metricsReportingConfigurationId), scheme, dataNetworkName, isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, samplingPeriod, metrics);
     if (existing_mrc->etag) ogs_free(existing_mrc->etag);
     existing_mrc->etag = calculate_metrics_reporting_configuration_hash(existing_mrc->config);
     existing_mrc->receivedTime = time(NULL);
