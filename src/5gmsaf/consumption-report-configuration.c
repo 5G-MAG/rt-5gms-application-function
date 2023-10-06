@@ -89,6 +89,33 @@ bool msaf_consumption_report_configuration_deregister(msaf_provisioning_session_
     return true;
 }
 
+OpenAPI_consumption_reporting_configuration_t *msaf_consumption_report_configuration_parseJSON(cJSON *json /* [no-transfer, not-null] */, const char **err_out /* [out, not-null] */)
+{
+    OpenAPI_consumption_reporting_configuration_t *crc;
+
+    *err_out = NULL;
+
+    crc = OpenAPI_consumption_reporting_configuration_parseFromJSON(json);
+    if (!crc) {
+        *err_out = "Failed to convert JSON to a ConsumptionReportingConfiguration";
+        return NULL;
+    }
+
+    if (crc->is_sample_percentage && (crc->sample_percentage < 0.0 || crc->sample_percentage > 100.0)) {
+        *err_out = "Bad value: samplePercentage out of range";
+        OpenAPI_consumption_reporting_configuration_free(crc);
+        return NULL;
+    }
+
+    if (crc->is_reporting_interval && crc->reporting_interval <= 0) {
+        *err_out = "Bad value: reportingInterval must be greater than 0";
+        OpenAPI_consumption_reporting_configuration_free(crc);
+        return NULL;
+    }
+
+    return crc;
+}
+
 cJSON *msaf_consumption_report_configuration_json(msaf_provisioning_session_t *session /* [no-transfer, not-null] */)
 {
     cJSON *json;

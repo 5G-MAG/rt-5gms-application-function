@@ -24,6 +24,8 @@ extern bool msaf_consumption_report_configuration_update(msaf_provisioning_sessi
                                                 OpenAPI_consumption_reporting_configuration_t *config /* [transfer, not-null] */);
 extern bool msaf_consumption_report_configuration_deregister(msaf_provisioning_session_t *session /* [no-transfer, not-null] */);
 
+extern OpenAPI_consumption_reporting_configuration_t *msaf_consumption_report_configuration_parseJSON(
+                                                cJSON *json /* [no-transfer, not-null] */, const char **err_out /* [out, not-null] */);
 extern cJSON *msaf_consumption_report_configuration_json(msaf_provisioning_session_t *session /* [no-transfer, not-null] */);
 extern char *msaf_consumption_report_configuration_body(msaf_provisioning_session_t *session /* [no-transfer, not-null] */);
 extern time_t msaf_consumption_report_configuration_last_modified(

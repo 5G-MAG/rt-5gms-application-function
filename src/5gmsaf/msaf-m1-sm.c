@@ -489,13 +489,14 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_free(err);
                                 } else {
                                     OpenAPI_consumption_reporting_configuration_t *report_config;
+                                    const char *parse_err = NULL;
 
-                                    report_config = OpenAPI_consumption_reporting_configuration_parseFromJSON(json);
+                                    report_config = msaf_consumption_report_configuration_parseJSON(json, &parse_err);
                                     cJSON_Delete(json);
 
                                     if (!report_config) {
                                         char *err;
-                                        err = ogs_msprintf("Bad ConsumptionReportingConfiguration for provisioning session [%s]", message->h.resource.component[1]);
+                                        err = ogs_msprintf("Bad ConsumptionReportingConfiguration for provisioning session [%s]: %s", message->h.resource.component[1], parse_err);
                                         ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
                                         ogs_free(err);
@@ -1002,10 +1003,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_free(err);
                                 } else {
                                     OpenAPI_consumption_reporting_configuration_t *config;
-                                    config = OpenAPI_consumption_reporting_configuration_parseFromJSON(json);
+                                    const char *parse_err = NULL;
+
+                                    config = msaf_consumption_report_configuration_parseJSON(json, &parse_err);
                                     if (!config) {
                                         char *err = NULL;
-                                        err = ogs_msprintf("Bad request body while updating ConsumptionReportingConfiguration for Provisioining Session [%s].", message->h.resource.component[1]);
+                                        err = ogs_msprintf("Bad request body while updating ConsumptionReportingConfiguration for Provisioining Session [%s]: %s", message->h.resource.component[1], parse_err);
                                         ogs_error("%s", err);
                                         ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
                                         ogs_free(err);

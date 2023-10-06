@@ -78,8 +78,10 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                     provisioning_session->consumptionReportingConfiguration->is_location_reporting?
                         provisioning_session->consumptionReportingConfiguration->location_reporting:
                         0,
-                    provisioning_session->consumptionReportingConfiguration->is_access_reporting,
-                    provisioning_session->consumptionReportingConfiguration->access_reporting,
+                    true, /* TS 26.512 Table 11.2.3.1-1 says the accessReporting field is mandatory */
+                    provisioning_session->consumptionReportingConfiguration->is_access_reporting?
+                        provisioning_session->consumptionReportingConfiguration->access_reporting:
+                        0,
                     provisioning_session->consumptionReportingConfiguration->is_sample_percentage?
                         provisioning_session->consumptionReportingConfiguration->sample_percentage:
                         100.0
