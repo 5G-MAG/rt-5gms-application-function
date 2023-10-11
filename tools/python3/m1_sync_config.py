@@ -436,8 +436,9 @@ async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict]
             if ps_id not in vod_ps_ids:
                 m8_config['serviceList'] += [{'provisioningSessionId': ps_id, 'name': chc['name']}]
             for dc in chc['distributionConfigurations']:
-                if 'domainNameAlias' in dc:
-                    publish_dirs.add(os.path.join(config.get("af-sync", "docroot"), dc['domainNameAlias']))
+                for hostfield in ['canonicalDomainName', 'domainNameAlias']:
+                    if hostfield in dc:
+                        publish_dirs.add(os.path.join(config.get("af-sync", "docroot"), dc[hostfield]))
         else:
             log_error(f"Provisioning Session {ps_id} was not initialised correctly: omitting")
     for vod in vod_streams:
