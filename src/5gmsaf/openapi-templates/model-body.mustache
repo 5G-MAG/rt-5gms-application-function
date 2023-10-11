@@ -709,6 +709,18 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
         goto end;
     }
+		  {{#minimum}}
+    if ({{{name}}}->valuedouble <{{#minimumExclusive}}={{/minimumExclusive}} {{minimum}} {
+        ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number less than {{#minimumExclusive}}or equal to {{/minimumExclusive}}{{minimum}}");
+        goto end;
+    }
+                  {{/minimum}}
+                  {{#maximum}}
+    if ({{{name}}}->valuedouble >{{#maximumExclusive}}={{/maximumExclusive}} {{maximum}} {
+        ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number greater than {{#maximumExclusive}}or equal to {{/maximumExclusive}}{{maximum}}");
+        goto end;
+    }
+                  {{/maximum}}
                 {{/isNumeric}}
                 {{#isBoolean}}
     if (!cJSON_IsBool({{{name}}})) {
