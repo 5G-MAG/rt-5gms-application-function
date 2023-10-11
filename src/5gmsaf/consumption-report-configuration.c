@@ -102,7 +102,7 @@ OpenAPI_consumption_reporting_configuration_t *msaf_consumption_report_configura
     }
 
     if (crc->is_sample_percentage && (crc->sample_percentage < 0.0 || crc->sample_percentage > 100.0)) {
-        *err_out = "Bad value: samplePercentage out of range";
+        *err_out = "Bad value: samplePercentage out of range, should be between 0.0 and 100.0 inclusive";
         OpenAPI_consumption_reporting_configuration_free(crc);
         return NULL;
     }
