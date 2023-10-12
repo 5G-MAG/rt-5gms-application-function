@@ -224,6 +224,41 @@ cJSON *msaf_policy_template_convert_to_json(msaf_api_policy_template_t *policy_t
     return msaf_api_policy_template_convertRequestToJSON(policy_template);
 }
 
+OpenAPI_list_t *get_id_of_policy_templates_in_ready_state(ogs_hash_t *policy_templates)
+{
+    msaf_policy_template_node_t *policy_template_node;
+    OpenAPI_list_t *valid_policy_template_ids;
+    ogs_hash_index_t *hi;
+
+    valid_policy_template_ids = OpenAPI_list_create();
+
+    for (hi = ogs_hash_first(policy_templates);
+            hi; hi = ogs_hash_next(hi)) {
+        policy_template_node = (msaf_policy_template_node_t *)ogs_hash_this_val(hi);
+        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_READY) {
+            OpenAPI_list_add(valid_policy_template_ids, msaf_strdup(policy_template_node->policy_template->policy_template_id));
+        }
+    }
+    return valid_policy_template_ids;
+}
+
+OpenAPI_list_t *get_external_reference_of_policy_templates_in_ready_state(ogs_hash_t *policy_templates) {
+
+    msaf_policy_template_node_t *policy_template_node;
+    OpenAPI_list_t *external_references;
+    ogs_hash_index_t *hi;
+
+    external_references = OpenAPI_list_create();
+
+    for (hi = ogs_hash_first(policy_templates);
+            hi; hi = ogs_hash_next(hi)) {
+        policy_template_node = (msaf_policy_template_node_t *)ogs_hash_this_val(hi);
+        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_READY) {
+            OpenAPI_list_add(external_references, msaf_strdup(policy_template_node->policy_template->external_reference));
+        }
+    }
+    return external_references;
+}
 
 bool msaf_policy_template_clear(ogs_hash_t *policy_templates)
 {

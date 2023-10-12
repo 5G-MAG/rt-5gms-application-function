@@ -116,6 +116,10 @@ extern bool msaf_provisioning_session_send_policy_template_state_change_event(ms
 extern bool msaf_provisioning_session_update_policy_template(msaf_provisioning_session_t *provisioning_session, msaf_policy_template_node_t *msaf_policy_template, msaf_api_policy_template_t *policy_template);
 
 extern void msaf_provisioning_session_policy_template_free(ogs_hash_t *policy_templates);
+
+extern OpenAPI_list_t *msaf_provisioning_session_get_id_of_policy_templates_in_ready_state(msaf_provisioning_session_t *provisioning_session);
+extern OpenAPI_list_t *msaf_provisioning_session_get_external_reference_of_policy_templates_in_ready_state(msaf_provisioning_session_t *provisioning_session);
+
 //extern void msaf_provisioning_session_policy_template_free(ogs_hash_t *policy_templates);
 
 

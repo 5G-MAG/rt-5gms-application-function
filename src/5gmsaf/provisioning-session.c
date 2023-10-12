@@ -691,6 +691,15 @@ void msaf_provisioning_session_policy_template_free(ogs_hash_t *policy_templates
     ogs_hash_destroy(policy_templates);
 }
 
+OpenAPI_list_t *msaf_provisioning_session_get_id_of_policy_templates_in_ready_state(msaf_provisioning_session_t *provisioning_session) {
+        return get_id_of_policy_templates_in_ready_state(provisioning_session->policy_templates);
+}
+
+OpenAPI_list_t *msaf_provisioning_session_get_external_reference_of_policy_templates_in_ready_state(msaf_provisioning_session_t *provisioning_session) {
+    return get_external_reference_of_policy_templates_in_ready_state(provisioning_session->policy_templates);
+}
+
+
 
 /**********************************************************
  * Private functions

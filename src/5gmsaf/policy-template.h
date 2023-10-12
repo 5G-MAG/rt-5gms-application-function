@@ -36,6 +36,10 @@ extern char *calculate_policy_template_hash(msaf_api_policy_template_t *policy_t
 
 extern msaf_policy_template_node_t *msaf_policy_template_populate(msaf_api_policy_template_t *policy_template, time_t creation_time);
 
+extern OpenAPI_list_t *get_id_of_policy_templates_in_ready_state(ogs_hash_t *policy_templates);
+
+extern OpenAPI_list_t *get_external_reference_of_policy_templates_in_ready_state(ogs_hash_t *policy_templates);
+
 extern bool msaf_policy_template_clear(ogs_hash_t *policy_templates);
 
 extern void msaf_policy_template_node_free(msaf_policy_template_node_t *node);

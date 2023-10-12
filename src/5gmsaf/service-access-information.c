@@ -34,6 +34,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     msaf_api_service_access_information_resource_t *service_access_information;
     msaf_api_service_access_information_resource_streaming_access_t *streaming_access;
     msaf_configuration_t *config = &msaf_self()->config;
+    msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_t *dpic = NULL;
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
     msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points = NULL;
@@ -66,6 +67,36 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
 	}
     }
     streaming_access = msaf_api_service_access_information_resource_streaming_access_create(entry_points, NULL);
+
+    // Dynamic policy invocation configuration
+    if( provisioning_session->policy_templates) {
+        OpenAPI_list_t *policy_templates_svr_list;
+        OpenAPI_list_t *valid_policy_template_ids;
+        OpenAPI_list_t *external_references;
+        OpenAPI_list_t *policy_templates_in_ready_state;
+	msaf_api_sdf_method_e sdf_method = msaf_api_sdf_method__5_TUPLE;
+        OpenAPI_list_t *sdf_methods;
+
+        ogs_debug("Adding dynamicPolicyInvocationConfiguration to ServiceAccessInformation [%s]",
+                   provisioning_session->provisioningSessionId);
+
+        policy_templates_svr_list = OpenAPI_list_create();
+        ogs_assert(policy_templates_svr_list);
+        OpenAPI_list_add(policy_templates_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
+
+        sdf_methods = OpenAPI_list_create();
+        ogs_assert(sdf_methods);
+        OpenAPI_list_add(sdf_methods, (void *)sdf_method);
+        
+	valid_policy_template_ids = msaf_provisioning_session_get_id_of_policy_templates_in_ready_state(provisioning_session);
+        external_references = msaf_provisioning_session_get_external_reference_of_policy_templates_in_ready_state(provisioning_session);
+        
+	dpic = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_create(policy_templates_svr_list,
+                        valid_policy_template_ids, sdf_methods, external_references);
+
+
+    }
+
 
     /* client consumption reporting configuration */
     if (provisioning_session->consumptionReportingConfiguration) {
@@ -112,7 +143,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 msaf_api_provisioning_session_type_DOWNLINK,
                 streaming_access,
                 ccrc /* client_consumption_reporting_configuration */,
-                NULL /* dynamic_policy */,
+                dpic /* dynamic_policy */,
                 NULL /* client_metrics_reporting */,
                 nac  /* network_assistance_configuration */,
                 NULL /* client_edge_resources */);
