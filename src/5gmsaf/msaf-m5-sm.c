@@ -24,7 +24,6 @@
 #include "openapi/api/TS26512_M5_ConsumptionReportingAPI-info.h"
 #include "openapi/api/TS26512_M5_MetricsReportingAPI-info.h"
 #include "openapi/model/consumption_report.h"
-#include "string.h"
 
 const nf_server_interface_metadata_t
 m5_serviceaccessinformation_api_metadata = {
