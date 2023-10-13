@@ -23,7 +23,7 @@ typedef struct msaf_pcf_session_s {
     pcf_session_t *pcf_session;
 } msaf_pcf_session_t;
 
-pcf_session_t *msaf_pcf_session_new(ogs_sockaddr_t *pcf_address);
+pcf_session_t *msaf_pcf_session_new(const ogs_sockaddr_t *pcf_address);
 
 extern void msaf_pcf_session_remove_all(void);
 

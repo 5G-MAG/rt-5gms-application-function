@@ -34,7 +34,7 @@ static bool create_msaf_na_sess_and_send_response(msaf_network_assistance_sessio
 static ue_network_identifier_t *copy_ue_network_connection_identifier(const ue_network_identifier_t *ue_net_connection);
 static void free_ue_network_connection_identifier(ue_network_identifier_t *ue_net_connection);
 static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding, void *data);
-static void create_pcf_app_session(ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess);
+static void create_pcf_app_session(const ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess);
 static void retrieve_pcf_binding_and_create_app_session(ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess);
 static void msaf_network_assistance_session_add_to_delete_list(pcf_app_session_t *pcf_app_session);
 static void msaf_network_assistance_session_remove_from_delete_list(void);
@@ -58,7 +58,7 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
     OpenAPI_lnode_t *node = NULL;
     OpenAPI_list_t *media_component = NULL;
 
-    nas =  msaf_api_network_assistance_session_parseRequestFromJSON(network_assistance_sess);
+    nas =  msaf_api_network_assistance_session_parseRequestFromJSON(network_assistance_sess, NULL);
     if(!nas) return 0;
 
     na_sess = msaf_network_assistance_session_init();
@@ -446,7 +446,7 @@ static void msaf_pcf_app_session_free(void)
 
 
 
-static void create_pcf_app_session(ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess)
+static void create_pcf_app_session(const ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_network_assistance_session_t *na_sess)
 {
     pcf_session_t *pcf_session;
     int events = 0;

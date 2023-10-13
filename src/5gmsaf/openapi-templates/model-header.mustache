@@ -52,6 +52,11 @@ const char* {{classname}}_{{name}}_ToString(const {{classname}}_{{name}}_e {{nam
     {{/isContainer}}
 {{/vars}}
 typedef struct {{classname}}_s {
+{{^hasVars}}
+  {{#isString}}
+    char *value;
+  {{/isString}}
+{{/hasVars}}
 {{#vars}}
     {{^isContainer}}
         {{^isPrimitiveType}}
@@ -128,6 +133,11 @@ typedef struct {{classname}}_s {
 } {{classname}}_t;
 
 {{classname}}_t *{{classname}}_create(
+{{^hasVars}}
+  {{#isString}}
+    char *value
+  {{/isString}}
+{{/hasVars}}
 {{#vars}}
     {{^isContainer}}
         {{^isPrimitiveType}}
@@ -202,13 +212,13 @@ typedef struct {{classname}}_s {
     {{/isContainer}}
 {{/vars}});
 void {{classname}}_free({{classname}}_t *{{classname}});
-{{classname}}_t *{{classname}}_parseFromJSON(cJSON *{{classname}}JSON, bool as_request);
-{{classname}}_t *{{classname}}_parseRequestFromJSON(cJSON *{{classname}}JSON);
-{{classname}}_t *{{classname}}_parseResponseFromJSON(cJSON *{{classname}}JSON);
-cJSON *{{classname}}_convertToJSON(const {{classname}}_t *{{classname}}, bool as_request);
+{{classname}}_t *{{classname}}_parseFromJSON(cJSON *{{classname}}JSON, bool {{classname}}_as_request, const char **{{classname}}_parse_err);
+{{classname}}_t *{{classname}}_parseRequestFromJSON(cJSON *{{classname}}JSON, const char **{{classname}}_parse_err);
+{{classname}}_t *{{classname}}_parseResponseFromJSON(cJSON *{{classname}}JSON, const char **{{classname}}_parse_err);
+cJSON *{{classname}}_convertToJSON(const {{classname}}_t *{{classname}}, bool {{classname}}_as_request);
 cJSON *{{classname}}_convertRequestToJSON(const {{classname}}_t *{{classname}});
 cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}});
-{{classname}}_t *{{classname}}_copy({{classname}}_t *dst, const {{classname}}_t *src, bool as_request);
+{{classname}}_t *{{classname}}_copy({{classname}}_t *dst, const {{classname}}_t *src, bool {{classname}}_as_request);
 {{classname}}_t *{{classname}}_copyRequest({{classname}}_t *dst, const {{classname}}_t *src);
 {{classname}}_t *{{classname}}_copyResponse({{classname}}_t *dst, const {{classname}}_t *src);
 {{/isEnum}}

@@ -74,8 +74,8 @@ typedef struct msaf_event_s {
     } local;
 
     msaf_network_assistance_session_t *network_assistance_session;
-    nf_server_interface_metadata_t *nf_server_interface_metadata;
-    nf_server_app_metadata_t *app_meta;
+    const nf_server_interface_metadata_t *nf_server_interface_metadata;
+    const nf_server_app_metadata_t *app_meta;
 
     msaf_sess_t *sess;
 } msaf_event_t;

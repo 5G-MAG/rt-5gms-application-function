@@ -449,8 +449,9 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         json = cJSON_Parse(request->http.content);
                                         if (json) {
                                             msaf_api_consumption_report_t *consumption_report;
+                                            const char *reason;
 
-                                            consumption_report = msaf_api_consumption_report_parseRequestFromJSON(json);
+                                            consumption_report = msaf_api_consumption_report_parseRequestFromJSON(json, &reason);
                                             if (consumption_report) {
                                                 if (msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
                                                                     consumption_report->reporting_client_id, NULL,
@@ -474,7 +475,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             } else {
                                                 char *err;
 
-                                                err = ogs_msprintf("Badly formed ConsumptionReport posted for provisioning session [%s]", message->h.resource.component[1]);
+                                                err = ogs_msprintf("Badly formed ConsumptionReport posted for provisioning session [%s]: %s", message->h.resource.component[1], reason);
                                                 ogs_error("%s", err);
                                                 ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, message, "Malformed request body", err, NULL, m5_consumptionreporting_api, app_meta));
                                                 ogs_free(err);

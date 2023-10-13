@@ -95,12 +95,14 @@ msaf_api_consumption_reporting_configuration_t *msaf_consumption_report_configur
 
     *err_out = NULL;
 
-    crc = msaf_api_consumption_reporting_configuration_parseRequestFromJSON(json);
+    crc = msaf_api_consumption_reporting_configuration_parseRequestFromJSON(json, err_out);
     if (!crc) {
-        *err_out = "Failed to convert JSON to a ConsumptionReportingConfiguration";
+        /* err_out set by parser */
+        /* *err_out = "Failed to convert JSON to a ConsumptionReportingConfiguration"; */
         return NULL;
     }
 
+#if 0
     if (crc->is_sample_percentage && (crc->sample_percentage < 0.0 || crc->sample_percentage > 100.0)) {
         *err_out = "Bad value: samplePercentage out of range, should be between 0.0 and 100.0 inclusive";
         msaf_api_consumption_reporting_configuration_free(crc);
@@ -112,6 +114,7 @@ msaf_api_consumption_reporting_configuration_t *msaf_consumption_report_configur
         msaf_api_consumption_reporting_configuration_free(crc);
         return NULL;
     }
+#endif
 
     return crc;
 }

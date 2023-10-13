@@ -555,7 +555,7 @@ int msaf_context_parse_config(void)
                                 if (!strcmp(db_key, "minDlBitRate")) {
                                     ogs_info("deliveryBoost.minDlBitRate");
 				    
-				    delivery_boost_min_dl_bit_rate = ogs_sbi_bitrate_from_string(ogs_yaml_iter_value(&db_iter));
+				    delivery_boost_min_dl_bit_rate = ogs_sbi_bitrate_from_string((char*)ogs_yaml_iter_value(&db_iter)); /* cast safe as ogs_sbi_bitrate_from_string doesn't alter the string */
 
 				    ogs_info("delivery_boost_min_dl_bit_rate: %ld", delivery_boost_min_dl_bit_rate);
 				    /*

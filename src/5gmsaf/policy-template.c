@@ -23,16 +23,16 @@ static void msaf_policy_template_set_state_reason(msaf_api_policy_template_t *po
 
 /***** Public functions *****/
 
-msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON)
+msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON, const char **reason)
 {
-    return msaf_api_policy_template_parseRequestFromJSON(policy_templateJSON);
+    return msaf_api_policy_template_parseRequestFromJSON(policy_templateJSON, reason);
 }
 
 void msaf_policy_template_set_id(msaf_api_policy_template_t *policy_template, const char *policy_template_id)
 {
     ogs_assert(policy_template);
     if(policy_template->policy_template_id) ogs_free(policy_template->policy_template_id);
-    policy_template->policy_template_id = policy_template_id;
+    policy_template->policy_template_id = policy_template_id?ogs_strdup(policy_template_id):NULL;
 }
 
 char *calculate_policy_template_hash(msaf_api_policy_template_t *policy_template)
@@ -272,7 +272,7 @@ bool msaf_policy_template_clear(ogs_hash_t *policy_templates)
         ogs_hash_this(hi, &key, &key_len, (void**)(&node));
         ogs_hash_set(policy_templates, key, key_len, NULL);
         msaf_policy_template_node_free(node);
-        ogs_free(key);
+        ogs_free((void*)key);
     }
 
     return true;
@@ -297,34 +297,6 @@ static void msaf_policy_template_set_state_reason(msaf_api_policy_template_t *po
     policy_template->state_reason = msaf_api_problem_details_create(NULL, NULL, cause, detail, instance, NULL, nrf_id, 0, 0, supported_features, title, type);
 
 }
-
-#if 0
-static msaf_api_m1_qo_s_specification_t *msaf_policy_template_qos_specification_new(cJSON *policy_template)
-{
-
-    msaf_api_m1_qo_s_specification_t *qos_specification;
-    qos_specification = msaf_api_m1_qo_s_specification_parseRequestFromJSON(policy_template);
-    ogs_assert(qos_specification);
-    return qos_specification; 
-
-}
-
-static msaf_api_policy_template_application_session_context_t *msaf_policy_template_application_session_context(cJSON *policy_template)
-{
-    msaf_api_policy_template_application_session_context_t *policy_template_application_session_context;
-    policy_template_application_session_context = msaf_api_policy_template_application_session_context_parseRequestFromJSON(policy_template);
-    ogs_assert(policy_template_application_session_context);
-    return policy_template_application_session_context;    
-}
-
-static msaf_api_charging_specification_t *msaf_policy_template_charging_specification(cJSON *policy_template)
-{
-    msaf_api_charging_specification_t *charging_specification;
-    charging_specification = msaf_api_charging_specification_parseRequestFromJSON(policy_template);
-    ogs_assert(charging_specification);
-    return charging_specification;    
-}
-#endif
 
 /* vim:ts=8:sts=4:sw=4:expandtab:
 */

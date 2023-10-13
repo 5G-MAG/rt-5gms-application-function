@@ -12,7 +12,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 static void msaf_pcf_session_remove(msaf_pcf_session_t *pcf_sess);
 
-pcf_session_t *msaf_pcf_session_new(ogs_sockaddr_t *pcf_address)
+pcf_session_t *msaf_pcf_session_new(const ogs_sockaddr_t *pcf_address)
 {
     msaf_pcf_session_t *msaf_pcf_session;	
     msaf_pcf_session = ogs_calloc(1, sizeof(msaf_pcf_session_t));

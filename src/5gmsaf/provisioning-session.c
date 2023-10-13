@@ -408,13 +408,20 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_node_t *msaf_as = NULL;
     char *content_hosting_config_to_hash = NULL;
+    const char *reason;
 
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
 
     url_path = url_path_create(macro, provisioning_session->provisioningSessionId, msaf_as);
 
     msaf_api_content_hosting_configuration_t *content_hosting_configuration
-        = msaf_api_content_hosting_configuration_parseRequestFromJSON(content_hosting_config);
+        = msaf_api_content_hosting_configuration_parseRequestFromJSON(content_hosting_config, &reason);
+
+    if (!content_hosting_configuration) {
+        ogs_error("%s", reason);
+        ogs_free(url_path);
+        return 0;
+    }
 
     if (content_hosting_configuration->distribution_configurations) {
         OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {

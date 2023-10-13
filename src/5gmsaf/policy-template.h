@@ -28,7 +28,7 @@ extern void msaf_policy_template_set_id(msaf_api_policy_template_t *policy_templ
 
 extern msaf_api_policy_template_t *msaf_policy_template_create(cJSON *policy_template);
 
-extern msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON);
+extern msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON, const char **reason);
 
 extern cJSON *msaf_policy_template_convertToJSON(msaf_api_policy_template_t *policy_template);
 

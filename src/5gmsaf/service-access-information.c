@@ -73,7 +73,6 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
         OpenAPI_list_t *policy_templates_svr_list;
         OpenAPI_list_t *valid_policy_template_ids;
         OpenAPI_list_t *external_references;
-        OpenAPI_list_t *policy_templates_in_ready_state;
 	msaf_api_sdf_method_e sdf_method = msaf_api_sdf_method__5_TUPLE;
         OpenAPI_list_t *sdf_methods;
 
@@ -89,10 +88,11 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
         OpenAPI_list_add(sdf_methods, (void *)sdf_method);
         
 	valid_policy_template_ids = msaf_provisioning_session_get_id_of_policy_templates_in_ready_state(provisioning_session);
-        external_references = msaf_provisioning_session_get_external_reference_of_policy_templates_in_ready_state(provisioning_session);
+        external_references = msaf_provisioning_session_get_external_reference_of_policy_templates_in_ready_state(
+                        provisioning_session);
         
-	dpic = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_create(policy_templates_svr_list,
-                        valid_policy_template_ids, sdf_methods, external_references);
+	dpic = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_create(
+                        policy_templates_svr_list, valid_policy_template_ids, sdf_methods, external_references);
 
 
     }

@@ -533,11 +533,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 cJSON *policy_template =  NULL;
                                 msaf_api_policy_template_t *policy_temp = NULL;
                                 char *pol_temp;
+                                const char *parse_err;
 
                                 policy_template = cJSON_Parse(request->http.content);
                                 pol_temp = cJSON_Print(policy_template);
                                 ogs_debug("Requested Policy Template: %s", pol_temp);
-                                policy_temp = msaf_policy_template_parseFromJSON(policy_template);
+                                policy_temp = msaf_policy_template_parseFromJSON(policy_template, &parse_err);
                                 if(policy_temp) {
                                     if (msaf_provisioning_session_add_policy_template(msaf_provisioning_session, policy_temp, time(NULL))) {
                                         char *location;
@@ -566,7 +567,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_info("policy template id: %s", policy_temp->policy_template_id);
                                 } else {
                                     char *err = NULL;
-                                    err = ogs_msprintf("Problem parsing Policy template JSON.");
+                                    err = ogs_msprintf("Problem parsing Policy template JSON: %s", parse_err);
                                     ogs_error("%s",err);
                                     ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Problem parsing Policy template JSON.", err, NULL, api, app_meta));
                                     ogs_free(err);
@@ -1173,16 +1174,18 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session, message->h.resource.component[3]);
                                     if(msaf_policy_template) {
 			                cJSON *policy_template_received;
+                                        const char *parse_err;
 					
 					policy_template_received = cJSON_Parse(request->http.content); 	
 				    	     	    
-					policy_template = msaf_policy_template_parseFromJSON(policy_template_received);
+					policy_template = msaf_policy_template_parseFromJSON(policy_template_received, &parse_err);
 
 					if (!policy_template) {
-                                            const char *err = "Updating policy template: Could not parse request body as JSON";
+                                            char *err = ogs_msprintf("Updating policy template: Could not parse request body as JSON: %s", parse_err);
                                             ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Updating policy template failed.", 
 						    err, NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                            ogs_free(err);
                                             break;
                                         }
 
