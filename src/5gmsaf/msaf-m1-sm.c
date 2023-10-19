@@ -15,14 +15,17 @@
 #include "context.h"
 #include "certmgr.h"
 #include "server.h"
+#include "sai-cache.h"
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
 #include "utilities.h"
+#include "consumption-report-configuration.h"
 #include "ContentProtocolsDiscovery_body.h"
 #include "openapi/api/TS26512_M1_ProvisioningSessionsAPI-info.h"
 #include "openapi/api/TS26512_M1_ServerCertificatesProvisioningAPI-info.h"
 #include "openapi/api/TS26512_M1_ContentHostingProvisioningAPI-info.h"
+#include "openapi/api/TS26512_M1_ConsumptionReportingProvisioningAPI-info.h"
 #include "openapi/api/M3_ServerCertificatesProvisioningAPI-info.h"
 #include "openapi/api/M3_ContentHostingProvisioningAPI-info.h"
 #include "openapi/api/TS26512_M1_ContentProtocolsDiscoveryAPI-info.h"
@@ -58,6 +61,12 @@ const nf_server_interface_metadata_t
 m1_servercertificatesprovisioning_api_metadata = {
     M1_SERVERCERTIFICATESPROVISIONING_API_NAME,
     M1_SERVERCERTIFICATESPROVISIONING_API_VERSION
+};
+
+const nf_server_interface_metadata_t
+m1_consumptionreportingprovisioning_api_metadata = {
+    M1_CONSUMPTIONREPORTINGPROVISIONING_API_NAME,
+    M1_CONSUMPTIONREPORTINGPROVISIONING_API_VERSION
 };
 
 const nf_server_interface_metadata_t
@@ -103,6 +112,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     const nf_server_interface_metadata_t *m1_contenthostingprovisioning_api = &m1_contenthostingprovisioning_api_metadata;
     const nf_server_interface_metadata_t *m1_contentprotocolsdiscovery_api = &m1_contentprotocolsdiscovery_api_metadata;
     const nf_server_interface_metadata_t *m1_servercertificatesprovisioning_api = &m1_servercertificatesprovisioning_api_metadata;
+    const nf_server_interface_metadata_t *m1_consumptionreportingprovisioning_api = &m1_consumptionreportingprovisioning_api_metadata;
     const nf_server_interface_metadata_t *m3_contenthostingprovisioning_api = &m3_contenthostingprovisioning_api_metatdata;
     const nf_server_interface_metadata_t *maf_management_api = &maf_management_api_metadata;
     const nf_server_app_metadata_t *app_meta = &app_metadata;
@@ -243,282 +253,122 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         } else if (message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]) {
 
                             msaf_provisioning_session_t *msaf_provisioning_session;
+                            const nf_server_interface_metadata_t *api = NULL;
 
-                            if (!strcmp(message->h.resource.component[2], "metrics-reporting-configurations")) {
-                    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
-                            message->h.resource.component[1]);
+                            SWITCH(message->h.resource.component[2])
+                            CASE("consumption-reporting-configuration")
+                                api = m1_consumptionreportingprovisioning_api;
+                                break;
+                            CASE("content-hosting-configuration")
+                                api = m1_contenthostingprovisioning_api;
+                                break;
+                            CASE("metrics-reporting-configurations")
+                                api = m1_metricsreportingprovisioning_api;
+                                break;
+                            CASE("certificates")
+                                api = m1_servercertificatesprovisioning_api;
+                                break;
+                            DEFAULT
+                            END
 
-                    if (msaf_provisioning_session) {
-                        cJSON *metrics_reporting_config;
-
-                        ogs_debug("Request body: %s", request->http.content);
-
-                        metrics_reporting_config = cJSON_Parse(request->http.content);
-                        {
-                            char *txt = cJSON_Print(metrics_reporting_config);
-                            ogs_debug("Parsed JSON: %s", txt);
-                            cJSON_free(txt);
-                        }
-
-                        // If parsing fails
-                        if (!metrics_reporting_config) {
-                            char *err = NULL;
-                            err = ogs_msprintf("Unable to parse Metrics Reporting Configuration as JSON for the Provisioning Session [%s].", message->h.resource.component[1]);
-                            ogs_error("%s", err);
-                            ogs_assert(true == nf_server_send_error(stream,
-                                                                    400,
-                                                                    2,
-                                                                    message,
-                                                                    "Bad Metrics Reporting Configuration.",
-                                                                    err,
-                                                                    NULL,
-                                                                    m1_metricsreportingprovisioning_api,
-                                                                    app_meta));
-                            ogs_free(err);
-
-                        } else {
-
-                            // Parsing the data from POST body
-
-                            cJSON *jsonScheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
-                            const char *scheme = NULL;
-                            if (jsonScheme) scheme = cJSON_GetStringValue(jsonScheme);
-
-                            cJSON *jsonDataNetworkName = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "dataNetworkName");
-                            const char *dataNetworkName = NULL;
-                            if (jsonDataNetworkName) dataNetworkName = cJSON_GetStringValue(jsonDataNetworkName);
-
-                            cJSON *jsonIsReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isReportingInterval");
-                            bool isReportingInterval = false;
-                            if (jsonIsReportingInterval) isReportingInterval = cJSON_IsTrue(jsonIsReportingInterval);
-
-                            cJSON *jsonReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "reportingInterval");
-                            int reportingInterval = 0;
-                            if (jsonReportingInterval) reportingInterval = jsonReportingInterval->valueint;
-
-                            cJSON *jsonIsSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isSamplePercentage");
-                            bool isSamplePercentage = false;
-                            if (jsonIsSamplePercentage) isSamplePercentage = cJSON_IsTrue(jsonIsSamplePercentage);
-
-                            cJSON *jsonSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplePercentage");
-                            double samplePercentage = 0;
-                            if (jsonSamplePercentage) samplePercentage = jsonSamplePercentage->valuedouble;
-
-                            cJSON *jsonUrlFilters = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "urlFilters");
-                            OpenAPI_list_t *urlFilters = NULL;
-                            if (jsonUrlFilters && cJSON_IsArray(jsonUrlFilters)) {
-                                int size = cJSON_GetArraySize(jsonUrlFilters);
-                                urlFilters = OpenAPI_list_create();
-                                int i;
-                                for (i = 0; i < size; i++) {
-                                    cJSON *item = cJSON_GetArrayItem(jsonUrlFilters, i);
-                                    if (item && cJSON_IsString(item)) {
-                                        char* new_string = strdup(item->valuestring);
-                                        if(new_string == NULL) {
-                                            // handle memory allocation error
-                                            return;
-                                        }
-                                        OpenAPI_list_add(urlFilters, new_string);
-                                    }
-                                }
-                            }
-
-                            cJSON *jsonSamplingPeriod = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplingPeriod");
-                            int samplingPeriod = 0;
-                            if (jsonSamplingPeriod) samplingPeriod = jsonSamplingPeriod->valueint;
-
-                            cJSON *jsonMetrics = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics");
-                            OpenAPI_list_t *metrics = NULL;
-                            if (jsonMetrics && cJSON_IsArray(jsonMetrics)) {
-                                int size = cJSON_GetArraySize(jsonMetrics);
-                                metrics = OpenAPI_list_create();
-                                int i;
-                                for (i = 0; i < size; i++) {
-                                    cJSON *item = cJSON_GetArrayItem(jsonMetrics, i);
-                                    if (item && cJSON_IsString(item)) {
-                                        char* new_string = strdup(item->valuestring);
-                                        if(new_string == NULL) {
-                                            // handle memory allocation error
-                                            return;
-                                        }
-                                        OpenAPI_list_add(metrics, new_string);
-                                    }
-                                }
-                            }
-
-                            msaf_metrics_reporting_configuration_t *new_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session, msaf_strdup(scheme), msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, samplingPeriod, metrics);
-
-                            if(new_mrc){
-                                if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
-
-                                    ogs_debug("Metrics Reporting Configuration created successfully");
-
-                                    char *text;
-                                    cJSON *mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(new_mrc->config);
-                                    if (mrc_json) {
-                                        msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
-                                                message->h.resource.component[1]);
-                                        response = nf_server_new_response(request->h.uri, "application/json",
-                                                                          new_mrc->receivedTime,
-                                                                          new_mrc->etag,
-                                                                          msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
-                                                                          NULL,
-                                                                          m1_metricsreportingprovisioning_api,
-                                                                          app_meta);
-                                        ogs_assert(response);
-                                        text = cJSON_Print(mrc_json);
-                                        nf_server_populate_response(response, strlen(text), text, 201);
-                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                        response = NULL;
-                                        cJSON_Delete(mrc_json);
-                                    }
-
-                                    else {
-                                        char *err = NULL;
-                                        err = ogs_msprintf("Unable to retrieve the Metrics Reporting Configuration for the Provisioning Session [%s].",
-                                                           message->h.resource.component[1]);
-                                        ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream,
-                                                                                404,
-                                                                                2,
-                                                                                message,
-                                                                                "Unable to retrieve the Metrics Reporting Configuration.",
-                                                                                err,
-                                                                                NULL,
-                                                                                m1_metricsreportingprovisioning_api,
-                                                                                app_meta));
-                                        ogs_free(err);}
-                                }
-                                else {
-                                    char *err = NULL;
-                                    err = ogs_msprintf("Verification error on Metrics Reporting Configuration for the Provisioning Session [%s].", message->h.resource.component[1]);
-                                    ogs_error("%s", err);
-                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Metrics Reporting Configuration.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
-                                    ogs_free(err);
-                                }
-                            } else {
+                            msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                            if (!msaf_provisioning_session) {
                                 char *err = NULL;
-                                err = ogs_msprintf("Creation of the Metrics Reporting Configuration failed for the Provisioning Session [%s]", message->h.resource.component[1]);
+                                err = ogs_msprintf("Provisioning session [%s] does not exist.", message->h.resource.component[1]);
                                 ogs_error("%s", err);
-                                ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Creation of the Metrics Reporting Configuration failed.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session does not exist.", err, NULL, api, app_meta));
                                 ogs_free(err);
-                            }
-                        }
+                            } else if (!api) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Unknown sub resource [%s] for provisioning session [%s]", message->h.resource.component[2], message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session does not exist.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_free(err);
+                            } else if (api == m1_contenthostingprovisioning_api) {
+                                // process the POST body
+                                int rv;
+                                cJSON *chc;
+                                cJSON *content_hosting_config;
 
-                        if (metrics_reporting_config) cJSON_Delete(metrics_reporting_config);
+                                ogs_debug("Request body: %s", request->http.content);
 
-                    } else {
-                        char *err = NULL;
-                        err = ogs_msprintf("Provisioning session [%s] does not exist.", message->h.resource.component[1]);
-                        ogs_error("%s",err);
-                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exist.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
-                        ogs_free(err);
-                    }
-                }
+                                content_hosting_config = cJSON_Parse(request->http.content);
+                                {
+                                    char *txt = cJSON_Print(content_hosting_config);
+                                    ogs_debug("Parsed JSON: %s", txt);
+                                    cJSON_free(txt);
+                                }
 
-
-                            if (!strcmp(message->h.resource.component[2], "content-hosting-configuration")) {
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
-                                        message->h.resource.component[1]);
-                                if (msaf_provisioning_session) {
-                                    // process the POST body
-                                    int rv;
-                                    cJSON *chc;
-                                    cJSON *content_hosting_config;
-
-                                    ogs_debug("Request body: %s", request->http.content);
-
-                                    content_hosting_config = cJSON_Parse(request->http.content);
-                                    {
-                                        char *txt = cJSON_Print(content_hosting_config);
-                                        ogs_debug("Parsed JSON: %s", txt);
-                                        cJSON_free(txt);
+                                if (!content_hosting_config) {
+                                    char *err = NULL;
+                                    err = ogs_msprintf("Unable to parse Content Hosting Configuration as JSON for the Provisioning Session [%s].", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    if(msaf_provisioning_session->contentHostingConfiguration) {
+                                        OpenAPI_content_hosting_configuration_free(
+                                                msaf_provisioning_session->contentHostingConfiguration);
+                                        msaf_provisioning_session->contentHostingConfiguration = NULL;
+                                        msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
                                     }
 
-                                    if (!content_hosting_config) {
-                                        char *err = NULL;
-                                        err = ogs_msprintf("Unable to parse Content Hosting Configuration as JSON for the Provisioning Session [%s].", message->h.resource.component[1]);
-                                        ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-                                        ogs_free(err);
-                                    } else {
-
-                                        if(msaf_provisioning_session->contentHostingConfiguration) {
-                                            OpenAPI_content_hosting_configuration_free(
-                                                    msaf_provisioning_session->contentHostingConfiguration);
-                                            msaf_provisioning_session->contentHostingConfiguration = NULL;
-                                        }
+                                    rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
+                                    content_hosting_config = NULL;
     
-                                        if (msaf_provisioning_session->serviceAccessInformation) {
-                                            OpenAPI_service_access_information_resource_free(
-                                                    msaf_provisioning_session->serviceAccessInformation);
-                                            msaf_provisioning_session->serviceAccessInformation = NULL;
-                                        }
+                                    if(rv){
     
-                                        rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
-                                        content_hosting_config = NULL;
-    
-                                        if(rv){
-    
-                                            ogs_debug("Content Hosting Configuration created successfully");
-                                            if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
-                                                chc = msaf_get_content_hosting_configuration_by_provisioning_session_id(
-                                                        message->h.resource.component[1]);
-                                                if (chc != NULL) {
-                                                    char *text;
-                                                    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
+                                        ogs_debug("Content Hosting Configuration created successfully");
+                                        if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
+                                            chc = msaf_get_content_hosting_configuration_by_provisioning_session_id(
+                                                    message->h.resource.component[1]);
+                                            if (chc != NULL) {
+                                                char *text;
+                                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
                                                             message->h.resource.component[1]);
-                                                    response = nf_server_new_response(request->h.uri, "application/json",
-                                                            msaf_provisioning_session->contentHostingConfigurationReceived,
-                                                            msaf_provisioning_session->contentHostingConfigurationHash,
+                                                response = nf_server_new_response(request->h.uri, "application/json",
+                                                            msaf_provisioning_session->httpMetadata.contentHostingConfiguration.received,
+                                                            msaf_provisioning_session->httpMetadata.contentHostingConfiguration.hash,
                                                             msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age,
                                                             NULL, m1_contenthostingprovisioning_api, app_meta);
-                                                    ogs_assert(response);
-                                                    text = cJSON_Print(chc);
-                                                    nf_server_populate_response(response, strlen(text), text, 201);
-                                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                                    response = NULL;
-                                                    cJSON_Delete(chc);
-                                                } else {
-                                                    char *err = NULL;
-                                                    err = ogs_msprintf("Unable to retrieve the Content Hosting Configuration for the Provisioning Session [%s].", message->h.resource.component[1]);
-                                                    ogs_error("%s", err);
-                                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-                                                    ogs_free(err);
-                                                }
+                                                ogs_assert(response);
+                                                text = cJSON_Print(chc);
+                                                nf_server_populate_response(response, strlen(text), text, 201);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                response = NULL;
+                                                cJSON_Delete(chc);
                                             } else {
                                                 char *err = NULL;
-                                                err = ogs_msprintf("Verification error on Content Hosting Configuration for the Provisioning Session [%s].", message->h.resource.component[1]);
+                                                err = ogs_msprintf("Unable to retrieve the Content Hosting Configuration for the Provisioning Session [%s].", message->h.resource.component[1]);
                                                 ogs_error("%s", err);
-                                                ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                                 ogs_free(err);
                                             }
                                         } else {
                                             char *err = NULL;
-                                            err = ogs_msprintf("Creation of the Content Hosting Configuration failed for the Provisioning Session [%s]", message->h.resource.component[1]);
+                                            err = ogs_msprintf("Verification error on Content Hosting Configuration for the Provisioning Session [%s].", message->h.resource.component[1]);
                                             ogs_error("%s", err);
-                                            ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Creation of the Content Hosting Configuration failed.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                            ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                             ogs_free(err);
                                         }
+                                    } else {
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Creation of the Content Hosting Configuration failed for the Provisioning Session [%s]", message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Creation of the Content Hosting Configuration failed.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                        ogs_free(err);
                                     }
 
                                     if (content_hosting_config) cJSON_Delete(content_hosting_config);
-
-                                } else {
-                                    char *err = NULL;
-                                    err = ogs_msprintf("Provisioning session [%s]does not exist.", message->h.resource.component[1]);
-                                    ogs_error("%s",err);
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-                                    ogs_free(err);
                                 }
 
-                            }
-                            if (!strcmp(message->h.resource.component[2],"certificates")) {
+                            } else if (api == m1_servercertificatesprovisioning_api) {
                                 ogs_info("POST certificates");
                                 ogs_hash_index_t *hi;
                                 char *canonical_domain_name;
                                 char *cert;
                                 int csr = 0;
+                                msaf_application_server_node_t *msaf_as = NULL;
 
                                 for (hi = ogs_hash_first(request->http.params);
                                         hi; hi = ogs_hash_next(hi)) {
@@ -528,28 +378,37 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     }
                                 }
 
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-                                if (msaf_provisioning_session) {
-                                    msaf_application_server_node_t *msaf_as = NULL;
-                                    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
-                                    canonical_domain_name = msaf_as->canonicalHostname;
-                                    ogs_info("canonical_domain_name: %s", canonical_domain_name);
+                                msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
+                                canonical_domain_name = msaf_as->canonicalHostname;
+                                ogs_info("canonical_domain_name: %s", canonical_domain_name);
 
-                                    if (csr) {
-                                        msaf_certificate_t *csr_cert;
-                                        char *location;
-                                        int m1_server_certificates_response_max_age;
-                                        ogs_list_t extra_domains_list;
-                                        fqdn_list_node_t *node, *next;
+                                if (csr) {
+                                    msaf_certificate_t *csr_cert;
+                                    char *location;
+                                    int m1_server_certificates_response_max_age;
+                                    ogs_list_t extra_domains_list;
+                                    fqdn_list_node_t *node, *next;
 
-                                        ogs_list_init(&extra_domains_list);
+                                    ogs_list_init(&extra_domains_list);
 
-                                        if (request->http.content && strlen(request->http.content) > 0) {
-                                            cJSON *json;
-                                            cJSON *fqdn_json;
-                                            json = cJSON_Parse(request->http.content);
+                                    if (request->http.content && strlen(request->http.content) > 0) {
+                                        cJSON *json;
+                                        cJSON *fqdn_json;
+                                        json = cJSON_Parse(request->http.content);
 
-                                            if (!json || !cJSON_IsArray(json)) {
+                                        if (!json || !cJSON_IsArray(json)) {
+                                            char *err;
+                                            err = msaf_strdup("Body does not contain a valid JSON array.");
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Invalid content", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                            ogs_free(err);
+                                            if (json) cJSON_Delete(json);
+                                            break;
+                                        }
+
+                                        cJSON_ArrayForEach(fqdn_json, json) {
+                                            char *fqdn;
+                                            if (!cJSON_IsString(fqdn_json)) {
                                                 char *err;
                                                 err = msaf_strdup("Body does not contain a valid JSON array.");
                                                 ogs_error("%s", err);
@@ -558,95 +417,263 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 if (json) cJSON_Delete(json);
                                                 break;
                                             }
-
-                                            cJSON_ArrayForEach(fqdn_json, json) {
-                                                char *fqdn;
-                                                if (!cJSON_IsString(fqdn_json)) {
-                                                    char *err;
-                                                    err = msaf_strdup("Body does not contain a valid JSON array.");
-                                                    ogs_error("%s", err);
-                                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Invalid content", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-                                                    ogs_free(err);
-                                                    if (json) cJSON_Delete(json);
-                                                    break;
-                                                }
-                                                fqdn = msaf_strdup(cJSON_GetStringValue(fqdn_json));
-                                                node = ogs_calloc(1,sizeof(*node));
-                                                node->fqdn = fqdn;
-                                                ogs_list_add(&extra_domains_list, &node->node);
-                                            }
-
-                                            cJSON_Delete(json);
+                                            fqdn = msaf_strdup(cJSON_GetStringValue(fqdn_json));
+                                            node = ogs_calloc(1,sizeof(*node));
+                                            node->fqdn = fqdn;
+                                            ogs_list_add(&extra_domains_list, &node->node);
                                         }
-
-                                        csr_cert = server_cert_new("newcsr", canonical_domain_name, &extra_domains_list);
-
-                                        ogs_list_for_each_safe(&extra_domains_list, next, node) {
-                                            ogs_free(node->fqdn);
-                                            ogs_list_remove(&extra_domains_list, node);
-                                            ogs_free(node);
-                                        }
-
-                                        ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(csr_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(csr_cert->id));
-                                        ogs_sbi_response_t *response;
-                                        location = ogs_msprintf("%s/%s", request->h.uri, csr_cert->id);
-                                        if(csr_cert->cache_control_max_age){
-                                            m1_server_certificates_response_max_age = csr_cert->cache_control_max_age;
-                                        } else {
-                                            m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
-                                        }
-                                        response = nf_server_new_response(location, "application/x-pem-file",  csr_cert->last_modified, csr_cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
-
-                                        nf_server_populate_response(response, strlen(csr_cert->certificate), msaf_strdup(csr_cert->certificate), 200);
-
-                                        ogs_assert(response);
-                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                        ogs_free(location);
-                                        msaf_certificate_free(csr_cert);
-
-                                        break;
+                                        cJSON_Delete(json);
                                     }
 
-                                    cert = check_in_cert_list(canonical_domain_name);
-                                    if (cert != NULL) {
-                                        ogs_sbi_response_t *response;
-                                        char *location;
+                                    csr_cert = server_cert_new("newcsr", canonical_domain_name, &extra_domains_list);
 
-                                        ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(cert), OGS_HASH_KEY_STRING, cert);
-                                        
-                                        location = ogs_msprintf("%s/%s", request->h.uri, cert);
-                                        response = nf_server_new_response(location, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
-                                        nf_server_populate_response(response, 0, NULL, 200);
-                                        ogs_assert(response);
-                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                        ogs_free(location);
+                                    ogs_list_for_each_safe(&extra_domains_list, next, node) {
+                                        ogs_free(node->fqdn);
+                                        ogs_list_remove(&extra_domains_list, node);
+                                        ogs_free(node);
+                                    }
+
+                                    ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(csr_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(csr_cert->id));
+                                    ogs_sbi_response_t *response;
+                                    location = ogs_msprintf("%s/%s", request->h.uri, csr_cert->id);
+                                    if(csr_cert->cache_control_max_age){
+                                        m1_server_certificates_response_max_age = csr_cert->cache_control_max_age;
                                     } else {
-                                        msaf_certificate_t *new_cert;
-                                        int m1_server_certificates_response_max_age;
-                                        ogs_sbi_response_t *response;
-                                        char *location;
-                                        new_cert = server_cert_new("newcert", canonical_domain_name, NULL);
-                                        ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(new_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(new_cert->id));
-                                     
-                                        location = ogs_msprintf("%s/%s", request->h.uri, new_cert->id);
-                                        if(new_cert->cache_control_max_age){
-                                            m1_server_certificates_response_max_age = new_cert->cache_control_max_age;
-                                        } else {
-                                            m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
-                                        }
-                                        response = nf_server_new_response(location, NULL,  new_cert->last_modified, new_cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
-                                        nf_server_populate_response(response, 0, NULL, 200);
-                                        ogs_assert(response);
-                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                        ogs_free(location);
-                                        msaf_certificate_free(new_cert);
+                                        m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
                                     }
+                                    response = nf_server_new_response(location, "application/x-pem-file",  csr_cert->last_modified, csr_cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
+
+                                    nf_server_populate_response(response, strlen(csr_cert->certificate), msaf_strdup(csr_cert->certificate), 200);
+
+                                    ogs_assert(response);
+                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    ogs_free(location);
+                                    msaf_certificate_free(csr_cert);
+
+                                    break;
+                                }
+
+                                cert = check_in_cert_list(canonical_domain_name);
+                                if (cert != NULL) {
+                                    ogs_sbi_response_t *response;
+                                    char *location;
+
+                                    ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(cert), OGS_HASH_KEY_STRING, cert);
+                                        
+                                    location = ogs_msprintf("%s/%s", request->h.uri, cert);
+                                    response = nf_server_new_response(location, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
+                                    nf_server_populate_response(response, 0, NULL, 200);
+                                    ogs_assert(response);
+                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    ogs_free(location);
                                 } else {
+                                    msaf_certificate_t *new_cert;
+                                    int m1_server_certificates_response_max_age;
+                                    ogs_sbi_response_t *response;
+                                    char *location;
+                                    new_cert = server_cert_new("newcert", canonical_domain_name, NULL);
+                                    ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(new_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(new_cert->id));
+                                     
+                                    location = ogs_msprintf("%s/%s", request->h.uri, new_cert->id);
+                                    if(new_cert->cache_control_max_age){
+                                        m1_server_certificates_response_max_age = new_cert->cache_control_max_age;
+                                    } else {
+                                        m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
+                                    }
+                                    response = nf_server_new_response(location, NULL,  new_cert->last_modified, new_cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
+                                    nf_server_populate_response(response, 0, NULL, 200);
+                                    ogs_assert(response);
+                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    ogs_free(location);
+                                    msaf_certificate_free(new_cert);
+                                }
+                            } else if (api == m1_metricsreportingprovisioning_api) {
+                              cJSON *metrics_reporting_config;
+
+                              ogs_debug("Request body: %s", request->http.content);
+
+                              metrics_reporting_config = cJSON_Parse(request->http.content);
+                              {
+                                char *txt = cJSON_Print(metrics_reporting_config);
+                                ogs_debug("Parsed JSON: %s", txt);
+                                cJSON_free(txt);
+                              }
+
+                              // If parsing fails
+                              if (!metrics_reporting_config) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Unable to parse Metrics Reporting Configuration as JSON for the Provisioning Session [%s].", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream,
+                                                                    400,
+                                                                    2,
+                                                                    message,
+                                                                    "Bad Metrics Reporting Configuration.",
+                                                                    err,
+                                                                    NULL,
+                                                                    m1_metricsreportingprovisioning_api,
+                                                                    app_meta));
+                                ogs_free(err);
+
+                              } else {
+
+                                // Parsing the data from POST body
+
+                                cJSON *jsonScheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
+                                const char *scheme = NULL;
+                                if (jsonScheme) scheme = cJSON_GetStringValue(jsonScheme);
+
+                                cJSON *jsonDataNetworkName = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "dataNetworkName");
+                                const char *dataNetworkName = NULL;
+                                if (jsonDataNetworkName) dataNetworkName = cJSON_GetStringValue(jsonDataNetworkName);
+
+                                cJSON *jsonIsReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isReportingInterval");
+                                bool isReportingInterval = false;
+                                if (jsonIsReportingInterval) isReportingInterval = cJSON_IsTrue(jsonIsReportingInterval);
+
+                                cJSON *jsonReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "reportingInterval");
+                                int reportingInterval = 0;
+                                if (jsonReportingInterval) reportingInterval = jsonReportingInterval->valueint;
+
+                                cJSON *jsonIsSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isSamplePercentage");
+                                bool isSamplePercentage = false;
+                                if (jsonIsSamplePercentage) isSamplePercentage = cJSON_IsTrue(jsonIsSamplePercentage);
+
+                                cJSON *jsonSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplePercentage");
+                                double samplePercentage = 0;
+                                if (jsonSamplePercentage) samplePercentage = jsonSamplePercentage->valuedouble;
+
+                                cJSON *jsonUrlFilters = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "urlFilters");
+                                OpenAPI_list_t *urlFilters = NULL;
+                                if (jsonUrlFilters && cJSON_IsArray(jsonUrlFilters)) {
+                                  int size = cJSON_GetArraySize(jsonUrlFilters);
+                                  urlFilters = OpenAPI_list_create();
+                                  int i;
+                                  for (i = 0; i < size; i++) {
+                                    cJSON *item = cJSON_GetArrayItem(jsonUrlFilters, i);
+                                    if (item && cJSON_IsString(item)) {
+                                      char* new_string = strdup(item->valuestring);
+                                      if(new_string == NULL) {
+                                        // handle memory allocation error
+                                        return;
+                                      }
+                                      OpenAPI_list_add(urlFilters, new_string);
+                                    }
+                                  }
+                                }
+
+                                cJSON *jsonSamplingPeriod = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplingPeriod");
+                                int samplingPeriod = 0;
+                                if (jsonSamplingPeriod) samplingPeriod = jsonSamplingPeriod->valueint;
+
+                                cJSON *jsonMetrics = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics");
+                                OpenAPI_list_t *metrics = NULL;
+                                if (jsonMetrics && cJSON_IsArray(jsonMetrics)) {
+                                  int size = cJSON_GetArraySize(jsonMetrics);
+                                  metrics = OpenAPI_list_create();
+                                  int i;
+                                  for (i = 0; i < size; i++) {
+                                    cJSON *item = cJSON_GetArrayItem(jsonMetrics, i);
+                                    if (item && cJSON_IsString(item)) {
+                                      char* new_string = strdup(item->valuestring);
+                                      if(new_string == NULL) {
+                                        // handle memory allocation error
+                                        return;
+                                      }
+                                      OpenAPI_list_add(metrics, new_string);
+                                    }
+                                  }
+                                }
+
+                                msaf_metrics_reporting_configuration_t *new_mrc = msaf_metrics_reporting_configuration_create(msaf_provisioning_session, msaf_strdup(scheme), msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval, isSamplePercentage, samplePercentage, urlFilters, samplingPeriod, metrics);
+
+                                if(new_mrc) {
+                                  if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
+
+                                    ogs_debug("Metrics Reporting Configuration created successfully");
+
+                                    char *text;
+                                    cJSON *mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(new_mrc->config);
+                                    if (mrc_json) {
+                                      msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
+                                                message->h.resource.component[1]);
+                                      response = nf_server_new_response(request->h.uri, "application/json",
+                                                                        new_mrc->receivedTime,
+                                                                        new_mrc->etag,
+                                                                        msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
+                                                                        NULL, api, app_meta);
+                                      ogs_assert(response);
+                                      text = cJSON_Print(mrc_json);
+                                      nf_server_populate_response(response, strlen(text), text, 201);
+                                      ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                      response = NULL;
+                                      cJSON_Delete(mrc_json);
+                                    } else {
+                                      char *err = NULL;
+                                      err = ogs_msprintf("Unable to retrieve the Metrics Reporting Configuration for the Provisioning Session [%s].",
+                                                         message->h.resource.component[1]);
+                                      ogs_error("%s", err);
+                                      ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the Metrics Reporting Configuration.",
+                                                                              err, NULL, api, app_meta));
+                                      ogs_free(err);
+                                    }
+                                  } else {
                                     char *err = NULL;
-                                    err = ogs_msprintf("Provisioning session [%s] does not exists.", message->h.resource.component[1]);
+                                    err = ogs_msprintf("Verification error on Metrics Reporting Configuration for the Provisioning Session [%s].", message->h.resource.component[1]);
                                     ogs_error("%s", err);
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Metrics Reporting Configuration.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
                                     ogs_free(err);
+                                  }
+                                } else {
+                                  char *err = NULL;
+                                  err = ogs_msprintf("Creation of the Metrics Reporting Configuration failed for the Provisioning Session [%s]", message->h.resource.component[1]);
+                                  ogs_error("%s", err);
+                                  ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Creation of the Metrics Reporting Configuration failed.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                  ogs_free(err);
+                                }
+                              }
+
+                              if (metrics_reporting_config) cJSON_Delete(metrics_reporting_config);
+                            } else if (api == m1_consumptionreportingprovisioning_api) {
+                                cJSON *json;
+
+                                ogs_debug("POST consumption-reporting-configuration");
+
+                                json = cJSON_Parse(request->http.content);
+                                if (!json) {
+                                    char *err;
+                                    err = ogs_msprintf("Bad ConsumptionReportingConfiguration for provisioning session [%s]", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    OpenAPI_consumption_reporting_configuration_t *report_config;
+                                    const char *parse_err = NULL;
+
+                                    report_config = msaf_consumption_report_configuration_parseJSON(json, &parse_err);
+                                    cJSON_Delete(json);
+
+                                    if (!report_config) {
+                                        char *err;
+                                        err = ogs_msprintf("Bad ConsumptionReportingConfiguration for provisioning session [%s]: %s", message->h.resource.component[1], parse_err);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                        ogs_free(err);
+                                    } else if (!msaf_consumption_report_configuration_register(msaf_provisioning_session, report_config)) {
+                                        char *err;
+                                        err = ogs_msprintf("Unable to register ConsumptionReportingConfiguration for provisioning session [%s]", message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 408, 2, message, "Already a ConsumptionReportingConfiguration registered.", err, NULL, api, app_meta));
+                                        ogs_free(err);
+                                        OpenAPI_consumption_reporting_configuration_free(report_config);
+                                    } else {
+                                        ogs_sbi_response_t *response;
+    
+                                        response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, api, app_meta);
+                                        ogs_assert(response);
+                                        nf_server_populate_response(response, 0, NULL, 204);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    }
                                 }
                             }
 
@@ -737,7 +764,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 } else {
                                     location = ogs_msprintf("%s%s", request->h.uri,msaf_provisioning_session->provisioningSessionId);
                                 }
-                                response = nf_server_new_response(location, "application/json",  msaf_provisioning_session->provisioningSessionReceived, msaf_provisioning_session->provisioningSessionHash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_provisioningsession_api, app_meta);
+                                response = nf_server_new_response(location, "application/json",  msaf_provisioning_session->httpMetadata.provisioningSession.received, msaf_provisioning_session->httpMetadata.provisioningSession.hash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_provisioningsession_api, app_meta);
 
                                 nf_server_populate_response(response, strlen(text), text, 201);
                                 ogs_assert(response);
@@ -873,53 +900,85 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             }
                         } else if (message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
+                            const nf_server_interface_metadata_t *api = NULL;
+
+                            SWITCH(message->h.resource.component[2])
+                            CASE("consumption-reporting-configuration")
+                                api = m1_consumptionreportingprovisioning_api;
+                                break;
+                            CASE("content-hosting-configuration")
+                                api = m1_contenthostingprovisioning_api;
+                                break;
+                            CASE("protocols")
+                                api = m1_contentprotocolsdiscovery_api;
+                                break;
+                            DEFAULT
+                            END
+
                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-                            if (!strcmp(message->h.resource.component[2],"content-hosting-configuration")) {
-                                if(msaf_provisioning_session) {
-                                    cJSON *chc;
-                                    chc = msaf_get_content_hosting_configuration_by_provisioning_session_id(message->h.resource.component[1]);
-                                    if (chc != NULL) {
-                                        ogs_sbi_response_t *response;
-                                        char *text;
-                                        text = cJSON_Print(chc);
+                            if (!msaf_provisioning_session) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Provisioning session [%s] is not available.", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, api, app_meta));
+                                ogs_free(err);
+                            } else if (!api) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Unknown sub-resource [%s] for provisioning session [%s].", message->h.resource.component[2], message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unknown provisioning session sub-resource.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_free(err);
+                            } else if (api == m1_contenthostingprovisioning_api) {
+                                cJSON *chc;
+                                chc = msaf_get_content_hosting_configuration_by_provisioning_session_id(message->h.resource.component[1]);
+                                if (chc != NULL) {
+                                    ogs_sbi_response_t *response;
+                                    char *text;
+                                    text = cJSON_Print(chc);
 
-                                        response = nf_server_new_response(request->h.uri, "application/json",  msaf_provisioning_session->contentHostingConfigurationReceived, msaf_provisioning_session->contentHostingConfigurationHash, msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age, NULL, m1_contenthostingprovisioning_api, app_meta);
-                                        ogs_assert(response);
-                                        nf_server_populate_response(response, strlen(text), text, 200);
-                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    response = nf_server_new_response(request->h.uri, "application/json",  msaf_provisioning_session->httpMetadata.contentHostingConfiguration.received, msaf_provisioning_session->httpMetadata.contentHostingConfiguration.hash, msaf_self()->config.server_response_cache_control->m1_content_hosting_configurations_response_max_age, NULL, m1_contenthostingprovisioning_api, app_meta);
+                                    ogs_assert(response);
+                                    nf_server_populate_response(response, strlen(text), text, 200);
+                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 
-                                        cJSON_Delete(chc);
-                                    } else {
-                                        char *err = NULL;
-                                        err = ogs_msprintf("Provisioning Session [%s]: Unable to retrieve the Content Hosting Configuration", message->h.resource.component[1]);
-                                        ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
-                                        ogs_free(err);
-                                    }
-
+                                    cJSON_Delete(chc);
                                 } else {
                                     char *err = NULL;
-                                    err = ogs_msprintf("Provisioning Session [%s] does not exist.", message->h.resource.component[1]);
+                                    err = ogs_msprintf("Provisioning Session [%s]: Unable to retrieve the Content Hosting Configuration", message->h.resource.component[1]);
                                     ogs_error("%s", err);
-
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     ogs_free(err);
                                 }
 
-                            } else if (!strcmp(message->h.resource.component[2],"protocols")) {
-                                if(msaf_provisioning_session) {
-                                    ogs_sbi_response_t *response;
-                                    ogs_info("CONTENT_PROTOCOLS_DISCOVERY_JSON: %s", CONTENT_PROTOCOLS_DISCOVERY_JSON);
-                                    response = nf_server_new_response(NULL, "application/json",  CONTENT_PROTOCOLS_DISCOVERY_JSON_TIME, CONTENT_PROTOCOLS_DISCOVERY_JSON_HASH, msaf_self()->config.server_response_cache_control->m1_content_protocols_response_max_age, NULL, m1_contentprotocolsdiscovery_api, app_meta);
-                                    ogs_assert(response);
-                                    nf_server_populate_response(response, strlen(CONTENT_PROTOCOLS_DISCOVERY_JSON), msaf_strdup(CONTENT_PROTOCOLS_DISCOVERY_JSON), 200);
-                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                } else {
+                            } else if (api == m1_contentprotocolsdiscovery_api) {
+                                ogs_sbi_response_t *response;
+                                ogs_info("CONTENT_PROTOCOLS_DISCOVERY_JSON: %s", CONTENT_PROTOCOLS_DISCOVERY_JSON);
+                                response = nf_server_new_response(NULL, "application/json",  CONTENT_PROTOCOLS_DISCOVERY_JSON_TIME, CONTENT_PROTOCOLS_DISCOVERY_JSON_HASH, msaf_self()->config.server_response_cache_control->m1_content_protocols_response_max_age, NULL, m1_contentprotocolsdiscovery_api, app_meta);
+                                ogs_assert(response);
+                                nf_server_populate_response(response, strlen(CONTENT_PROTOCOLS_DISCOVERY_JSON), msaf_strdup(CONTENT_PROTOCOLS_DISCOVERY_JSON), 200);
+                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                            } else if (api == m1_consumptionreportingprovisioning_api) {
+                                ogs_sbi_response_t *response;
+                                char *body;
+
+                                ogs_debug("GET ConsumptionReportingConfiguration");
+
+                                body = msaf_consumption_report_configuration_body(msaf_provisioning_session);
+                                if (!body) {
                                     char *err = NULL;
-                                    err = ogs_msprintf("Provisioning Session [%s] does not exist.", message->h.resource.component[1]);
+                                    err = ogs_msprintf("Provisioning Session [%s]: Unable to retrieve the Consumption Reporting Configuration", message->h.resource.component[1]);
                                     ogs_error("%s", err);
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exist.", err, NULL, m1_contentprotocolsdiscovery_api, app_meta));
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the Consumption Reporting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     ogs_free(err);
+                                } else {
+                                    response = nf_server_new_response(NULL, NULL,
+                                            msaf_consumption_report_configuration_last_modified(msaf_provisioning_session),
+                                            msaf_consumption_report_configuration_etag(msaf_provisioning_session),
+                                            msaf_self()->config.server_response_cache_control->m1_consumption_reporting_response_max_age,
+                                            NULL, api, app_meta);
+                                    ogs_assert(response);
+                                    nf_server_populate_response(response, strlen(body), body, 200);
+                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                 }
                             }
                         } else if (message->h.resource.component[1] && !message->h.resource.component[2]) {
@@ -935,7 +994,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 char *text;
                                 text = cJSON_Print(provisioning_session);
 
-                                response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->provisioningSessionReceived, msaf_provisioning_session->provisioningSessionHash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_provisioningsession_api, app_meta);
+                                response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->httpMetadata.provisioningSession.received, msaf_provisioning_session->httpMetadata.provisioningSession.hash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_provisioningsession_api, app_meta);
 
                                 nf_server_populate_response(response, strlen(text), text, 200);
                                 ogs_assert(response);
@@ -945,7 +1004,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 err = ogs_msprintf("Provisioning Session [%s] is not available.", message->h.resource.component[1]);
                                 ogs_error("%s", err);
 
-                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Provisioning session does not exists.", err, NULL, m1_provisioningsession_api, app_meta));
                                 ogs_free(err);
                             }
                             if (provisioning_session) cJSON_Delete(provisioning_session);
@@ -954,13 +1013,178 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                     CASE(OGS_SBI_HTTP_METHOD_PUT)
                         if (message->h.resource.component[1] && message->h.resource.component[2]) {
-
-                            ogs_info("PUT: %s", message->h.resource.component[1]);
                             msaf_provisioning_session_t *msaf_provisioning_session;
+                            const nf_server_interface_metadata_t *api = NULL;
+
+                            ogs_debug("PUT: %s/%s", message->h.resource.component[1], message->h.resource.component[2]);
+
+                            SWITCH(message->h.resource.component[2])
+                            CASE("consumption-reporting-configuration")
+                                api = m1_consumptionreportingprovisioning_api;
+                                break;
+                            CASE("content-hosting-configuration")
+                                api = m1_contenthostingprovisioning_api;
+                                break;
+                            CASE("metrics-reporting-configurations")
+                                api = m1_metricsreportingprovisioning_api;
+                                break;
+                            CASE("certificates")
+                                api = m1_servercertificatesprovisioning_api;
+                                break;
+                            DEFAULT
+                            END
+
                             msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-                            if(msaf_provisioning_session) {
-                                ogs_info("PUT: with msaf_provisioning_session: %s", message->h.resource.component[1]);
-                                if (!strcmp(message->h.resource.component[2],"content-hosting-configuration") && !message->h.resource.component[3]) {
+                            if (!msaf_provisioning_session) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Provisioning Session [%s] is not available.", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, api, app_meta));
+                                ogs_free(err);
+                            } else if (!api) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Unknown sub-resource [%s] for provisioning Session [%s].", message->h.resource.component[2], message->h.resource.component[1]);
+                                ogs_error("%s", err);
+
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unknown provisioning session sub-resource.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_free(err);
+                            } else if (api == m1_metricsreportingprovisioning_api) {
+                                cJSON * metrics_reporting_config;
+                                ogs_debug("PUT Request body: %s", request -> http.content);
+                                metrics_reporting_config = cJSON_Parse(request -> http.content);
+                                {
+                                    char * txt = cJSON_Print(metrics_reporting_config);
+                                    ogs_debug("Parsed JSON for PUT: %s", txt);
+                                    cJSON_free(txt);
+                                }
+                              
+                                // If parsing fails
+                                if (!metrics_reporting_config) {
+                                    char * err = NULL;
+                                    err = ogs_msprintf("Unable to parse Metrics Reporting Configuration as JSON for the Provisioning Session [%s].", message -> h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Metrics Reporting Configuration.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                    ogs_free(err);
+                                } else {
+
+                                    cJSON * jsonScheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
+                                    const char * scheme = NULL;
+                                    if (jsonScheme) scheme = cJSON_GetStringValue(jsonScheme);
+
+                                    cJSON * jsonDataNetworkName = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "dataNetworkName");
+                                    const char * dataNetworkName = NULL;
+                                    if (jsonDataNetworkName) dataNetworkName = cJSON_GetStringValue(jsonDataNetworkName);
+
+                                    cJSON * jsonIsReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isReportingInterval");
+                                    bool isReportingInterval = false;
+                                    if (jsonIsReportingInterval) isReportingInterval = cJSON_IsTrue(jsonIsReportingInterval);
+
+                                    cJSON * jsonReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "reportingInterval");
+                                    int reportingInterval = 0;
+                                    if (jsonReportingInterval) reportingInterval = jsonReportingInterval -> valueint;
+
+                                    cJSON * jsonIsSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isSamplePercentage");
+                                    bool isSamplePercentage = false;
+                                    if (jsonIsSamplePercentage) isSamplePercentage = cJSON_IsTrue(jsonIsSamplePercentage);
+
+                                    cJSON * jsonSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplePercentage");
+                                    double samplePercentage = 0;
+                                    if (jsonSamplePercentage) samplePercentage = jsonSamplePercentage -> valuedouble;
+
+                                    cJSON * jsonUrlFilters = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "urlFilters");
+                                    OpenAPI_list_t * urlFilters = NULL;
+                                    if (jsonUrlFilters && cJSON_IsArray(jsonUrlFilters)) {
+                                        int size = cJSON_GetArraySize(jsonUrlFilters);
+                                        urlFilters = OpenAPI_list_create();
+                                        int i;
+                                        for (i = 0; i < size; i++) {
+                                            cJSON * item = cJSON_GetArrayItem(jsonUrlFilters, i);
+                                            if (item && cJSON_IsString(item)) {
+                                                char * new_string = strdup(item -> valuestring);
+                                                if (new_string == NULL) {
+                                                    // handle memory allocation error
+                                                    return;
+                                                }
+                                                OpenAPI_list_add(urlFilters, new_string);
+                                            }
+                                        }
+                                    }
+
+                                    cJSON *jsonSamplingPeriod = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplingPeriod");
+                                    int samplingPeriod = 0;
+                                    if (jsonSamplingPeriod) samplingPeriod = jsonSamplingPeriod->valueint;
+
+                                    cJSON * jsonMetrics = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics");
+                                    OpenAPI_list_t * metrics = NULL;
+                                    if (jsonMetrics && cJSON_IsArray(jsonMetrics)) {
+                                        int size = cJSON_GetArraySize(jsonMetrics);
+                                        metrics = OpenAPI_list_create();
+                                        int i;
+                                        for (i = 0; i < size; i++) {
+                                            cJSON * item = cJSON_GetArrayItem(jsonMetrics, i);
+                                            if (item && cJSON_IsString(item)) {
+                                                char * new_string = strdup(item -> valuestring);
+                                                if (new_string == NULL) {
+                                                    // handle memory allocation error
+                                                    return;
+                                                }
+                                                OpenAPI_list_add(metrics, new_string);
+                                            }
+                                        }
+                                    }
+
+                                    char * current_id = message -> h.resource.component[3];
+                                    msaf_metrics_reporting_configuration_t *updated_metrics_reporting_configuration =
+                                                msaf_metrics_reporting_configuration_update(current_id, msaf_strdup(scheme),
+                                                        msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval,
+                                                        isSamplePercentage, samplePercentage, urlFilters, samplingPeriod, metrics);
+
+                                    if (updated_metrics_reporting_configuration) {
+                                        if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
+                                            ogs_debug("Metrics Reporting Configuration created successfully");
+                                            char * text;
+                                            cJSON * mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(updated_metrics_reporting_configuration->config);
+                                            if (mrc_json) {
+                                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message -> h.resource.component[1]);
+                                                response = nf_server_new_response(request->h.uri, "application/json",
+                                                            updated_metrics_reporting_configuration->receivedTime,
+                                                            updated_metrics_reporting_configuration->etag,
+                                                            msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
+                                                            NULL, m1_metricsreportingprovisioning_api, app_meta);
+                                                ogs_assert(response);
+                                                text = cJSON_Print(mrc_json);
+                                                nf_server_populate_response(response, strlen(text), text, 201);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                response = NULL;
+                                                cJSON_Delete(mrc_json);
+                                            } else {
+                                                char * err = NULL;
+                                                err = ogs_msprintf("Unable to retrieve the Metrics Reporting Configuration for the Provisioning Session [%s].", message -> h.resource.component[1]);
+                                                ogs_error("%s", err);
+                                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the Metrics Reporting Configuration.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                                ogs_free(err);
+                                            }
+                                        } else {
+                                            char * err = NULL;
+                                            err = ogs_msprintf("Verification error on Metrics Reporting Configuration for the Provisioning Session [%s].", message -> h.resource.component[1]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Metrics Reporting Configuration.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                            ogs_free(err);
+                                        }
+                                    } else {
+                                        char * err = NULL;
+                                        err = ogs_msprintf("Update of the Metrics Reporting Configuration failed for the Provisioning Session [%s]", message -> h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Update of the Metrics Reporting Configuration failed.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                        ogs_free(err);
+                                    }
+                                }
+
+                                if (metrics_reporting_config) cJSON_Delete(metrics_reporting_config);
+
+                            } else if (api == m1_contenthostingprovisioning_api) {
+                                if (!message->h.resource.component[3]) {
 
                                     // process the PUT body
                                     int rv;
@@ -984,11 +1208,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     if(msaf_provisioning_session->contentHostingConfiguration) {
                                         OpenAPI_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
                                         msaf_provisioning_session->contentHostingConfiguration = NULL;
-                                    }
-
-                                    if (msaf_provisioning_session->serviceAccessInformation) {
-                                        OpenAPI_service_access_information_resource_free(msaf_provisioning_session->serviceAccessInformation);
-                                        msaf_provisioning_session->serviceAccessInformation = NULL;
+                                        msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
                                     }
 
                                     rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
@@ -1012,156 +1232,21 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Failed to update the contentHostingConfiguration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                         ogs_free(err);
                                     }
+                                } else {
+                                    char *err = NULL;
+                                    err = ogs_msprintf("Provisioning Session [%s]: "
+                                                       "Unknown Content Hosting Configuration sub-resource [%s].",
+                                                       message->h.resource.component[1],
+                                                       message->h.resource.component[3]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message,
+                                                                            "Unknown Content Hosting Configuration sub-resource.",
+                                                                            err, NULL, m1_contenthostingprovisioning_api, app_meta)
+                                            );
+                                    ogs_free(err);
                                 }
-                                else if (!strcmp(message -> h.resource.component[2], "metrics-reporting-configurations") && message -> h.resource.component[3] && !message -> h.resource.component[4]) {
-
-
-                                    cJSON * metrics_reporting_config;
-                                    ogs_debug("PUT Request body: %s", request -> http.content);
-                                    metrics_reporting_config = cJSON_Parse(request -> http.content);
-                                    {
-                                        char * txt = cJSON_Print(metrics_reporting_config);
-                                        ogs_debug("Parsed JSON for PUT: %s", txt);
-                                        cJSON_free(txt);
-                                    }
-
-                                    // If parsing fails
-                                    if (!metrics_reporting_config) {
-                                        char * err = NULL;
-                                        err = ogs_msprintf("Unable to parse Metrics Reporting Configuration as JSON for the Provisioning Session [%s].", message -> h.resource.component[1]);
-                                        ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Metrics Reporting Configuration.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
-                                        ogs_free(err);
-
-
-                                    } else {
-
-                                        cJSON * jsonScheme = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "scheme");
-                                        const char * scheme = NULL;
-                                        if (jsonScheme) scheme = cJSON_GetStringValue(jsonScheme);
-
-                                        cJSON * jsonDataNetworkName = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "dataNetworkName");
-                                        const char * dataNetworkName = NULL;
-                                        if (jsonDataNetworkName) dataNetworkName = cJSON_GetStringValue(jsonDataNetworkName);
-
-                                        cJSON * jsonIsReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isReportingInterval");
-                                        bool isReportingInterval = false;
-                                        if (jsonIsReportingInterval) isReportingInterval = cJSON_IsTrue(jsonIsReportingInterval);
-
-                                        cJSON * jsonReportingInterval = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "reportingInterval");
-                                        int reportingInterval = 0;
-                                        if (jsonReportingInterval) reportingInterval = jsonReportingInterval -> valueint;
-
-                                        cJSON * jsonIsSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "isSamplePercentage");
-                                        bool isSamplePercentage = false;
-                                        if (jsonIsSamplePercentage) isSamplePercentage = cJSON_IsTrue(jsonIsSamplePercentage);
-
-                                        cJSON * jsonSamplePercentage = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplePercentage");
-                                        double samplePercentage = 0;
-                                        if (jsonSamplePercentage) samplePercentage = jsonSamplePercentage -> valuedouble;
-
-                                        cJSON * jsonUrlFilters = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "urlFilters");
-                                        OpenAPI_list_t * urlFilters = NULL;
-                                        if (jsonUrlFilters && cJSON_IsArray(jsonUrlFilters)) {
-                                            int size = cJSON_GetArraySize(jsonUrlFilters);
-                                            urlFilters = OpenAPI_list_create();
-                                            int i;
-                                            for (i = 0; i < size; i++) {
-                                                cJSON * item = cJSON_GetArrayItem(jsonUrlFilters, i);
-                                                if (item && cJSON_IsString(item)) {
-                                                    char * new_string = strdup(item -> valuestring);
-                                                    if (new_string == NULL) {
-                                                        // handle memory allocation error
-                                                        return;
-                                                    }
-                                                    OpenAPI_list_add(urlFilters, new_string);
-                                                }
-                                            }
-                                        }
-
-                                        cJSON *jsonSamplingPeriod = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "samplingPeriod");
-                                        int samplingPeriod = 0;
-                                        if (jsonSamplingPeriod) samplingPeriod = jsonSamplingPeriod->valueint;
-
-                                        cJSON * jsonMetrics = cJSON_GetObjectItemCaseSensitive(metrics_reporting_config, "metrics");
-                                        OpenAPI_list_t * metrics = NULL;
-                                        if (jsonMetrics && cJSON_IsArray(jsonMetrics)) {
-                                            int size = cJSON_GetArraySize(jsonMetrics);
-                                            metrics = OpenAPI_list_create();
-                                            int i;
-                                            for (i = 0; i < size; i++) {
-                                                cJSON * item = cJSON_GetArrayItem(jsonMetrics, i);
-                                                if (item && cJSON_IsString(item)) {
-                                                    char * new_string = strdup(item -> valuestring);
-                                                    if (new_string == NULL) {
-                                                        // handle memory allocation error
-                                                        return;
-                                                    }
-                                                    OpenAPI_list_add(metrics, new_string);
-                                                }
-                                            }
-                                        }
-
-                                        char * current_id = message -> h.resource.component[3];
-                                        msaf_metrics_reporting_configuration_t *updated_metrics_reporting_configuration =
-                                                msaf_metrics_reporting_configuration_update(current_id, msaf_strdup(scheme),
-                                                        msaf_strdup(dataNetworkName), isReportingInterval, reportingInterval,
-                                                        isSamplePercentage, samplePercentage, urlFilters, samplingPeriod, metrics);
-
-                                        if (updated_metrics_reporting_configuration) {
-                                            if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
-                                                ogs_debug("Metrics Reporting Configuration created successfully");
-                                                char * text;
-                                                cJSON * mrc_json = OpenAPI_metrics_reporting_configuration_convertToJSON(updated_metrics_reporting_configuration->config);
-                                                if (mrc_json) {
-                                                    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message -> h.resource.component[1]);
-                                                    response = nf_server_new_response(request->h.uri, "application/json",
-                                                            updated_metrics_reporting_configuration->receivedTime,
-                                                            updated_metrics_reporting_configuration->etag,
-                                                            msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
-                                                            NULL, m1_metricsreportingprovisioning_api, app_meta);
-                                                    ogs_assert(response);
-                                                    text = cJSON_Print(mrc_json);
-                                                    nf_server_populate_response(response, strlen(text), text, 201);
-                                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                                    response = NULL;
-                                                    cJSON_Delete(mrc_json); }
-
-                                                else {
-                                                    char * err = NULL;
-                                                    err = ogs_msprintf("Unable to retrieve the Metrics Reporting Configuration for the Provisioning Session [%s].", message -> h.resource.component[1]);
-                                                    ogs_error("%s", err);
-                                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the Metrics Reporting Configuration.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
-                                                    ogs_free(err);
-                                                }
-                                            } else {
-                                                char * err = NULL;
-                                                err = ogs_msprintf("Verification error on Metrics Reporting Configuration for the Provisioning Session [%s].", message -> h.resource.component[1]);
-                                                ogs_error("%s", err);
-                                                ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Metrics Reporting Configuration.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
-                                                ogs_free(err);
-                                            }
-                                        } else {
-                                            char * err = NULL;
-                                            err = ogs_msprintf("Update of the Metrics Reporting Configuration failed for the Provisioning Session [%s]", message -> h.resource.component[1]);
-                                            ogs_error("%s", err);
-                                            ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Update of the Metrics Reporting Configuration failed.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
-                                            ogs_free(err);
-                                        }
-                                    }
-
-                                    if (metrics_reporting_config) cJSON_Delete(metrics_reporting_config);
-
-                                    if (!msaf_provisioning_session)
-                                    {
-                                        char * err = NULL;
-                                        err = ogs_msprintf("Provisioning session [%s] does not exist.", message -> h.resource.component[1]);
-                                        ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exist.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
-                                        ogs_free(err);
-                                    }
-                                }
-                                else if (!strcmp(message->h.resource.component[2],"certificates") && message->h.resource.component[3] && !message->h.resource.component[4]) {
+                            } else if (api == m1_servercertificatesprovisioning_api) {
+                                if (message->h.resource.component[3] && !message->h.resource.component[4]) {
                                     char *cert_id;
                                     char *cert;
                                     int rv;
@@ -1249,14 +1334,47 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Resource not found.", err, NULL, m1_provisioningsession_api, app_meta));
                                     ogs_free(err);
                                 }
-                            } else {
-                                char *err = NULL;
-                                err = ogs_msprintf("Provisioning Session [%s] does not exist.", message->h.resource.component[1]);
-                                ogs_error("%s", err);
-                                ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-                                ogs_free(err);
-                            }
+                            } else if (api == m1_consumptionreportingprovisioning_api) {
+                                cJSON *json;
 
+                                ogs_debug("PUT ConsumptionReportingConfiguration");
+
+                                json = cJSON_Parse(request->http.content);
+                                if (!json) {
+                                    char *err = NULL;
+                                    err = ogs_msprintf("Bad request body while updating ConsumptionReportingConfiguration for Provisioining Session [%s].", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    OpenAPI_consumption_reporting_configuration_t *config;
+                                    const char *parse_err = NULL;
+
+                                    config = msaf_consumption_report_configuration_parseJSON(json, &parse_err);
+                                    if (!config) {
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Bad request body while updating ConsumptionReportingConfiguration for Provisioining Session [%s]: %s", message->h.resource.component[1], parse_err);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                        ogs_free(err);
+                                    } else {
+                                        if (!msaf_consumption_report_configuration_update(msaf_provisioning_session, config)) {
+                                            char *err = NULL;
+                                            err = ogs_msprintf("No ConsumptionReportingConfiguration for Provisioining Session [%s].", message->h.resource.component[1]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Not found.", err, NULL, api, app_meta));
+                                            ogs_free(err);
+                                        } else {
+                                            ogs_sbi_response_t *response;
+                                            response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, api, app_meta);
+                                            ogs_assert(response);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        }
+                                    }
+                                    cJSON_Delete(json);
+                                }
+                            }
 
                         } else {
                             char *err = NULL;
@@ -1269,52 +1387,45 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                     CASE(OGS_SBI_HTTP_METHOD_DELETE)
 
-                        if (message->h.resource.component[1] && message->h.resource.component[2] && !strcmp(message->h.resource.component[2],"certificates") && message->h.resource.component[3] && !message->h.resource.component[4]) {
-                            ogs_sbi_response_t *response;
-                            msaf_provisioning_session_t *provisioning_session = NULL;
+                        if (message->h.resource.component[1] && message->h.resource.component[2]) {
+                            msaf_provisioning_session_t *provisioning_session;
+                            const nf_server_interface_metadata_t *api = NULL;
+
+                            ogs_debug("DELETE: %s/%s", message->h.resource.component[1], message->h.resource.component[2]);
+
+                            SWITCH(message->h.resource.component[2])
+                            CASE("consumption-reporting-configuration")
+                                api = m1_consumptionreportingprovisioning_api;
+                                break;
+                            CASE("content-hosting-configuration")
+                                api = m1_contenthostingprovisioning_api;
+                                break;
+                            CASE("metrics-reporting-configurations")
+                                api = m1_metricsreportingprovisioning_api;
+                                break;
+                            CASE("certificates")
+                                api = m1_servercertificatesprovisioning_api;
+                                break;
+                            DEFAULT
+                            END
+
                             provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-                            if (provisioning_session) {
-                                int rv;
-                                rv = server_cert_delete(message->h.resource.component[3]);
-                                if ((rv == 0) || (rv == 8)){
-                                    response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
-                                    nf_server_populate_response(response, 0, NULL, 204);
-                                    ogs_assert(response);
-                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                    msaf_provisioning_session_certificate_hash_remove(message->h.resource.component[1], message->h.resource.component[3]);
-
-                                } else if (rv == 4 ) {
-                                    char *err = NULL;
-                                    err = ogs_msprintf("Certificate [%s] does not exist.", message->h.resource.component[3]);
-                                    ogs_error("%s", err);
-
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Certificate does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-                                    ogs_free(err);
-                                } else {
-                                    char *err = NULL;
-                                    err = ogs_msprintf("Certificate management problem for certificate [%s].", message->h.resource.component[3]);
-                                    ogs_error("%s", err);
-
-                                    ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
-                                    ogs_free(err);
-                                }
-
-                            } else {
+                            if (!provisioning_session) {
                                 char *err = NULL;
-                                err = ogs_msprintf("Provisioning Session [%s] does not exist.", message->h.resource.component[1]);
+                                err = ogs_msprintf("Provisioning Session [%s] is not available.", message->h.resource.component[1]);
                                 ogs_error("%s", err);
 
-                                ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, api, app_meta));
                                 ogs_free(err);
-                            }
-                        }
+                            } else if (!api) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Unknown sub-resource [%s] for provisioning Session [%s].", message->h.resource.component[2], message->h.resource.component[1]);
+                                ogs_error("%s", err);
 
-                        if (message->h.resource.component[1] && message->h.resource.component[2] && message->h.resource.component[3] && !message->h.resource.component[4]) {
-                            if (!strcmp(message->h.resource.component[2], "metrics-reporting-configurations")) {
-                                msaf_provisioning_session_t *msaf_provisioning_session;
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-
-                                if (msaf_provisioning_session) {
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unknown provisioning session sub-resource.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_free(err);
+                            } else if (api == m1_metricsreportingprovisioning_api) {
+                                if (message->h.resource.component[3] && !message->h.resource.component[4]) {
                                     int delete_result = msaf_metrics_reporting_configuration_delete(message->h.resource.component[3]);
                                     if (delete_result == 0) {
                                         ogs_sbi_response_t *response;
@@ -1329,62 +1440,129 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Metrics Reporting Configuration not found or could not be deleted.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
                                         ogs_free(err);
                                     }
-
                                 } else {
-                                    char *err = NULL;
-                                    err = ogs_msprintf("Provisioning session [%s] not found", message->h.resource.component[1]);
-                                    ogs_error("%s", err);
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session not found.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
-                                    ogs_free(err);
+                                  char *err = NULL;
+                                  err = ogs_msprintf("Metrics Reporting Configuration [%s] delete operation not recognised.", message->h.resource.component[1]);
+                                  ogs_error("%s", err);
+                                  ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, api, app_meta));
+                                  ogs_free(err);
                                 }
-                            }
-                        }
-
-                        else if (message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]) {
-                            msaf_provisioning_session_t *msaf_provisioning_session;
-                            ogs_sbi_response_t *response;
-                            if (!strcmp(message->h.resource.component[2],"content-hosting-configuration")) {
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-                                if(msaf_provisioning_session){
-                                    if(msaf_provisioning_session && msaf_provisioning_session->contentHostingConfiguration) {
+                            } else if (api == m1_contenthostingprovisioning_api) {
+                                /* Delete ContentHostingConfiguration operations */
+                                if (!message->h.resource.component[3]) {
+                                    /* Delete the ContentHostingConfiguration */
+                                    ogs_sbi_response_t *response;
+                                    if(provisioning_session && provisioning_session->contentHostingConfiguration) {
                                         msaf_delete_content_hosting_configuration(message->h.resource.component[1]);
-                                        OpenAPI_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
-                                        msaf_provisioning_session->contentHostingConfiguration = NULL;
+                                        OpenAPI_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
+                                        provisioning_session->contentHostingConfiguration = NULL;
                                         response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_contenthostingprovisioning_api, app_meta);
                                         ogs_assert(response);
                                         nf_server_populate_response(response, 0, NULL, 204);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                        break;
                                     } else {
                                         char *err = NULL;
                                         err = ogs_msprintf("Provisioning Session [%s] has no Content Hosting Configuration.", message->h.resource.component[1]);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Content Hosting Configuration does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Content Hosting Configuration does not exist.", err, NULL, api, app_meta));
                                         ogs_free(err);
                                     }
                                 } else {
+                                    /* Delete the ContentHostingConfiguration with extra field - undefined operation */
                                     char *err = NULL;
-                                    err = ogs_msprintf("Provisioning Session [%s] does not exists.", message->h.resource.component[1]);
+                                    err = ogs_msprintf("Provisioning Session [%s]: Unknown ContentHostingConfiguration operation.", message->h.resource.component[1]);
                                     ogs_error("%s", err);
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request", err, NULL, api, app_meta));
                                     ogs_free(err);
                                 }
-
+                            } else if (api == m1_servercertificatesprovisioning_api) {
+                                if (message->h.resource.component[3]) {
+                                    if (message->h.resource.component[4]) {
+                                        /* Delete certificate with extra field - undefined operation */
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Provisioning session [%s]: Certificate [%s]: Unknown delete operation.",
+                                                           message->h.resource.component[1], message->h.resource.component[3]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Bad request.", err, NULL, api, app_meta));
+                                        ogs_free(err);
+                                    } else {
+                                        /* Delete one certificate by id */
+                                        ogs_sbi_response_t *response;
+                                        int rv;
+                                        rv = server_cert_delete(message->h.resource.component[3]);
+                                        if ((rv == 0) || (rv == 8)){
+                                            response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                            msaf_provisioning_session_certificate_hash_remove(message->h.resource.component[1], message->h.resource.component[3]);
+                                        } else if (rv == 4 ) {
+                                            char *err = NULL;
+                                            err = ogs_msprintf("Certificate [%s] does not exist.", message->h.resource.component[3]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Certificate does not exist.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                            ogs_free(err);
+                                        } else {
+                                            char *err = NULL;
+                                            err = ogs_msprintf("Certificate management problem for certificate [%s].", message->h.resource.component[3]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Certificate management problem.", err, NULL, api, app_meta));
+                                            ogs_free(err);
+                                        }
+                                    }
+                                } else {
+                                    /* Delete certificate without certificate id - undefined operation */
+                                    char *err = NULL;
+                                    err = ogs_msprintf("Provisioning session [%s]: Unknown Certificate Management operation.", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request", err, NULL, api, app_meta));
+                                    ogs_free(err);
+                                }
+                            } else if (api == m1_consumptionreportingprovisioning_api) {
+                                if (!message->h.resource.component[3]) {
+                                    /* Delete consumption reporting configuration */
+                                    if (msaf_consumption_report_configuration_deregister(provisioning_session)) {
+                                        /* Deleted consumption reporting configuration successfully */
+                                        ogs_sbi_response_t *response;
+                                        response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, api, app_meta);
+                                        nf_server_populate_response(response, 0, NULL, 204);
+                                        ogs_assert(response);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    } else {
+                                        /* Failed to delete consumption reporting configuration - no configuration to delete */
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Provisioning session [%s]: Content Reporting Configuration not found.", message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Not Found", err, NULL, api, app_meta));
+                                        ogs_free(err);
+                                    }
+                                } else {
+                                    /* Delete ConsumptionReportingConfiguration sub-resource - undefined operation */
+                                    char *err = NULL;
+                                    err = ogs_msprintf("Provisioning session [%s]: Unknown Consumption Reporting Configuration operation.", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request", err, NULL, api, app_meta));
+                                    ogs_free(err);
+                                }
                             }
-
                         } else if (message->h.resource.component[1] && !message->h.resource.component[2]) {
-                            ogs_sbi_response_t *response;
-                            msaf_provisioning_session_t *provisioning_session = NULL;
-                            provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-                            if(!provisioning_session || provisioning_session->marked_for_deletion){
-                                char *err = NULL;
-                                err = ogs_msprintf("Provisioning session [%s] either not found or already marked for deletion.", message->h.resource.component[1]);
+                            msaf_provisioning_session_t *provisioning_session;
 
+                            ogs_debug("DELETE: %s", message->h.resource.component[1]);
+
+                            provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                            if (!provisioning_session || provisioning_session->marked_for_deletion) {
+                                char *err = NULL;
+                                err = ogs_msprintf("Provisioning Session [%s] is not available.", message->h.resource.component[1]);
                                 ogs_error("%s", err);
 
-                                ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Provisioning session either not found or already marked for deletion.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, m1_provisioningsession_api, app_meta));
                                 ogs_free(err);
                             } else {
+                                /* Delete provisioning session */
+                                ogs_sbi_response_t *response;
+
                                 provisioning_session->marked_for_deletion = 1;
                                 response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, m1_provisioningsession_api, app_meta);
                                 ogs_assert(response);
@@ -1393,6 +1571,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 msaf_delete_content_hosting_configuration(message->h.resource.component[1]);
                                 msaf_delete_certificates(message->h.resource.component[1]);
                                 msaf_context_provisioning_session_free(provisioning_session);
+                                msaf_consumption_report_configuration_deregister(provisioning_session);
                                 msaf_provisioning_session_hash_remove(message->h.resource.component[1]);
                             }
                         } else {
@@ -1444,9 +1623,33 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                             }
 
-                                        }  else if (!strcmp(message->h.resource.component[2],"content-hosting-configuration")) {
+                                        } else if (!strcmp(message->h.resource.component[2],"content-hosting-configuration")) {
                                             methods = ogs_msprintf("%s, %s, %s, %s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
                                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_contenthostingprovisioning_api, app_meta);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+
+                                        } else if (!strcmp(message->h.resource.component[2],"consumption-reporting-configuration")) {
+                                            methods = ogs_msprintf("%s, %s, %s, %s, %s", OGS_SBI_HTTP_METHOD_POST,
+                                                                   OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT,
+                                                                   OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods,
+                                                                              m1_consumptionreportingprovisioning_api, app_meta);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        } else if (!strcmp(message->h.resource.component[2],"metrics-reporting-configurations")) {
+                                            methods = ogs_msprintf("%s, %s, %s, %s", OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_PUT,
+                                                                   OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods,
+                                                                              m1_consumptionreportingprovisioning_api, app_meta);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        } else if (!strcmp(message->h.resource.component[2],"protocols")) {
+                                            methods = ogs_msprintf("%s, %s", OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_contentprotocolsdiscovery_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -1585,7 +1788,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         ogs_error("%s", err);
                         ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, message, "Invalid resource name", err, NULL, NULL, app_meta));
                         ogs_free(err);
-                END	
+                END
                 break;
             DEFAULT
                 ogs_error("Invalid API name [%s]", message->h.service.name);

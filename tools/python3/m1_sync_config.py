@@ -91,7 +91,13 @@ This file defines the streams to configure and is located at
                         "contentType": "application/vnd.apple.mpegurl"
                     }
                 }
-            ]
+            ],
+            "consumptionReporting": {
+                "reportingInterval": 30,
+                "samplePercentage": 66.666,
+                "locationReporting": true,
+                "accessReporting": true,
+            }
         },
         "vod-root-1": {
             "name": "VoD Service Name",
@@ -99,7 +105,11 @@ This file defines the streams to configure and is located at
             "distributionConfigurations": [
                 {"domainNameAlias": "5gms-as.example.com"},
                 {"domainNameAlias": "5gms-as.example.com", "certificateId": "placeholder1"}
-            ]
+            ],
+            "consumptionReporting": {
+                "reportingInterval": 20,
+                "samplePercentage": 80,
+            }
         }
     },
     "vodMedia": [
@@ -147,8 +157,10 @@ identfier as the map key. This identifier can be used in the *vodMedia* list to
 identfiy the stream used for VoD media lists (media entry points described in
 the M8 interface). If a stream contains *entryPoint* fields in the
 *distributionConfigurations* then these will be advertised via M5 only and will
-not appear in the M8 entry points. See 3GPP TS 26.512 for a discription of what
-may appear in a DistributionConfiguration.
+not appear in the M8 entry points. The *consumptionReporting* parameters, if
+present, will configure consumption reporting for the Provisioning Session. See
+3GPP TS 26.512 for a discription of what may appear in a
+DistributionConfiguration or the ConsumptionReportingConfiguration.
 
 The *vodMedia* list is for describing media and their entry points that use a
 common Provisioning Session. The Provisioning Session is identfied by the
@@ -165,7 +177,7 @@ import json
 import logging
 import os.path
 import sys
-from typing import List
+from typing import List, Optional
 
 installed_packages_dir = '@python_packages_dir@'
 if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.path:
@@ -174,7 +186,7 @@ if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.p
 from rt_m1_client.session import M1Session
 from rt_m1_client.exceptions import M1Error
 from rt_m1_client.data_store import JSONFileDataStore
-from rt_m1_client.types import ContentHostingConfiguration, DistributionConfiguration, IngestConfiguration, M1MediaEntryPoint, PathRewriteRule
+from rt_m1_client.types import ContentHostingConfiguration, DistributionConfiguration, IngestConfiguration, M1MediaEntryPoint, PathRewriteRule, ConsumptionReportingConfiguration
 
 g_streams_config = os.path.join(os.path.sep, 'etc', 'rt-5gms', 'streams.json')
 g_sync_config = os.path.join(os.path.sep, 'etc', 'rt-5gms', 'af-sync.conf')
@@ -268,6 +280,42 @@ async def distrib_configs_equal(a: List[DistributionConfiguration], b: List[Dist
             return False
     return True
 
+async def _flagsEqual(a: Optional[bool], b: Optional[bool]) -> bool:
+    if a is None and b is None:
+        return True
+    if a is None and b is not None and not b:
+        return True
+    if b is None and a is not None and not a:
+        return True
+    if a is not None and b is not None and a == b:
+        return True
+    return False
+
+async def consumption_reporting_equal(a: Optional[ConsumptionReportingConfiguration], b: Optional[ConsumptionReportingConfiguration]) -> bool:
+    if a is None and b is None:
+        return True
+    if a is None and b is not None:
+        return False
+    if b is None and a is not None:
+        return False
+    if not await _flagsEqual(a.get('locationReporting'), b.get('locationReporting')):
+        return False
+    if not await _flagsEqual(a.get('accessReporting'), b.get('accessReporting')):
+        return False
+    if 'reportingInterval' in a and 'reportingInterval' not in b:
+        return False
+    if 'reportingInterval' in b and 'reportingInterval' not in a:
+        return False
+    if 'reportingInterval' in a and a['reportingInterval'] != b['reportingInterval']:
+        return False
+    if 'samplePercentage' in a and 'samplePercentage' not in b:
+        return False
+    if 'samplePercentage' in b and 'samplePercentage' not in a:
+        return False
+    if 'samplePercentage' in a and a['samplePercentage'] != b['samplePercentage']:
+        return False
+    return True
+
 async def sync_configuration(m1: M1Session, streams: dict) -> dict:
     have = {}
     to_check = streams['streams']
@@ -303,6 +351,7 @@ async def sync_configuration(m1: M1Session, streams: dict) -> dict:
                 },
                 'distributionConfigurations': cfg['distributionConfigurations'],
                 }
+        crc = cfg.get('consumptionReporting')
         ps_id = await m1.createDownlinkPullProvisioningSession(streams.get('appId'), streams.get('aspId', None))
         if ps_id is None:
             log_error("Failed to create Provisioning Session for %r", cfg)
@@ -324,6 +373,27 @@ async def sync_configuration(m1: M1Session, streams: dict) -> dict:
             if chc is not None:
                 if not await m1.contentHostingConfigurationCreate(ps_id, chc):
                     log_error("Failed to create ContentHostingConfiguration for Provisioning Session %s, skipping %r", ps_id, cfg)
+            if crc is not None:
+                if not await m1.consumptionReportingConfigurationCreate(ps_id, crc):
+                    log_error("Failed to activate ConsumptionReportingConfiguration for Provisioning Session %s")
+    # Check for ConsumptionReportingConfiguration changes in already configured sessions
+    for cfg_id, cfg in have.items():
+        ps_id = stream_map[cfg_id]
+        old_crc: Optional[ConsumptionReportingConfiguration] = await m1.consumptionReportingConfigurationGet(ps_id)
+        new_crc: Optional[ConsumptionReportingConfiguration] = cfg.get('consumptionReporting')
+        if not await consumption_reporting_equal(old_crc, new_crc):
+            if old_crc is None:
+                # No pre-existing CRC, add the new one
+                if not await m1.consumptionReportingConfigurationCreate(ps_id, new_crc):
+                    log_error("Failed to activate ConsumptionReportingConfiguration for Provisioning Session %s", ps_id)
+            elif new_crc is None:
+                # There is a CRC, but shouldn't be one, remove it
+                if not await m1.consumptionReportingConfigurationDelete(ps_id):
+                    log_error("Failed to remove ConsumptionReportingConfiguration for Provisioning Session %s", ps_id)
+            else:
+                # The CRC has changed, update it
+                if not await m1.consumptionReportingConfigurationUpdate(ps_id, new_crc):
+                    log_error("Failed to update ConsumptionReportingConfiguration for Provisioning Session %s", ps_id)
     return stream_map
 
 async def get_app_config() -> configparser.ConfigParser:
@@ -366,8 +436,9 @@ async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict]
             if ps_id not in vod_ps_ids:
                 m8_config['serviceList'] += [{'provisioningSessionId': ps_id, 'name': chc['name']}]
             for dc in chc['distributionConfigurations']:
-                if 'domainNameAlias' in dc:
-                    publish_dirs.add(os.path.join(config.get("af-sync", "docroot"), dc['domainNameAlias']))
+                for hostfield in ['canonicalDomainName', 'domainNameAlias']:
+                    if hostfield in dc:
+                        publish_dirs.add(os.path.join(config.get("af-sync", "docroot"), dc[hostfield]))
         else:
             log_error(f"Provisioning Session {ps_id} was not initialised correctly: omitting")
     for vod in vod_streams:

@@ -337,6 +337,67 @@ Distributions:
         '''
         return '\n'.join([DistributionConfiguration.format(d, indent) for d in chc['distributionConfigurations']])
 
+# TS 26.512 ConsumptionReportingConfiguration
+
+class ConsumptionReportingConfiguration(TypedDict, total=False):
+    '''
+    ConsumptionReportingConfiguration structure from TS 26.512
+    '''
+    reportingInterval: int
+    samplePercentage: float
+    locationReporting: bool
+    accessReporting: bool
+
+    @staticmethod
+    def fromJSON(crc_json: str) -> "ConsumptionReportingConfiguration":
+        '''Create a ConsumptionReportingConfiguration from a JSON string
+
+        :param str json: The JSON string to parse into a ConsumptionReportingConfiguration structure.
+
+        :return: The `ConsumptionReportingConfiguration` generated from the JSON string.
+
+        :raise ValueError: If the JSON could not be parsed.
+        '''
+        # parse the JSON
+        crc = json.loads(crc_json)
+        # validate types
+        if 'reportingInterval' in crc:
+            if not isinstance(crc['reportingInterval'], int):
+                raise ValueError('ConsumptionReportingConfiguration.reportingInterval must be an integer')
+            if crc['reportingInterval'] <= 0:
+                raise ValueError('ConsumptionReportingConfiguration.reportingInterval must be an integer greater than 0')
+        if 'samplePercentage' in crc:
+            if isinstance(crc['samplePercentage'], int):
+                crc['samplePercentage'] = float(crc['samplePercentage'])
+            if not isinstance(crc['samplePercentage'], float):
+                raise ValueError('ConsumptionReportingConfiguration.samplePercentage must be an integer or floating point number')
+            if crc['samplePercentage'] < 0.0 or crc['samplePercentage'] > 100.0:
+                raise ValueError('ConsumptionReportingConfiguration.samplePercentage must be between 0.0 and 100.0 inclusive')
+        if 'locationReporting' in crc:
+            if not isinstance(crc['locationReporting'], bool):
+                raise ValueError('ConsumptionReportingConfiguration.locationReporting must be a boolean')
+        if 'accessReporting' in crc:
+            if not isinstance(crc['accessReporting'], bool):
+                raise ValueError('ConsumptionReportingConfiguration.accessReporting must be a boolean')
+        # Validate against ContentHostingConfiguration type
+        return ConsumptionReportingConfiguration(crc)
+
+    @classmethod
+    def format(cls, crc: "ConsumptionReportingConfiguration", indent: int = 0) -> str:
+        prefix: str = ' ' * indent
+        ret: str = ''
+        if 'reportingInterval' in crc:
+            ret += f"{prefix}Reporting interval: {crc['reportingInterval']}s\n"
+        if 'samplePercentage' in crc:
+            ret += f"{prefix}Sample percentage: {crc['samplePercentage']}\n"
+        if 'locationReporting' in crc and crc['locationReporting']:
+            ret += f"{prefix}With location reporting\n"
+        if 'accessReporting' in crc and crc['accessReporting']:
+            ret += f"{prefix}With access reporting\n"
+        if len(ret) == 0:
+            ret = f'{prefix}Active with no parameters set\n'
+        return ret
+
 # TS 29.571 ProblemDetail
 class InvalidParamMandatory(TypedDict):
     '''

@@ -24,13 +24,14 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "openapi/model/service_access_information_resource.h"
 #include "provisioning-session.h"
 #include "application-server-context.h"
+#include "sai-cache.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern OpenAPI_service_access_information_resource_t *msaf_context_service_access_information_create(const char *provisioning_session_id, OpenAPI_list_t *entry_points);
-extern cJSON *msaf_context_retrieve_service_access_information(char *provisioning_session_id);
+OpenAPI_service_access_information_resource_t *msaf_context_service_access_information_create(msaf_provisioning_session_t *provisioning_session, bool is_tls, const char *svr_hostname);
+const msaf_sai_cache_entry_t *msaf_context_retrieve_service_access_information(const char *provisioning_session_id, bool is_tls, const char *authority);
 
 #ifdef __cplusplus
 }

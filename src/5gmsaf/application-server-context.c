@@ -379,10 +379,10 @@ static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_
     const char *m3_host;
 
     m3_host = as_state->application_server->m3Host?
-	    as_state->application_server->m3Host:
-	    as_state->application_server->canonicalHostname;
+            as_state->application_server->m3Host:
+            as_state->application_server->canonicalHostname;
     request = ogs_sbi_request_new();
-    request->h.method = msaf_strdup(method);	
+    request->h.method = msaf_strdup(method);
     request->h.uri = ogs_msprintf("http://%s:%i/3gpp-m3/v1/%s", m3_host, as_state->application_server->m3Port, component);
     request->h.api.version = msaf_strdup("v1");
     if (data) {
@@ -404,7 +404,7 @@ static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_
     ogs_sbi_request_free(request);
 
     return 1;
-}		
+}
 
 static int client_notify_cb(int status, ogs_sbi_response_t *response, void *data)
 {

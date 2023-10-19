@@ -13,16 +13,27 @@
 #include "sbi-path.h"
 #include "context.h"
 #include "certmgr.h"
+#include "data-collection.h"
 #include "server.h"
+#include "sai-cache.h"
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
+#include "data-collection.h"
 #include "openapi/api/TS26512_M5_ServiceAccessInformationAPI-info.h"
+#include "openapi/api/TS26512_M5_ConsumptionReportingAPI-info.h"
+#include "openapi/model/consumption_report.h"
 
 const nf_server_interface_metadata_t
 m5_serviceaccessinformation_api_metadata = {
     M5_SERVICEACCESSINFORMATION_API_NAME,
     M5_SERVICEACCESSINFORMATION_API_VERSION
+};
+
+static const nf_server_interface_metadata_t
+m5_consumptionreporting_api_metadata = {
+    M5_CONSUMPTIONREPORTING_API_NAME,
+    M5_CONSUMPTIONREPORTING_API_VERSION
 };
 
 void msaf_m5_state_initial(ogs_fsm_t *s, msaf_event_t *e)
@@ -52,6 +63,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     char *nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
     const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
     const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
+    const nf_server_interface_metadata_t *m5_consumptionreporting_api = &m5_consumptionreporting_api_metadata;
     const nf_server_app_metadata_t *app_meta = &app_metadata;
 
     ogs_assert(s);
@@ -86,48 +98,182 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 CASE("service-access-information")
                     SWITCH(message->h.method)
                     CASE(OGS_SBI_HTTP_METHOD_GET)
-                        cJSON *service_access_information;
-                        msaf_provisioning_session_t *msaf_provisioning_session = NULL;
-                        msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                        const msaf_sai_cache_entry_t *sai_entry;
 
-                        if(msaf_provisioning_session == NULL) {
+                        sai_entry = msaf_context_retrieve_service_access_information(message->h.resource.component[1],
+                                            strncmp(request->h.uri,"https:",6)==0,
+                                            ogs_hash_get(request->http.headers, "Host", OGS_HASH_KEY_STRING));
+
+                        if(!sai_entry) {
                             char *err = NULL;
                             err = ogs_msprintf("Provisioning Session [%s] not found.", message->h.resource.component[1]);
                             ogs_error("%s", err);
                             ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Provisioning Session not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
                             ogs_free(err);
-                        } else if (msaf_provisioning_session->serviceAccessInformation) {
-                            service_access_information = msaf_context_retrieve_service_access_information(message->h.resource.component[1]);
-                            if (service_access_information != NULL) {
-                                ogs_sbi_response_t *response;
-                                char *text;
-                                text = cJSON_Print(service_access_information);
-                                response = nf_server_new_response(NULL, "application/json",  msaf_provisioning_session->serviceAccessInformationCreated, msaf_provisioning_session->serviceAccessInformationHash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
-                                nf_server_populate_response(response, strlen(text), text, 200);
-                                ogs_assert(response);
-                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                cJSON_Delete(service_access_information);
-                            } else {
-                                char *err = NULL;
-                                err = ogs_msprintf("Service Access Information for the Provisioning Session [%s] not found.", message->h.resource.component[1]);
-                                ogs_error("%s", err);
-
-                                ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Service Access Information not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
-                                ogs_free(err);
-                            }
                         } else {
-                            char *err = NULL;
-                            err = ogs_msprintf("Provisioning Session [%s] has no Service Access Information associated with it.", message->h.resource.component[1]);
-                            ogs_error("%s", err);
+                            const char *if_none_match;
+                            const char *if_modified_since;
+                            int response_code = 200;
+                            const char *response_body = sai_entry->sai_body;
 
-                            ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Service Access Information not found.", err, NULL, m5_serviceaccessinformation_api, app_meta));
-                            ogs_free(err);
+                            if_none_match = ogs_hash_get(request->http.headers, "If-None-Match", OGS_HASH_KEY_STRING);
+                            if (if_none_match) {
+                                if (strcmp(sai_entry->hash, if_none_match)==0) {
+                                    /* ETag hasn't changed */
+                                    response_code = 304;
+                                    response_body = NULL;
+                                }
+                            }
+
+                            if_modified_since = ogs_hash_get(request->http.headers, "If-Modified-Since", OGS_HASH_KEY_STRING);
+                            if (if_modified_since) {
+                                struct tm tm = {0};
+                                ogs_time_t modified_since;
+                                ogs_strptime(if_modified_since, "%a, %d %b %Y %H:%M:%S GMT", &tm);
+                                ogs_debug("IMS: sec=%i, min=%i, hour=%i, mday=%i, mon=%i, year=%i, gmtoff=%li", tm.tm_sec, tm.tm_min, tm.tm_hour, tm.tm_mday, tm.tm_mon, tm.tm_year, tm.tm_gmtoff);
+                                ogs_time_from_gmt(&modified_since, &tm, 0);
+                                ogs_debug("If-Modified-Since: %li < %li?", modified_since, sai_entry->generated);
+                                if (modified_since >= sai_entry->generated) {
+                                    /* Not modified since the time given */
+                                    response_code = 304;
+                                    response_body = NULL;
+                                }
+                            }
+
+                            ogs_sbi_response_t *response;
+                            response = nf_server_new_response(NULL, "application/json", ogs_time_sec(sai_entry->generated)+1, sai_entry->hash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
+                            ogs_assert(response);
+                            nf_server_populate_response(response, response_body?strlen(response_body):0, ogs_strdup(response_body), response_code);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                        }
+                        break;
+                    CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
+                        if (message->h.resource.component[1] && !message->h.resource.component[2]) {
+                            ogs_sbi_response_t *response;
+                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, OGS_SBI_HTTP_METHOD_GET ", " OGS_SBI_HTTP_METHOD_OPTIONS, m5_serviceaccessinformation_api, app_meta);
+                            ogs_assert(response);
+                            nf_server_populate_response(response, 0, NULL, 204);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                        } else {
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 2, message, "Not Found", message->h.method, NULL, m5_serviceaccessinformation_api, app_meta));
                         }
                         break;
                     DEFAULT
                         ogs_error("Invalid HTTP method [%s]", message->h.method);
 
                         ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, message, "Invalid HTTP method.", message->h.method, NULL, NULL, app_meta));
+                    END
+                    break;
+                CASE("consumption-reporting")
+                    SWITCH(message->h.method)
+                    CASE(OGS_SBI_HTTP_METHOD_POST)
+                        if (message->h.resource.component[1] && !message->h.resource.component[2]) {
+                            msaf_provisioning_session_t *provisioning_session;
+
+                            provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                            if (provisioning_session) {
+                                if (!provisioning_session->consumptionReportingConfiguration) {
+                                    char *err;
+
+                                    err = ogs_msprintf("No ConsumptionReportingConfiguration for Provisioning Session [%s], cannot accept reports", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true==nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, message, "Not found", err, NULL, m5_consumptionreporting_api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    const char *content_type = "application/octet-stream";
+                                    ogs_hash_index_t *hi;
+
+                                    /* Find Content-Type header value */
+                                    for (hi = ogs_hash_first(request->http.headers); hi; hi = ogs_hash_next(hi)) {
+                                        if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_CONTENT_TYPE)) {
+                                            content_type = ogs_hash_this_val(hi);
+                                            break;
+                                        }
+                                    }
+                                    SWITCH(content_type)
+                                    CASE("application/json")
+                                        cJSON *json;
+
+                                        json = cJSON_Parse(request->http.content);
+                                        if (json) {
+                                            OpenAPI_consumption_report_t *consumption_report;
+
+                                            consumption_report = OpenAPI_consumption_report_parseFromJSON(json);
+                                            if (consumption_report) {
+                                                if (msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
+                                                                    consumption_report->reporting_client_id, NULL,
+                                                                    ((OpenAPI_consumption_reporting_unit_t*)
+                                                                     (consumption_report->consumption_reporting_units->first->data)
+                                                                    )->start_time, "json", request->http.content)) {
+                                                    ogs_sbi_response_t *response;
+                                                    response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, NULL, m5_consumptionreporting_api, app_meta);
+                                                    ogs_assert(response);
+                                                    nf_server_populate_response(response, 0, NULL, 204);
+                                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                } else {
+                                                    char *err;
+
+                                                    err = ogs_msprintf("Failed to store Consumption Report for provisioning session [%s]", message->h.resource.component[1]);
+                                                    ogs_error("%s", err);
+                                                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1, message, "Data storage error", err, NULL, m5_consumptionreporting_api, app_meta));
+                                                    ogs_free(err);
+                                                }
+                                                OpenAPI_consumption_report_free(consumption_report);
+                                            } else {
+                                                char *err;
+
+                                                err = ogs_msprintf("Badly formed ConsumptionReport posted for provisioning session [%s]", message->h.resource.component[1]);
+                                                ogs_error("%s", err);
+                                                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, message, "Malformed request body", err, NULL, m5_consumptionreporting_api, app_meta));
+                                                ogs_free(err);
+                                            }
+                                            cJSON_Delete(json);
+                                        } else {
+                                            char *err;
+
+                                            err = ogs_msprintf("Badly formed request body when posting a consumption report for provisioning session [%s]", message->h.resource.component[1]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, message, "Malformed request body", err, NULL, m5_consumptionreporting_api, app_meta));
+                                            ogs_free(err);
+                                        }
+                                        break;
+                                    DEFAULT
+                                        char *err;
+                                        err = ogs_msprintf("Unrecognised content type for Consumption Report for Provisioning Session [%s]", message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE, 1, message, "Malformed request body", err, NULL, m5_consumptionreporting_api, app_meta));
+                                        ogs_free(err);
+                                    END
+                                }
+                            } else {
+                                char *err;
+
+                                err = ogs_msprintf("Provisioning session [%s] not found for Consumption Report", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, message, "Not Found", err, NULL, m5_consumptionreporting_api, app_meta));
+                                ogs_free(err);
+                            }
+                        } else {
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, message, "Not Found", NULL, NULL, m5_consumptionreporting_api, app_meta));
+                        }
+                        break;
+                    CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
+                        if (message->h.resource.component[1] && !message->h.resource.component[2]) {
+                            ogs_sbi_response_t *response;
+                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, OGS_SBI_HTTP_METHOD_POST ", " OGS_SBI_HTTP_METHOD_OPTIONS, m5_consumptionreporting_api, app_meta);
+                            ogs_assert(response);
+                            nf_server_populate_response(response, 0, NULL, 204);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                        } else {
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 2, message, "Not Found", message->h.method, NULL, m5_consumptionreporting_api, app_meta));
+                        }
+                        break;
+                    DEFAULT
+                        char *err;
+                        err = ogs_msprintf("Method [%s] not implemented for M5 Consumption Reporting API", message->h.method);
+                        ogs_error("%s", err);
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_MEHTOD_NOT_ALLOWED, 1, message, "Method Not Allowed", err, NULL, m5_consumptionreporting_api, app_meta));
+                        ogs_free(err);
                     END
                     break;
                 DEFAULT

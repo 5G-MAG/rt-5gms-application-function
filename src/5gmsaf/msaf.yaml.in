@@ -193,7 +193,9 @@ msaf:
         m1ServerCertificates: 60
         m1ContentProtocols: 86400
         m1MetricsReportingConfiguration: 60
+        m1ConsumptionReportingConfiguration: 60
         m5ServiceAccessInformation: 60
+    dataCollectionDir: @data-collection-dir@
 #
 # nrf:
 #

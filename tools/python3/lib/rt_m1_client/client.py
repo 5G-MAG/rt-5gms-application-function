@@ -42,6 +42,7 @@ import httpx
 
 from .exceptions import (M1ClientError, M1ServerError)
 from .types import (ApplicationId, ContentHostingConfiguration, ContentProtocols,
+                    ConsumptionReportingConfiguration,
                     ProvisioningSessionType, ProvisioningSession, ResourceId)
 
 class TagAndDateResponse(TypedDict, total=False):
@@ -81,6 +82,12 @@ class ContentProtocolsResponse(TagAndDateResponse, total=False):
     '''
     ProvisioningSessionId: ResourceId
     ContentProtocols: ContentProtocols
+
+class ConsumptionReportingConfigurationResponse(TagAndDateResponse, total=False):
+    '''Response containing a consumption reporting configuration
+    '''
+    ProvisioningSessionId: ResourceId
+    ConsumptionReportingConfiguration: ConsumptionReportingConfiguration
 
 class M1Client:
     '''5G-MAG Reference Tools: M1 Client
@@ -385,7 +392,7 @@ class M1Client:
         elif extra_domain_names is not None and len(extra_domain_names) > 0:
             raise M1ClientError(reason = f'Extra domain names cannot be specified when not generating a CSR', status_code = 400)
         body=''
-        if len(extra_domain_names) > 0:
+        if extra_domain_names is not None and len(extra_domain_names) > 0:
             body = json.dumps(extra_domain_names)
         result = await self.__do_request('POST', url, body, 'application/json')
         if result['status_code'] == 200:
@@ -518,11 +525,110 @@ class M1Client:
         return None
 
     # TS26512_M1_ConsumptionReportingProvisioning
-    #async def activateConsumptionReporting(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> Optional[ResourceId]:
-    #async def retrieveConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_id: ResourceId) -> ConsumptionReportingConfigurationResponse:
-    #async def updateConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> bool:
-    #async def patchConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, patch: str) -> ConsumptionReportingConfigurationResponse:
-    #async def destroyConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_id: ResourceId) -> bool:
+    async def activateConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> Union[Optional[ConsumptionReportingConfigurationResponse],bool]:
+        '''Set the ConsumptionReportingConfiguration for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to set the ConsumptionReportingConfiguration for.
+        :param ConsumptionReportingConfiguration consumption_reporting_config: The ConsumptionReportingConfiguration to set.
+
+        :return: `True` if the ConsumptionReportingConfiguration was set and the Application Function didn't report back the
+                 configuration, or a `ConsumptionReportingConfigurationResponse` if the configuration was reported back, or `None`
+                 if setting the configuration failed.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('POST',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                json.dumps(consumption_reporting_config), 'application/json')
+        if result['status_code'] == 200:
+            ret: ConsumptionReportingConfigurationResponse = self.__tag_and_date(result)
+            ret['ConsumptionReportingConfiguration'] = ConsumptionReportingConfiguration.fromJSON(result['body'])
+            return ret
+        elif result['status_code'] == 204:
+            return True
+        self.__default_response(result)
+        return None
+
+    async def retrieveConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId) -> Optional[ConsumptionReportingConfigurationResponse]:
+        '''Get the ConsumptionReportingConfiguration for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to get the ConsumptionReportingConfiguration for.
+
+        :return: A `ConsumptionReportingConfigurationResponse` for the current configuration in the provisioning session.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('GET',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                '', 'application/octet-stream')
+        if result['status_code'] == 200:
+            ret: ConsumptionReportingConfigurationResponse = self.__tag_and_date(result)
+            ret['ConsumptionReportingConfiguration'] = ConsumptionReportingConfiguration.fromJSON(result['body'])
+            return ret
+        if result['status_code'] == 404:
+            return None
+        self.__default_response(result)
+        return None
+
+    async def updateConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> bool:
+        '''Modify the ConsumptionReportingConfiguration for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to modify the ConsumptionReportingConfiguration for.
+        :param ConsumptionReportingConfiguration consumption_reporting_config: The ConsumptionReportingConfiguration to apply.
+
+        :return: `True` if the configuration was changed successfully.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('PUT',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                json.dumps(consumption_reporting_config), 'application/json')
+        if result['status_code'] == 204:
+            return True
+        self.__default_response(result)
+        return False
+
+    async def patchConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, patch: str) -> ConsumptionReportingConfigurationResponse:
+        '''Patch the ConsumptionReportingConfiguration for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to modify the ConsumptionReportingConfiguration for.
+        :param str patch: The JSON patch to apply to the ConsumptionReportingConfiguration.
+
+        :return: A `ConsumptionReportingConfigurationResponse` containing the new configuration after the patch is applied.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('PATCH',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                patch, 'application/json-patch+json')
+        if result['status_code'] == 200:
+            ret: ConsumptionReportingConfigurationResponse = self.__tag_and_date(result)
+            ret['ConsumptionReportingConfiguration'] = ConsumptionReportingConfiguration.fromJSON(result['body'])
+            return ret
+        self.__default_response(result)
+        return None
+
+    async def destroyConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId) -> bool:
+        '''Remove the ConsumptionReportingConfiguration from the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to remove the ConsumptionReportingConfiguration from.
+
+        :return: `True` if the ConsumptionReportingConfiguration was successfully removed.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('DELETE',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                '', 'application/octet-stream')
+        if result['status_code'] == 204:
+            return True
+        self.__default_response(result)
+        return False
 
     # TS26512_M1_ContentPreparationTemplatesProvisioning
     #async def createContentPreparationTemplate(self, provisioning_session_id: ResourceId, content_preparation_template: Any) -> Optional[ResourceId]:
@@ -668,6 +774,7 @@ __all__ = [
         # Types
         'ProvisioningSessionResponse',
         'ContentHostingConfigurationResponse',
+        'ConsumptionReportingConfigurationResponse',
         'ServerCertificateResponse',
         'ServerCertificateSigningRequestResponse',
         'ContentProtocolsResponse',

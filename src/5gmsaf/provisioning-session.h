@@ -12,8 +12,11 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #define MSAF_PROVISIONING_SESSION_H
 
 #include <regex.h>
+
+#include "sai-cache.h"
+
+#include "openapi/model/consumption_reporting_configuration.h"
 #include "openapi/model/content_hosting_configuration.h"
-#include "openapi/model/service_access_information_resource.h"
 #include "openapi/model/provisioning_session.h"
 #include "openapi/model/provisioning_session_type.h"
 #include "openapi/model/m1_media_entry_point.h"
@@ -25,21 +28,26 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 extern "C" {
 #endif
 
+typedef struct msaf_http_metadata_s {
+    time_t received;
+    char *hash;
+} msaf_http_metadata_t;
+
 typedef struct msaf_provisioning_session_s {
     char *provisioningSessionId;
     OpenAPI_provisioning_session_type_e provisioningSessionType;
     char *aspId;
     char *externalApplicationId;
+    OpenAPI_consumption_reporting_configuration_t *consumptionReportingConfiguration;
     OpenAPI_content_hosting_configuration_t *contentHostingConfiguration;
-    OpenAPI_service_access_information_resource_t *serviceAccessInformation;
-    time_t provisioningSessionReceived;
-    char *provisioningSessionHash;
-    time_t contentHostingConfigurationReceived;
-    char *contentHostingConfigurationHash;
-    time_t serviceAccessInformationCreated;
-    char *serviceAccessInformationHash;
-    ogs_hash_t *certificate_map;
-    ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t *
+    msaf_sai_cache_t *sai_cache;
+    struct {
+        msaf_http_metadata_t provisioningSession;
+        msaf_http_metadata_t consumptionReportingConfiguration;
+        msaf_http_metadata_t contentHostingConfiguration;
+    } httpMetadata;
+    ogs_hash_t *certificate_map;          //Type: char* => n/a (just used as a set - external tool manages data)
+    ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t*
     int marked_for_deletion;
     ogs_hash_t *metricsReportingMap;
 
@@ -52,6 +60,7 @@ typedef struct msaf_application_server_state_ref_node_s {
 } msaf_application_server_state_ref_node_t;
 
 extern msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id);
+extern void msaf_provisioning_session_free(msaf_provisioning_session_t *provisioning_session);
 extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
 extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 
@@ -60,7 +69,6 @@ extern OpenAPI_content_hosting_configuration_t *msaf_content_hosting_configurati
 extern int msaf_content_hosting_configuration_certificate_check(msaf_provisioning_session_t *provisioning_session);
 extern int msaf_distribution_certificate_check(void);
 
-extern ogs_hash_t *msaf_certificate_map();
 extern const char *msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id);
 extern ogs_list_t *msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_session);
 

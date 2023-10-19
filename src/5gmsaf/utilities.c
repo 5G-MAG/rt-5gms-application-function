@@ -30,7 +30,7 @@ time_t str_to_time(const char *str_time)
     strptime(str_time, "%a, %d %b %Y %H:%M:%S %Z", &tm);
     time = mktime(&tm);      
     return time;
-}	
+}
 
 const char *get_time(time_t time_epoch)
 {
@@ -53,8 +53,8 @@ char *read_file(const char *filename)
     /* open in read binary mode */
     f = fopen(filename, "rb");
     if (f == NULL) {
-	ogs_error("Unable to open file with name [%s]: %s", filename, strerror(errno));
-	return NULL;
+        ogs_error("Unable to open file with name [%s]: %s", filename, strerror(errno));
+        return NULL;
     }
     /* get the length */
     fseek(f, 0, SEEK_END);
@@ -71,18 +71,18 @@ char *read_file(const char *filename)
 
 int str_match(const char *line, const char *word_to_find) {
  
-  char* p = strstr(line,word_to_find);
-  if ((p==line) || (p!=NULL && !isalnum((unsigned char)p[-1])))
-  {
-     p += strlen(word_to_find);
-     if (!isalnum((unsigned char)*p))
-     {      
-       return 1;
-     } else {
-	return 0;
+    char* p = strstr(line,word_to_find);
+    if ((p==line) || (p!=NULL && !isalnum((unsigned char)p[-1])))
+    {
+        p += strlen(word_to_find);
+        if (!isalnum((unsigned char)*p))
+        {      
+            return 1;
+        } else {
+            return 0;
+        }
     }
-  }
-  return 0;
+    return 0;
 }
 
 char *get_path(const char *file)
