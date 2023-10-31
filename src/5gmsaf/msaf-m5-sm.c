@@ -307,23 +307,28 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             SWITCH(content_type)
                             CASE("application/xml")
 
-                            /* Temporary auxiliary function to parse report time value directly from XML content */
-
-                            char* parseReportTime(const char* metricsXml) {
-                                const char *startTag = "reportTime=\"", *endTag = "\"";
-                                char *startPosition = strstr(metricsXml, startTag), *endPosition, *reportTime = NULL;
+                            /* Temporary auxiliary function for parsing values directly from the XML content */
+                            char* parseXmlField(const char* xmlString, const char* fieldName) {
+                                char *startTag = malloc(strlen(fieldName) + 3);
+                                char *endTag = "\"";
+                                sprintf(startTag, "%s=\"", fieldName);
+                                char *startPosition = strstr(xmlString, startTag), *endPosition, *fieldValue = NULL;
 
                                 if (startPosition && (endPosition = strstr(startPosition += strlen(startTag), endTag))) {
-                                    reportTime = strndup(startPosition, endPosition - startPosition);
+                                    fieldValue = strndup(startPosition, endPosition - startPosition);
                                 }
-                                return reportTime;
+                                free(startTag);
+                                return fieldValue;
                             }
+
 
                             if (request->http.content) {
 
-                                char* reportTime = parseReportTime(request->http.content);
+                                char* reportTime = parseXmlField(request->http.content, "reportTime");
+                                char* recordingSessionId = parseXmlField(request->http.content, "recordingSessionId");
+                                char* clientId = parseXmlField(request->http.content, "clientId");
 
-                                if (msaf_data_collection_store(message->h.resource.component[1], "metrics_reports", message->h.resource.component[2], NULL, reportTime, "xml", request->http.content)) {
+                                if (msaf_data_collection_store(message->h.resource.component[1], "metrics_reports", clientId, recordingSessionId, reportTime, "xml", request->http.content)) {
                                     ogs_sbi_response_t *response;
                                     response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, NULL, m5_metricsreporting_api, app_meta);
                                     ogs_assert(response);
