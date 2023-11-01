@@ -9,7 +9,7 @@
 
 libapp_dep = open5gs_project.get_variable('libapp_dep')
 libcrypt_dep = open5gs_project.get_variable('libcrypt_dep')
-libsbi_dep = open5gs_project.get_variable('libsbih1_dep')
+libsbi_dep = open5gs_project.get_variable('libsbi_dep')
 libsbi_openapi_dep = open5gs_project.get_variable('libsbi_openapi_dep')
 open5gs_sysconfdir = open5gs_project.get_variable('open5gs_sysconfdir')
 srcinc = open5gs_project.get_variable('srcinc')

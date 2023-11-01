@@ -396,7 +396,7 @@ int msaf_context_parse_config(void)
                                 }
                             }
                             if(!matches) {
-                                server = ogs_sbi_server_add(
+                                server = ogs_sbih1_server_add(
                                         node->addr, is_option ? &option : NULL);
                                 ogs_assert(server);
                             
@@ -452,7 +452,7 @@ int msaf_context_parse_config(void)
                                 }
                             }
                             if(!matches) {
-                                server = ogs_sbi_server_add(
+                                server = ogs_sbih1_server_add(
                                         node->addr, is_option ? &option : NULL);
                                 ogs_assert(server);
                             
