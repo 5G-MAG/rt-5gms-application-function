@@ -82,6 +82,7 @@ typedef struct msaf_context_s {
     ogs_list_t pcf_sessions;
     ogs_list_t network_assistance_sessions;
     ogs_list_t network_assistance_policy_templates;
+    ogs_hash_t *dynamic_policies;
     ogs_list_t delete_pcf_app_sessions;
 } msaf_context_t;
 

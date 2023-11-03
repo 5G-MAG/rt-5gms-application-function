@@ -50,8 +50,7 @@ typedef struct msaf_pcf_app_session_s {
     pcf_app_session_t *pcf_app_session;
 } msaf_pcf_app_session_t;
 
-
-extern int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event_t *e);
+extern int msaf_nw_assistance_session_create(cJSON *dynamic_policy, msaf_event_t *e);
 
 extern msaf_network_assistance_session_t *msaf_network_assistance_session_retrieve(const char *na_session_id);
 

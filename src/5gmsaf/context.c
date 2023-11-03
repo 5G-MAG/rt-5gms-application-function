@@ -16,6 +16,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "pcf-cache.h"
 #include "network-assistance-session.h"
 #include "policy-template.h"
+#include "dynamic-policy.h"
 #include "pcf-session.h"
 #include "context.h"
 #include "utilities.h"
@@ -67,6 +68,8 @@ void msaf_context_init(void)
     msaf_server_response_cache_control_set();
     msaf_network_assistance_delivery_boost_set();
 
+    self->dynamic_policies = msaf_dynamic_policy_new();
+
 }
 
 void msaf_context_final(void)
@@ -89,6 +92,16 @@ void msaf_context_final(void)
         };
         ogs_hash_do(free_ogs_hash_entry, &fohc, self->content_hosting_configuration_file_map);
         ogs_hash_destroy(self->content_hosting_configuration_file_map);
+    }
+
+    if (self->dynamic_policies) {
+        free_ogs_hash_context_t fohc = {
+            (free_ogs_hash_context_free_value_fn)msaf_context_dynamic_policy_free,
+            self->dynamic_policies
+        };
+        ogs_hash_do(free_ogs_hash_entry, &fohc, self->dynamic_policies);
+        ogs_hash_destroy(self->dynamic_policies);
+
     }
 
     if (self->config.server_response_cache_control)

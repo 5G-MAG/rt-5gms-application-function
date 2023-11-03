@@ -778,7 +778,7 @@ static void retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data_t *cb
 static void add_create_event_metadata_to_na_sess_context(msaf_network_assistance_session_t *na_sess, msaf_event_t *e)
 {
   //if(na_sess->metadata->create_event) msaf_event_free(na_sess->metadata->create_event);
-  na_sess->metadata = ogs_calloc(1, sizeof(msaf_api_network_assistance_session_t));
+  na_sess->metadata = ogs_calloc(1, sizeof(msaf_network_assistance_session_internal_metadata_t));
   na_sess->metadata->create_event =  e;
 }
 

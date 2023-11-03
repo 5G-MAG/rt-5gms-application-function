@@ -342,6 +342,14 @@ msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session_t
     return (msaf_policy_template_node_t *) ogs_hash_get(provisioning_session->policy_templates, policy_template_id, OGS_HASH_KEY_STRING);
 }
 
+msaf_policy_template_node_t *msaf_provisioning_session_get_policy_template_by_id(const char *provisioning_session_id, const char *policy_template_id) {
+    msaf_provisioning_session_t *provisioning_session;
+
+    provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
+    if(!provisioning_session) return NULL;
+    return msaf_provisioning_session_find_policy_template_by_id(provisioning_session, policy_template_id);
+}
+
 const char *
 msaf_get_certificate_filename(const char *provisioning_session_id, const char *certificate_id)
 {
@@ -607,7 +615,7 @@ bool msaf_provisioning_session_add_policy_template(msaf_provisioning_session_t *
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
 
-    msaf_policy_template_set_id(policy_template, msaf_strdup(id));
+    msaf_policy_template_set_id(policy_template, id);
     
     msaf_policy_template = msaf_policy_template_populate(policy_template, creation_time);
     if(!msaf_policy_template) return false;

@@ -84,6 +84,8 @@ libmsaf_dist_sources = files('''
     server.c
     service-access-information.h
     service-access-information.c
+    dynamic-policy.h
+    dynamic-policy.c
     utilities.h
     utilities.c
 '''.split())

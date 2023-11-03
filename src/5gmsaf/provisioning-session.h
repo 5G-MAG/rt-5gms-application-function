@@ -111,6 +111,8 @@ extern bool msaf_provisioning_session_delete_policy_template_by_id(msaf_provisio
 
 extern msaf_policy_template_node_t *msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session_t *provisioning_session, const char *policy_template_id);
 
+extern msaf_policy_template_node_t *msaf_provisioning_session_get_policy_template_by_id(const char *provisioning_session_id, const char *policy_template_id);
+
 extern bool msaf_provisioning_session_send_policy_template_state_change_event(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_policy_template_state_change_callback callback, void *user_data);
 
 extern bool msaf_provisioning_session_update_policy_template(msaf_provisioning_session_t *provisioning_session, msaf_policy_template_node_t *msaf_policy_template, msaf_api_policy_template_t *policy_template);
