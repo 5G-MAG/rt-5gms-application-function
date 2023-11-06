@@ -271,7 +271,9 @@ char *check_in_cert_list(const char *canonical_domain_name)
     char buf[OGS_HUGE_LEN];
     int ret = 0, out_return_code = 0;
     char *certificate = NULL;
-    char *cert_id;
+    char *cert_id = NULL;
+    char *status = NULL;
+    char *saveptr;
 
     commandLine[0] = msaf_self()->config.certificateManager;
     commandLine[1] = "-c";
@@ -291,9 +293,17 @@ char *check_in_cert_list(const char *canonical_domain_name)
 
         ogs_debug("buf=\"%s\", canonical_domain_name=\"%s\"", buf, canonical_domain_name);
         if (str_match(buf, canonical_domain_name)) {
-            certificate = strtok_r(buf,"\t",&cert_id);
-            ogs_debug("buf=\"%s\", certificate=\"%s\", cert_id=\"%s\"", buf, certificate, cert_id);
-            break;
+            certificate = strtok_r(buf,"\t",&saveptr);
+            if (certificate) cert_id = strtok_r(NULL,"\t",&saveptr);
+            if (cert_id) status = strtok_r(NULL,"\t",&saveptr);
+            if (status == NULL || strlen(status) <= 1 || str_match(status,"Awaiting")) {
+                // Empty or "Awaiting" status can be returned, ignore anything else (i.e. expired or due to expire)
+                ogs_debug("buf=\"%s\", certificate=\"%s\", cert_id=\"%s\", status=\"%s\"", buf, certificate, cert_id, status);
+                break;
+            }
+            certificate = NULL;
+            cert_id = NULL;
+            status = NULL;
         }
     }
 
