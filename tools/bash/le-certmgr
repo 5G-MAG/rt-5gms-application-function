@@ -1,0 +1,501 @@
+#!/bin/bash
+#
+# 5G-MAG Reference Tools: Let's Encrypt Certificate Management script
+# ===================================================================
+#
+# License: 5G-MAG Public License v1.0
+# Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+#          David Waring <david.waring2@bbc.co.uk>
+# Copyright: ©2023 British Broadcasting Corporation
+#
+# For full license terms please see the LICENSE file distributed with this
+# program. If this file is missing then the license can be retrieved from
+# https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+#
+# This is an example script that manages locally generated self-signed
+# certificates on behalf of the 5GMS Application Function.
+#
+
+# Save location of this script and the name it was called by
+scriptname=`basename "$0"`
+scriptdir=`dirname "$0"`
+scriptdir=`cd "$scriptdir"; pwd`
+
+# Constants
+default_cert_op=
+cert_store="@prefix@/@localstatedir@/cache/rt-5gms/af/certificates"
+
+# Variables
+cert_operation=
+common_name=
+server_certificate_resource_id=
+cert_status=
+cert_subject=
+cache_control_max_age=70
+
+## find_bin <bin-name> [<bin-name>...]
+# Finds the full path for <bin-name>. If the first <bin-name> is not found then the next is tried and so on until the binary is
+# found. If the binary is found then the exit code is 0. If no binaries can be found matching any of the <bin-name>s then the
+# function returns exit code 1.
+#
+find_bin() {
+  while [ $# -gt 0 ]; do
+    bin="$1"
+    shift
+    if which "$bin" 2>/dev/null; then
+	return 0
+    fi
+  done
+  return 1
+}
+
+## print_syntax
+# Print the command line syntax to stdout.
+#
+print_syntax() {
+    echo "Syntax: $scriptname -h"
+    echo "        $scriptname -c <operation> [<operation-param>...]"
+}
+
+# Parse command line arguments
+ARGS=`getopt -n "$scriptname" -o 'c:h' -l 'cert-operation:,help' -s sh -- "$@"`
+
+if [ $? -ne 0 ]; then
+    print_syntax >&2
+    exit 1
+fi
+
+## debug <msg>
+# Print the message as debug output.
+#
+debug() {
+    #echo "$@" >&2
+    true;
+}
+
+## error <msg>
+# Print the message to stderr as an error.
+#
+error() {
+    echo "$@" >&2
+}
+
+## print_help
+# Print the command syntax and help text for this command to stdout.
+#
+print_help() {
+    cat <<EOF
+5G-MAG Reference Tools - Let's Encrypt Certificate Management tool
+
+EOF
+    print_syntax
+    cat <<EOF
+
+Options:
+  -h            --help                         Show this help message and exit.
+  -c CERTOP     --cert-operation CERTOP        Certificate Operation.
+
+CERTOP:
+  newcsr	Create a new key and certificate signing request
+  newcert	Create a new key and public certificate
+  publiccert	Return the public certificate with metadata headers
+  servercert	Return the private key and public certificate
+  setcert	Upload a public certificate for a newcsr request
+  revoke	Revoke a certificate and key
+  delete	Revoke and delete a certificate and key
+  list		List the available certificates/keys
+
+newcsr parameters:
+  syntax: newcsr <certificate-id> <common-name> [<extra-domain-name>...]
+
+  certificate-id        The certificate ID to create a new key and certificate
+                        signing request.
+
+newcert parameters:
+  syntax: newcert <certificate-id> <common-name>
+
+  certificate-id	The certificate ID to create a new key and public
+                        certificate.
+
+publiccert parameters:
+  syntax: publiccert <certificate-id>
+
+  certificate-id	The certificate ID to fetch the public certificate for.
+
+servercert parameters:
+  syntax: servercert <certificate-id>
+
+  certificate-id        The certificate ID to fetch the private key and
+                        certificate for.
+
+setcert parameters:
+  syntax: setcert <certificate-id> < <pem-file>
+
+  certificate-id        The certificate ID for which the public certificate is
+                        being uploaded.
+
+revoke parameters:
+  syntax: revoke <certificate-id>
+
+  certificate-id        The certificate ID to revoke.
+
+delete parameters:
+  syntax: delete <certificate-id>
+
+  certificate-id	The certificate ID to delete.
+
+list parameters:
+  syntax: list [<certificate-id>...]
+EOF
+}
+
+certbot=`find_bin certbot certbot-3`
+if [ $? -ne 0 ]; then
+    error "Need certbot installed to use Let's Encrypt certificate signing"
+    exit 1
+fi
+
+eval set -- "$ARGS"
+unset ARGS
+
+CERTOPS="$default_cert_op"
+
+while true; do
+    case "$1" in
+    -c|--cert-operation)
+	CERTOPS="$2"
+	shift 2
+	continue
+	;;
+    -h|--help)
+	print_help
+	exit 0
+	;;
+    --)
+	shift
+	break
+	;;
+    *)
+	echo "Error: Command line argument \"$1\" unexpected" >&2
+	print_syntax >&2
+	exit 1
+	;;
+    esac
+done
+
+if [ -z "$CERTOPS" ]; then
+    error 'Error: Required command line parameter are missing'
+    print_syntax >&2
+    exit 1
+fi
+
+error_exit() {
+    exit_code="$1"
+    shift
+    error "$@"
+    exit "$exit_code"
+}
+
+cert_store_create() {
+    if [ ! -d "$cert_store/csrs" ]; then
+        mkdir -p "$cert_store/csrs"
+    fi
+
+    if [ ! -d "$cert_store/private" ]; then
+        mkdir -p "$cert_store/private"
+    fi
+
+    if [ ! -d "$cert_store/public" ]; then
+        mkdir -p "$cert_store/public"
+    fi
+}
+
+cert_store_check() {
+    cert_id="$1"
+    if [ -f "$cert_store/csrs/$cert_id.pem" ]; then
+        error_exit 3 "CSR for Server Certificate Resource $cert_id exists already"
+    fi
+
+    if [ -f "$cert_store/public/$cert_id.pem" ]; then
+        error_exit 3 "Certificate for Server Certificate Resource $cert_id exists already"
+    fi
+}
+
+fqdn_check() {
+    fqdn="$1"
+    if echo "$fqdn" | grep -viq '^[a-z0-9][-a-z0-9]*\(\.[a-z0-9][-a-z0-9]*\)*$'; then
+	error_exit 3 "Bad domain name: $fqdn"
+    fi
+}
+
+new_csr() {
+    cert_id="$1"
+    common_name="$2"
+    shift 2
+    cert_store_check "$cert_id"
+    fqdn_check "$common_name"
+
+    extra_domain_args=""
+    sep=""
+    while [ "$#" -gt "0" ]; do
+	fqdn_check "$1"
+	extra_domain_args="$extra_domain_args$sepDNS:$1"
+	sep=","
+	shift
+    done
+
+    openssl req -new -newkey rsa:2048 -batch -nodes -keyout "$cert_store/private/$cert_id.pem" -out "$cert_store/csrs/$cert_id.pem" -subj "/C=GB/L=London/CN=$common_name" -addext "subjectAltName=DNS:$common_name$extra_domain_args" > /dev/null 2>&1
+
+    ts=`stat -c '%Y' "$cert_store/csrs/$cert_id.pem"`
+    timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
+    hashsum=$(sha256sum "$cert_store/csrs/$cert_id.pem"|sed 's/ .*//')
+
+    echo "Last-Modified: $timestamp"
+    echo "ETag: $hashsum"
+    echo "Cache-Control: max-age=$cache_control_max_age"
+    cat "$cert_store/csrs/$cert_id.pem"
+
+    exit 0
+
+}
+
+new_cert() {
+    cert_id="$1"
+    common_name="$2"
+    shift 2
+    fqdn_check "$common_name"
+
+    extra_domain_args=""
+    while [ "$#" -gt "0" ]; do
+        fqdn_check "$1"
+        extra_domain_args="$extra_domain_args,$1"
+        shift
+    done
+
+    cert_store_check "$cert_id"
+
+    # Generate server cert to be signed
+    if [ -c "$DOCROOT_PREFIX$common_name" ]; then
+	docroot="$DOCROOT_PREFIX$common_name"
+    else
+	docroot="$DEFAULT_DOCROOT"
+    fi
+    "$certbot" certonly -n --webroot --webroot-path "$docroot" -d "$common_name$extra_domain_args" >& /dev/null
+    cp "/etc/letsencrypt/live/$common_name"/fullchain.pem "$cert_store/public/$cert_id.pem"
+    cp "/etc/letsencrypt/live/$common_name"/privkey.pem "$cert_store/private/$cert_id.pem"
+    ts=`stat -c '%Y' "$cert_store/public/$cert_id.pem"`
+    timestamp=`TZ=GMT date --date=@"$ts" +'%a, %d %b %Y %H:%M:%S %Z'`
+    hashsum=$(sha256sum "$cert_store/public/$cert_id.pem" | sed 's/ .*//')
+    
+    echo "Last-Modified: $timestamp"
+    echo "ETag: $hashsum"
+    echo "Cache-Control: max-age=$cache_control_max_age"
+    cat "$cert_store/public/$cert_id.pem"
+    
+    exit 0
+}
+
+public_cert_get() {
+    cert_id="$1"
+    if ([ -f "$cert_store/csrs/$cert_id.pem"  ] && ! [ -f "$cert_store/public/$cert_id.pem" ]); then
+        error_exit 8 "Public Certificate for $cert_id not yet available."
+    fi
+
+    if [ ! -f "$cert_store/public/$cert_id.pem" ]; then
+        error_exit 4 "Certificate for $cert_id not found"
+    fi
+
+    ts=`stat -c '%Y' "$cert_store/public/$cert_id.pem"`
+    timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
+    hashsum=$(sha256sum "$cert_store/public/$cert_id.pem"|sed 's/ .*//')
+
+    echo "Last-Modified: $timestamp"
+    echo "ETag: $hashsum"
+    echo "Cache-Control: max-age=$cache_control_max_age"
+    cat "$cert_store/public/$cert_id.pem"
+
+    exit 0
+}
+
+server_cert_get() {
+    cert_id="$1"
+    if [[ ! -f "$cert_store/public/$cert_id.pem" || ! -f "$cert_store/private/$cert_id.pem" ]]; then
+        error_exit 8 "Credentials for $cert_id not yet available."
+    fi
+
+    ts=$(stat -c '%Y' "$cert_store/public/$cert_id.pem")
+    timestamp=$(TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z')
+    hashsum=$(sha256sum "$cert_store/public/$cert_id.pem"|sed 's/ .*//')
+
+    echo "Last-Modified: $timestamp"
+    echo "ETag: $hashsum"
+    echo "Cache-Control: max-age=$cache_control_max_age"
+    cat "$cert_store/public/$cert_id.pem"
+    echo ""
+    cat "$cert_store/private/$cert_id.pem"
+
+    exit 0
+}
+
+cert_set() {
+    cert_id="$1"
+    if [[ ! -f "$cert_store/csrs/$cert_id.pem" ]]; then
+	error_exit 4 "No CSR issued: $cert_id."
+    fi
+
+    if [[ -f "$cert_store/public/$cert_id.pem" ]]; then
+	error_exit 3 "Certificate already exists for $cert_id."
+    fi
+
+    cat > "$cert_store/public/$cert_id.pem"
+    exit 0
+}
+
+cert_expiry_check() {
+    cert_id="$1"
+    if openssl x509 -checkend 86400 -noout -in "$cert_store/public/$cert_id.pem" >/dev/null 2>&1; then
+        cert_status=
+    else
+        cert_status="Expired or will expire within 24 hours"
+    fi
+}
+
+cert_list_entry() {
+    cert_id="$1"
+    if [[ -f "$cert_store/private/$cert_id.pem" && ! -f "$cert_store/public/$cert_id.pem" ]]; then
+	cert_status="Awaiting"
+        cert_subject=
+    elif [[ -f "$cert_store/public/$cert_id.pem" ]]; then
+        cert_expiry_check "$cert_id" >&2
+        cert_subject=$(openssl x509 -noout -subject -in "$cert_store/public/$cert_id.pem")
+    fi
+    echo -e "${cert_id}\t${cert_subject}\t${cert_status}"
+}
+
+cert_list() {
+    if [[ $# -eq 0 ]]; then
+	eval set -- $(cd "$cert_store/private"; ls *.pem 2>/dev/null | sed 's/\.pem$//')
+    fi
+    for cert in "$@"; do
+	cert_list_entry "$cert"
+    done
+}
+
+check_cert_revoke() {
+    cert_id="$1"
+    if [[ -f "$cert_store/csr/$cert_id.pem" ]]; then
+	can_be_revoked=0
+	error "Cannot revoke as $cert_id.pem is an externally signed certificate"
+    else
+	can_be_revoked=0
+        error "Cannot revoke as $cert_id.pem is a self-signed certificate"
+    fi
+    issuer=$(openssl x509 -in "$cert_store/public/$cert_id.pem" -inform PEM -noout -issuer | sed 's/issuer=//')
+    subject=$(openssl x509 -in "$cert_store/public/$cert_id.pem" -inform PEM -noout -subject | sed 's/subject=//')
+    if [ "$issuer" = "$subject" ]; then
+        can_be_revoked=0
+        error "Cannot revoke as $cert_id.pem is a self-signed certificate"
+    else
+        can_be_revoked=1
+    fi
+}
+
+cert_revoke() {
+    cert_id="$1"
+    check_cert_revoke "$cert_id"
+    debug "in cert_revoke: $can_be_revoked"
+    if [ "$can_be_revoked" -eq "0" ] ; then
+	    
+    	debug "in cert_revoke:exit 2 $can_be_revoked"
+        exit 2
+    fi
+
+    "$certbot" revoke --cert-path "$cert_store/public/$cert_id.pem" >/dev/null 2>&1
+    exit 0
+}
+
+cert_delete() {
+    cert_id="$1"
+    rm -f "$cert_store/private/$cert_id.pem"
+    rm -f "$cert_store/public/$cert_id.pem"
+    rm -f "$cert_store/csrs/$cert_id.pem"
+}
+
+certificate_delete() {
+    cert_id="$1"
+    check_cert_revoke "$cert_id"
+    if [ "$can_be_revoked" -ne 0 ] ; then
+        cert_revoke "$cert_id"
+    fi
+    cert_delete "$cert_id"
+    exit 0
+}
+
+parse_opts() {
+    if [ "$CERTOPS" == "newcsr" ]; then
+        if [ $# -lt 2 ]; then
+            echo "$CERTOPS: Wrong parameters to create a new csr"
+            exit 1
+        fi
+	new_csr "$@"
+        exit 1
+    fi
+
+    if [ "$CERTOPS" == "newcert" ]; then
+        if [ $# -ne 2 ]; then
+            echo "$CERTOPS: Wrong parameters to create a new certificate"
+            exit 1
+        fi
+        new_cert "$@"
+	exit 1
+    fi 
+
+    if [ "$CERTOPS" == "publiccert" ]; then
+	if [[ $# -ne 1 ]]; then
+	    error_exit 1 "$CERTOPS: has invalid options"
+	fi
+	public_cert_get "$@"
+        exit 1
+    fi
+
+    if [ "$CERTOPS" == "servercert" ]; then
+        if [ $# -ne 1 ]; then
+	    error_exit 1 "$CERTOPS: has invalid options"
+	fi
+        server_cert_get "$@"
+        exit 1
+    fi 
+
+    if [ "$CERTOPS" == "setcert" ]; then
+        if [ $# -ne 1 ]; then
+	    error_exit 1 "$CERTOPS: has invalid options"
+	fi
+        cert_set "$@"
+        exit 1
+    fi
+
+    if [ "$CERTOPS" == "revoke" ]; then
+        if [ $# -ne 1 ]; then
+	    error_exit 1 "$CERTOPS: has invalid options"
+	fi
+        cert_revoke "$@"
+        exit 1
+    fi
+
+    if [ "$CERTOPS" == "delete" ]; then
+        if [ $# -ne 1 ]; then
+	    error_exit 1 "$CERTOPS: has invalid options"
+	fi
+        certificate_delete "$@"
+        exit 1
+    fi
+
+    if [ "$CERTOPS" == "list" ]; then
+	cert_list "$@"
+    fi     
+}
+
+cert_store_create
+parse_opts "$@"
+
+exit 0

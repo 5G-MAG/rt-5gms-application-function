@@ -12,7 +12,8 @@ scripts = {
 }
 
 support_scripts = {
-  'bash/certmgr': 'self-signed-certmgr'
+  'bash/certmgr': 'self-signed-certmgr',
+  'bash/le-certmgr': 'lets-encrypt-certmgr'
 }
 
 self_signed_certmgr_runtime = support_scripts_dir / 'self-signed-certmgr'
