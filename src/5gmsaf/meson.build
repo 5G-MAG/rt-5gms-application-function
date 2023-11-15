@@ -51,6 +51,8 @@ libmsaf_dist_sources = files('''
     msaf-mgmt-sm.c
     msaf-sm.h
     msaf-sm.c
+    metrics-reporting-provisioning.c
+    metrics-reporting-provisioning.h
     response-cache-control.h
     response-cache-control.c
     provisioning-session.h
