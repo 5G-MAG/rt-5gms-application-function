@@ -51,6 +51,7 @@ typedef struct msaf_pcf_app_session_s {
 } msaf_pcf_app_session_t;
 
 extern int msaf_nw_assistance_session_create(cJSON *dynamic_policy, msaf_event_t *e);
+extern int msaf_nw_assistance_session_update(msaf_network_assistance_session_t *msaf_network_assistance_session, msaf_api_network_assistance_session_t *network_assistance_session);
 
 extern msaf_network_assistance_session_t *msaf_network_assistance_session_retrieve(const char *na_session_id);
 
@@ -64,7 +65,7 @@ extern ue_network_identifier_t *populate_ue_connection_details(msaf_api_service_
 
 extern void msaf_network_assistance_session_remove_all(void);
 
-extern void msaf_nw_assistance_session_update_pcf(msaf_network_assistance_session_t *na_sess, msaf_event_t *e);
+extern void msaf_nw_assistance_session_delivery_boost_update(msaf_network_assistance_session_t *na_sess, msaf_event_t *e);
 
 extern void na_session_set_active_delivery_boost(msaf_network_assistance_session_t *na_sess);
 
