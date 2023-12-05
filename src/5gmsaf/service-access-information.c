@@ -69,32 +69,37 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     streaming_access = msaf_api_service_access_information_resource_streaming_access_create(entry_points, NULL);
 
     // Dynamic policy invocation configuration
-    if( provisioning_session->policy_templates) {
+    if (provisioning_session->policy_templates) {
         OpenAPI_list_t *policy_templates_svr_list;
         OpenAPI_list_t *valid_policy_template_ids;
         OpenAPI_list_t *external_references;
 	msaf_api_sdf_method_e sdf_method = msaf_api_sdf_method__5_TUPLE;
         OpenAPI_list_t *sdf_methods;
 
-        ogs_debug("Adding dynamicPolicyInvocationConfiguration to ServiceAccessInformation [%s]",
-                   provisioning_session->provisioningSessionId);
-
-        policy_templates_svr_list = OpenAPI_list_create();
-        ogs_assert(policy_templates_svr_list);
-        OpenAPI_list_add(policy_templates_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
-
-        sdf_methods = OpenAPI_list_create();
-        ogs_assert(sdf_methods);
-        OpenAPI_list_add(sdf_methods, (void *)sdf_method);
-        
 	valid_policy_template_ids = msaf_provisioning_session_get_id_of_policy_templates_in_ready_state(provisioning_session);
-        external_references = msaf_provisioning_session_get_external_reference_of_policy_templates_in_ready_state(
+
+        if (valid_policy_template_ids) {
+            if (valid_policy_template_ids->first != NULL) {
+                ogs_debug("Adding dynamicPolicyInvocationConfiguration to ServiceAccessInformation [%s]",
+                           provisioning_session->provisioningSessionId);
+
+                policy_templates_svr_list = OpenAPI_list_create();
+                ogs_assert(policy_templates_svr_list);
+                OpenAPI_list_add(policy_templates_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
+
+                sdf_methods = OpenAPI_list_create();
+                ogs_assert(sdf_methods);
+                OpenAPI_list_add(sdf_methods, (void *)sdf_method);
+        
+                external_references = msaf_provisioning_session_get_external_reference_of_policy_templates_in_ready_state(
                         provisioning_session);
         
-	dpic = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_create(
-                        policy_templates_svr_list, valid_policy_template_ids, sdf_methods, external_references);
-
-
+                dpic = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_create(
+                            policy_templates_svr_list, valid_policy_template_ids, sdf_methods, external_references);
+            } else {
+                OpenAPI_list_free(valid_policy_template_ids);
+            }
+        }
     }
 
 
