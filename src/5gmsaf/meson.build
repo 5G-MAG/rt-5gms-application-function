@@ -118,7 +118,7 @@ foreach line : data
 endforeach
 
 file_hash = fs.hash(json_file, 'sha256')
-json_file_time = run_command(['stat', '-c', '%Y', json_file])
+json_file_time = run_command(['stat', '-c', '%Y', json_file], check: true)
 file_time = json_file_time.stdout().strip()
 
 content_hosting_discovery_protocols_conf = configuration_data()

@@ -51,7 +51,7 @@ endforeach
 
 sh = find_program('sh')
 foreach pm : python3_modules
-  mod_files = run_command(sh, '-c', 'cd "$MESON_SOURCE_ROOT/$MESON_SUBDIR/'+fs.parent(pm)+'"; find "' + fs.name(pm) + '" -type f -name "*.py" -print').stdout().strip().split('\n')
+  mod_files = run_command([sh, '-c', 'cd "$MESON_SOURCE_ROOT/$MESON_SUBDIR/'+fs.parent(pm)+'"; find "' + fs.name(pm) + '" -type f -name "*.py" -print'], check: false).stdout().strip().split('\n')
   foreach mod_filepath : mod_files
     mod_file = files([fs.parent(pm) / mod_filepath])
     python3.install_sources(mod_file, subdir: fs.parent(mod_filepath))

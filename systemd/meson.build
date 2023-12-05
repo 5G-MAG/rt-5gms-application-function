@@ -2,7 +2,7 @@ prefix = get_option('prefix')
 bindir = prefix / get_option('bindir')
 libdir = prefix / get_option('libdir')
 
-systemd_search_system_unit_paths = run_command(systemd_path_cmd,'systemd-search-system-unit').stdout().strip().split(':')
+systemd_search_system_unit_paths = run_command([systemd_path_cmd,'systemd-search-system-unit'], check:false).stdout().strip().split(':')
 systemd_system_unit_dir = ''
 foreach unit_path : systemd_search_system_unit_paths
   if unit_path.startswith(prefix) and unit_path.endswith('systemd' / 'system')
