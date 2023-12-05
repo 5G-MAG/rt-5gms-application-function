@@ -657,7 +657,7 @@ bool msaf_provisioning_session_send_policy_template_state_change_event(msaf_prov
 
     event = (msaf_event_t*)ogs_event_new(MSAF_EVENT_SBI_LOCAL);
     event->local_id = MSAF_LOCAL_EVENT_POLICY_TEMPLATE_STATE_CHANGE;
-    event->data = (msaf_policy_template_change_state_event_data_t *)msaf_policy_template_change_state_event_data_populate(provisioning_session, policy_template, new_state, callback, user_data);
+    event->data = msaf_policy_template_change_state_event_data_populate(provisioning_session, policy_template, new_state, callback, user_data);
 
     rv = ogs_queue_push(ogs_app()->queue, event);
     if (rv !=OGS_OK) {
@@ -679,22 +679,21 @@ bool msaf_provisioning_session_delete_policy_template(msaf_provisioning_session_
 }
 
 bool msaf_provisioning_session_delete_policy_template_by_id(msaf_provisioning_session_t *provisioning_session, const char *policy_template_id) {
-
     msaf_policy_template_node_t *msaf_policy_template;
     msaf_provisioning_session_policy_template_delete_data_t *msaf_provisioning_session_policy_template_delete_data;
 
     msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(provisioning_session, policy_template_id);
 
-    if(!msaf_policy_template) return false;
+    if (!msaf_policy_template) return false;
 
-    msaf_provisioning_session_policy_template_delete_data = ogs_calloc(1, sizeof(msaf_provisioning_session_policy_template_delete_data_t));
+    msaf_provisioning_session_policy_template_delete_data = (msaf_provisioning_session_policy_template_delete_data_t*)ogs_calloc(1,sizeof(*msaf_provisioning_session_policy_template_delete_data));
+
     ogs_assert(msaf_provisioning_session_policy_template_delete_data);
 
     msaf_provisioning_session_policy_template_delete_data->provisioning_session = provisioning_session;
     msaf_provisioning_session_policy_template_delete_data->policy_template = msaf_policy_template;
 
-
-    if(!msaf_provisioning_session_send_policy_template_state_change_event(provisioning_session, msaf_policy_template, msaf_api_policy_template_STATE_NULL, msaf_provisioning_session_policy_template_delete, (msaf_provisioning_session_policy_template_delete_data_t *) msaf_provisioning_session_policy_template_delete_data))
+    if (!msaf_provisioning_session_send_policy_template_state_change_event(provisioning_session, msaf_policy_template, msaf_api_policy_template_STATE_NULL, msaf_provisioning_session_policy_template_delete, msaf_provisioning_session_policy_template_delete_data))
         return false;
 
     return true;
@@ -756,22 +755,19 @@ static int
 free_ogs_hash_provisioning_session_policy_template(void *rec, const void *key, int klen, const void *value)
 {
 
-    msaf_provisioning_session_t *provisioning_session = NULL;
-    msaf_policy_template_node_t *msaf_policy_template = NULL;
-    msaf_provisioning_session_policy_template_delete_data_t *msaf_provisioning_session_policy_template_delete_data = NULL;
+    msaf_provisioning_session_policy_template_delete_data_t *msaf_provisioning_session_policy_template_delete_data =
+                (msaf_provisioning_session_policy_template_delete_data_t *)rec;
+    msaf_provisioning_session_t *provisioning_session = msaf_provisioning_session_policy_template_delete_data->provisioning_session;
+    msaf_policy_template_node_t *msaf_policy_template = msaf_provisioning_session_policy_template_delete_data->policy_template;
 
-    msaf_provisioning_session_policy_template_delete_data = (msaf_provisioning_session_policy_template_delete_data_t *)rec;
-    provisioning_session = msaf_provisioning_session_policy_template_delete_data->provisioning_session;
-    msaf_policy_template = msaf_provisioning_session_policy_template_delete_data->policy_template;
-
-    if (!strcmp(msaf_policy_template->policy_template->policy_template_id, (char *)key)) {
-
+/*    if (!strcmp(msaf_policy_template->policy_template->policy_template_id, (char *)key)) {*/
+    if (value == msaf_policy_template) {
         msaf_policy_template_node_free(msaf_policy_template);
         ogs_hash_set(provisioning_session->policy_templates, key, klen, NULL);
         ogs_free((void*)key);
-
+        return 0; /* finish search when the first key matches */
     }
-    ogs_free(msaf_provisioning_session_policy_template_delete_data);
+
     return 1;
 }
 
