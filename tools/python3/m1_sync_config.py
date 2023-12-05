@@ -187,15 +187,10 @@ from rt_m1_client.session import M1Session
 from rt_m1_client.exceptions import M1Error
 from rt_m1_client.data_store import JSONFileDataStore
 from rt_m1_client.types import ContentHostingConfiguration, DistributionConfiguration, IngestConfiguration, M1MediaEntryPoint, PathRewriteRule, ConsumptionReportingConfiguration
+from rt_m1_client.configuration import Configuration
 
 g_streams_config = os.path.join(os.path.sep, 'etc', 'rt-5gms', 'streams.json')
 g_sync_config = os.path.join(os.path.sep, 'etc', 'rt-5gms', 'af-sync.conf')
-
-scriptdir = os.path.dirname(__file__)
-m1_session_cmd = os.path.realpath(os.path.join(scriptdir,'..','bin','m1-session'))
-m1_cli_spec = importlib.util.spec_from_file_location('m1_session_cli', m1_session_cmd, loader=importlib.machinery.SourceFileLoader('m1_session_cli', m1_session_cmd))
-m1_cli = importlib.util.module_from_spec(m1_cli_spec)
-m1_cli_spec.loader.exec_module(m1_cli)
 
 logging.basicConfig(level=logging.INFO)
 g_log = logging.getLogger(__name__)
@@ -415,7 +410,7 @@ async def get_streams_config() -> dict:
         streams = json.loads(await infile.read())
     return streams
 
-async def get_m1_session(cfg: m1_cli.Configuration) -> M1Session:
+async def get_m1_session(cfg: Configuration) -> M1Session:
     data_store = None
     data_store_dir = cfg.get('data_store')
     if data_store_dir is not None:
@@ -423,7 +418,7 @@ async def get_m1_session(cfg: m1_cli.Configuration) -> M1Session:
     session = await M1Session((cfg.get('m1_address', 'localhost'), cfg.get('m1_port',7777)), data_store, cfg.get('certificate_signing_class'))
     return session
 
-async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict], cfg: m1_cli.Configuration, config: configparser.ConfigParser):
+async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict], cfg: Configuration, config: configparser.ConfigParser):
     # Assume M5 and M1 share an interface
     m8_config = {'m5BaseUrl': f'http://{config.get("af-sync", "m5_authority")}/3gpp-m5/v2/', 'serviceList': []}
     publish_dirs = {config.get("af-sync", "default_docroot")}
@@ -464,11 +459,11 @@ async def dump_m8_files(m1: M1Session, stream_map: dict, vod_streams: List[dict]
             await outfile.write(m8_json)
 
 async def main():
-    cfg = m1_cli.Configuration()
+    cfg = Configuration()
     session = await get_m1_session(cfg)
     streams = await get_streams_config()
     config = await get_app_config()
-    
+
     stream_map = await sync_configuration(session, streams)
 
     await dump_m8_files(session, stream_map, streams['vodMedia'], cfg, config)

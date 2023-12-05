@@ -44,9 +44,10 @@ import OpenSSL
 
 from .exceptions import (M1ClientError, M1ServerError, M1Error)
 from .types import (ApplicationId, ContentHostingConfiguration, ContentProtocols, ProvisioningSessionType, ProvisioningSession,
-                    ConsumptionReportingConfiguration, ResourceId, PROVISIONING_SESSION_TYPE_DOWNLINK)
+                    ConsumptionReportingConfiguration, ResourceId, PolicyTemplate, PROVISIONING_SESSION_TYPE_DOWNLINK)
 from .client import (M1Client, ProvisioningSessionResponse, ContentHostingConfigurationResponse, ServerCertificateResponse,
-                     ServerCertificateSigningRequestResponse, ContentProtocolsResponse, ConsumptionReportingConfigurationResponse)
+                     ServerCertificateSigningRequestResponse, ContentProtocolsResponse, ConsumptionReportingConfigurationResponse,
+                     PolicyTemplateResponse)
 from .data_store import DataStore
 from .certificates import CertificateSigner, DefaultCertificateSigner
 
@@ -448,6 +449,86 @@ class M1Session:
         await self.__connect()
         return await self.__m1_client.destroyConsumptionReportingConfiguration(provisioning_session)
 
+    # PolicyTemplate methods
+
+    async def policyTemplateIds(self, provisioning_session_id: ResourceId) -> Optional[List[ResourceId]]:
+        '''Get a list of policy template Ids
+
+        :param provisioning_session_id: The provisioning session id to retrieve policy template ids for.
+        :return: a list of policy template ids or ``None`` if the provisioning session doesn't exist or cannot be retrieved.
+        '''
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return None
+        await self.__cacheProvisioningSession(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]['provisioningsession']
+        if 'policyTemplateIds' not in ps:
+            return []
+        return ps['policyTemplateIds']
+
+    async def policyTemplateCreate(self, provisioning_session_id: ResourceId, policy_template: PolicyTemplate) -> Optional[ResourceId]:
+        '''Create a new policy template
+
+        This creates a new policy template in the provisioning session and returns the new policy template id.
+
+        :param provisioning_session_id: The provisioning session to create the new policy template in.
+        :param policy_template: The policy template to create.
+
+        :return: the policy template id of the new policy template or ``None`` if the provisioning session does not exist or if
+                 there was no response from the M1 Server.
+        '''
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return None
+        await self.__connect()
+        pol_resp: Optional[PolicyTemplateResponse] = await self.__m1_client.createPolicyTemplate(provisioning_session_id, policy_template)
+        if pol_resp is None:
+            return None
+        pol_id = pol_resp['PolicyTemplate']['policyTemplateId']
+        ps = await self.__getProvisioningSessionCache(provisioning_session_id)
+        if ps is not None:
+            if 'policyTemplates' not in ps or ps['policyTemplates'] is None:
+                # create policy template cache
+                ps['policyTemplates'] = {pol_id: {k.lower(): v for k,v in pol_resp.items()}}
+            elif pol_id not in ps['policyTemplates'] or ps['policyTemplates'][pol_id] is None:
+                # Store new policy template info
+                ps['policyTemplates'][pol_id] = {k.lower(): v for k,v in pol_resp.items()}
+            else:
+                # Update the policy template info
+                if pol_resp['PolicyTemplate'] is None:
+                    pol_resp['PolicyTemplate'] = ps['policyTemplates'][pol_id]['policytemplate']
+                ps['policyTemplates'][pol_id] = {k.lower(): v for k,v in pol_resp.items()}
+
+        return pol_id
+
+    async def policyTemplateGet(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> Optional[PolicyTemplate]:
+        '''Retrieve a policy template
+
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return None
+        await self.__cachePolicyTemplates(provisioning_session, policy_template_id)
+        ps = await self.__getProvisioningSessionCache(provisioning_session)
+        if ps is None or ps['policyTemplates'] is None or policy_template_id not in ps['policyTemplates']:
+            return None
+        return PolicyTemplate(ps['policyTemplates'][policy_template_id]['policytemplate'])
+
+    async def policyTemplateUpdate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, policy_template: PolicyTemplate) -> Optional[bool]:
+        '''Update a policy template
+
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.updatePolicyTemplate(provisioning_session, policy_template_id, policy_template)
+
+    async def policyTemplateDelete(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> bool:
+        '''Delete a policy template
+
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.destroyPolicyTemplate(provisioning_session, policy_template_id)
+
     # Convenience methods
 
     async def createDownlinkPullProvisioningSession(self, app_id: ApplicationId, asp_id: Optional[ApplicationId] = None) -> Optional[ResourceId]:
@@ -627,7 +708,7 @@ class M1Session:
 
     async def __reloadFromDataStore(self) -> None:
         '''Reload persistent information from the DataStore
-        
+
         Checks the provisioning session ids retrieved from the DataStore against the M1 server and will delete any that are no
         longer available.
 
@@ -657,7 +738,7 @@ class M1Session:
         self.__provisioning_sessions = {}
         for prov_sess in sessions:
             self.__provisioning_sessions[prov_sess] = None
-        
+
     async def __getProvisioningSessionCache(self, provisioning_session_id: ResourceId) -> Optional[dict]:
         '''Find a provisioning session cache
 
@@ -804,6 +885,36 @@ class M1Session:
             else:
                 ps['consumption-reporting-configuration'] = None
 
+    async def __cachePolicyTemplates(self, provisioning_session_id: ResourceId):
+        '''Cache all policy templates for the provisioning session
+
+        Will only cache if the old cache didn't exist or has expired.
+
+        :meta private:
+        :param provisioning_session_id: The id of provisioning session to cache the policy templates for.
+        '''
+        await self.__cacheProvisioningSession(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if ps['policyTemplates'] is None:
+            return
+        ret_err = None
+        for pol_id,pol in list(ps['policyTemplates'].items()):
+            if pol is None:
+                pol = {'etag': None, 'last-modified': None, 'cache-until': None, 'policytemplate': None}
+                ps['policyTemplates'][pol_id] = pol
+            if pol['cache-until'] is None or pol['cache-until'] < now:
+                await self.__connect()
+                try:
+                    result = await self.__m1_client.retrievePolicyTemplate(provisioning_session_id, pol_id)
+                    if result is not None:
+                        pol.update({k.lower(): v for k,v in result.items()})
+                except M1Error as err:
+                    if ret_err is None:
+                        ret_err = err
+        if ret_err is not None:
+            raise ret_err
+
     async def __getCertificateSigner(self) -> CertificateSigner:
         '''Get the `CertificateSigner`
 
@@ -842,7 +953,7 @@ class M1Session:
         '''
         if self.__m1_client is None:
             self.__m1_client = M1Client(self.__m1_host)
-            
+
     def _dump_state(self) -> None:
         '''Dump the current provisioning session cache to the log
         '''

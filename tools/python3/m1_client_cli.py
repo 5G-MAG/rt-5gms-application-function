@@ -44,6 +44,10 @@ Syntax:
     m1-client consumption show [-h] <address:port> <provisioning-session-id>
     m1-client consumption update [-h] <address:port> <provisioning-session-id> [-i <interval>] [-p <percentage>] [-l] [-a]
     m1-client consumption delete [-h] <address:port> <provisioning-session-id>
+    m1-client policy create [-h] <address:port> <provisioning-session-id> <PolicyTemplate-JSON-file>
+    m1-client policy show [-h] <address:port> <provisioning-session-id> <policy-template-id>
+    m1-client policy update [-h] <address:port> <provisioning-session-id> <policy-template-id> <PolicyTemplate-JSON-file>
+    m1-client policy delete [-h] <address:port> <provisioning-session-id> <policy-template-id>
 '''
 
 import aiofiles
@@ -61,8 +65,8 @@ installed_packages_dir = '@python_packages_dir@'
 if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.path:
     sys.path.append(installed_packages_dir)
 
-from rt_m1_client.client import M1Client, ProvisioningSessionResponse, ContentProtocolsResponse, ServerCertificateSigningRequestResponse, ServerCertificateResponse, ContentHostingConfigurationResponse, ConsumptionReportingConfigurationResponse
-from rt_m1_client.types import PROVISIONING_SESSION_TYPE_DOWNLINK, PROVISIONING_SESSION_TYPE_UPLINK, ContentHostingConfiguration, ConsumptionReportingConfiguration
+from rt_m1_client.client import M1Client, ProvisioningSessionResponse, ContentProtocolsResponse, ServerCertificateSigningRequestResponse, ServerCertificateResponse, ContentHostingConfigurationResponse, ConsumptionReportingConfigurationResponse, PolicyTemplateResponse
+from rt_m1_client.types import PROVISIONING_SESSION_TYPE_DOWNLINK, PROVISIONING_SESSION_TYPE_UPLINK, ContentHostingConfiguration, ConsumptionReportingConfiguration, PolicyTemplate
 from rt_m1_client.exceptions import M1Error
 
 async def cmd_provisioning_create(args: argparse.Namespace) -> int:
@@ -463,6 +467,55 @@ async def cmd_consumption_delete(args: argparse.Namespace) -> int:
         print('ConsumptionReportingConfiguration failed to delete')
     return 0
 
+async def __policyTemplateFromArgs(args: argparse.Namespace) -> PolicyTemplate:
+    with open(args.policy_template,'r') as pol_file:
+        return PolicyTemplate.fromJSON(pol_file.read())
+
+async def cmd_policy_create(args: argparse.Namespace) -> int:
+    client = await getClient(args)
+    provisioning_session_id: ResourceId = args.provisioning_session_id
+    policy: PolicyTemplate = await __policyTemplateFromArgs(args)
+    resp: Optional[PolicyTemplateResponse] = await client.createPolicyTemplate(provisioning_session_id, policy)
+    if resp is None:
+        print('PolicyTemplate creation failed: No such provisioning session')
+    else:
+        print(f'''PolicyTemplate {resp['PolicyTemplate']['policyTemplateId']} created''')
+    return 0
+
+async def cmd_policy_show(args: argparse.Namespace) -> int:
+    client = await getClient(args)
+    provisioning_session_id: ResourceId = args.provisioning_session_id
+    policy_template_id: ResourceId = args.policy_template_id
+    resp: Optional[PolicyTemplateResponse] = await client.retrievePolicyTemplate(provisioning_session_id, policy_template_id)
+    if resp is None:
+        print(f'PolicyTemplate "{policy_template_id}" for provisioning session "{provisioning_session_id}" not found')
+    else:
+        print(f'''{PolicyTemplate.format(resp['PolicyTemplate'])}''')
+    return 0
+
+async def cmd_policy_update(args: argparse.Namespace) -> int:
+    client = await getClient(args)
+    provisioning_session_id: ResourceId = args.provisioning_session_id
+    policy_template_id: ResourceId = args.policy_template_id
+    policy: PolicyTemplate = await __policyTemplateFromArgs(args)
+    resp: bool = await client.updatePolicyTemplate(provisioning_session_id, policy_template_id, policy)
+    if resp:
+        print('PolicyTemplate updated successfully')
+    else:
+        print('PolicyTemplate update failed')
+    return 0
+
+async def cmd_policy_delete(args: argparse.Namespace) -> int:
+    client = await getClient(args)
+    provisioning_session_id: ResourceId = args.provisioning_session_id
+    policy_template_id: ResourceId = args.policy_template_id
+    resp: bool = await client.destroyPolicyTemplate(provisioning_session_id, policy_template_id)
+    if resp:
+        print('PolicyTemplate deleted')
+    else:
+        print('Failed to delete policy {policy_template_id} for provisioning session {provisioning_session_id}')
+    return 0
+
 async def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog='m1-client', description='M1 Client API tool')
     subparsers = parser.add_subparsers(required=True)
@@ -609,6 +662,40 @@ async def parse_args() -> argparse.Namespace:
     parser_consumption_delete = consumption_subparsers.add_parser('delete', parents=[parent_addr_prov],
                                                                   help='Delete the Consumption Reporting for a provisioning session')
     parser_consumption_delete.set_defaults(command=cmd_consumption_delete)
+
+    # m1-client policy ...
+    parser_policy = subparsers.add_parser('policy', help='PolicyTemplateProvisioning APIs')
+    policy_subparsers = parser_policy.add_subparsers(required=True)
+
+    # m1-client policy create [-h] <address:port> <provisioning-session-id> <PolicyTemplate-JSON-file>
+    parser_policy_create = policy_subparsers.add_parser('create', parents=[parent_addr_prov],
+                                                        help='Create a Policy Template for a provisioning session')
+    parser_policy_create.set_defaults(command=cmd_policy_create)
+    parser_policy_create.add_argument('policy_template', metavar='PolicyTemplate-JSON-file',
+                                       help='Path to a PolicyTemplate JSON file')
+
+    # m1-client policy show [-h] <address:port> <provisioning-session-id> <policy-template-id>
+    parser_policy_show = policy_subparsers.add_parser('show', parents=[parent_addr_prov],
+                                                      help='Display a Policy Template from a provisioning session')
+    parser_policy_show.set_defaults(command=cmd_policy_show)
+    parser_policy_show.add_argument('policy_template_id', metavar='policy-template-id',
+                                    help='Id of the Policy Template to display from the provisioning session')
+
+    # m1-client policy update [-h] <address:port> <provisioning-session-id> <policy-template-id> <PolicyTemplate-JSON-file>
+    parser_policy_update = policy_subparsers.add_parser('update', parents=[parent_addr_prov],
+                                                        help='Update a Policy Template for a provisioning session')
+    parser_policy_update.set_defaults(command=cmd_policy_update)
+    parser_policy_update.add_argument('policy_template_id', metavar='policy-template-id',
+                                      help='Id of the Policy Template to update from the provisioning session')
+    parser_policy_update.add_argument('policy_template', metavar='PolicyTemplate-JSON-file',
+                                      help='Path to a PolicyTemplate JSON file')
+
+    # m1-client policy delete [-h] <address:port> <provisioning-session-id> <policy-template-id>
+    parser_policy_delete = policy_subparsers.add_parser('delete', parents=[parent_addr_prov],
+                                                        help='Delete a PolicyTemplate from a provisioning session')
+    parser_policy_delete.set_defaults(command=cmd_policy_delete)
+    parser_policy_delete.add_argument('policy_template_id', metavar='policy-template-id',
+                                      help='Id of the Policy Template to delete from the provisioning session')
 
     return parser.parse_args()
 

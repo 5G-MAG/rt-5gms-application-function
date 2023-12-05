@@ -42,7 +42,7 @@ import httpx
 
 from .exceptions import (M1ClientError, M1ServerError)
 from .types import (ApplicationId, ContentHostingConfiguration, ContentProtocols,
-                    ConsumptionReportingConfiguration,
+                    ConsumptionReportingConfiguration, PolicyTemplate,
                     ProvisioningSessionType, ProvisioningSession, ResourceId)
 
 class TagAndDateResponse(TypedDict, total=False):
@@ -88,6 +88,12 @@ class ConsumptionReportingConfigurationResponse(TagAndDateResponse, total=False)
     '''
     ProvisioningSessionId: ResourceId
     ConsumptionReportingConfiguration: ConsumptionReportingConfiguration
+
+class PolicyTemplateResponse(TagAndDateResponse, total=False):
+    '''Response containing a policy template
+    '''
+    ProvisioningSessionId: ResourceId
+    PolicyTemplate: PolicyTemplate
 
 class M1Client:
     '''5G-MAG Reference Tools: M1 Client
@@ -659,11 +665,114 @@ class M1Client:
     #sync def destroyMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> bool:
 
     # TS26512_M1_PolicyTemplatesProvisioning
-    #async def createPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template: PolicyTemplate) -> Optional[ResourceId]:
-    #async def retrievePolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> PolicyTemplateResponse:
-    #async def updatePolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, policy_template: PolicyTemplate) -> bool:
-    #async def patchPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, patch: str) -> PolicyTemplateResponse:
-    #async def destroyPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> bool:
+    async def createPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template: PolicyTemplate) -> Optional[PolicyTemplateResponse]:
+        '''Create a new PolicyTemplate in a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to add the PolicyTemaplet to.
+        :param PolicyTemplate policy_template: The PolicyTemplate to add to the provisioning session.
+        :return: The PolicyTemplateResponse if successful.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the policy template.
+        '''
+        result = await self.__do_request('POST',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates',
+                json.dumps(policy_template), 'application/json')
+        if result['status_code'] == 200:
+            ret: PolicyTemplateResponse = self.__tag_and_date(result)
+            ret['PolicyTemplate'] = PolicyTemplate.fromJSON(result['body'])
+            return ret
+        if result['status_code'] == 201 or result['status_code'] == 204:
+            pol_temp_id: ResourceId = result['headers'].get('location').rsplit('/',1)[-1]
+            return await self.retrievePolicyTemplate(provisioning_session_id, pol_temp_id)
+        self.__default_response(result)
+        return None
+
+    async def retrievePolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> Optional[PolicyTemplateResponse]:
+        '''Retrieve a PolicyTemplate for a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to retrieve the PolicyTemplate from.
+        :param ResourceId policy_template_id: The PolicyTemplate Id of the PolicyTemplate to retrieve.
+        :return: A `PolicyTemplateResponse` which holds the `PolicyTemplate` and the caching metadata or `None` if the
+                 `PolicyTemplate` cannot be found.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the retrieval of the policy template.
+        '''
+        result = await self.__do_request('GET',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates/{policy_template_id}',
+                '', 'application/json')
+        if result['status_code'] == 200:
+            ret: PolicyTemplateResponse = self.__tag_and_date(result)
+            ret['PolicyTemplate'] = PolicyTemplate.fromJSON(result['body'])
+            return ret
+        if result['status_code'] == 404:
+            return None
+        self.__default_response(result)
+        return None
+
+    async def updatePolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, policy_template: PolicyTemplate) -> bool:
+        '''Update an existing PolicyTemplate in a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to replace the PolicyTemplate in.
+        :param ResourceId policy_template_id: The PolicyTemplate Id of the PolicyTemplate to replace.
+        :param PolicyTemplate policy_template: The PolicyTemplate which will replace the existing one in the provisioning session.
+        :return: `True` if the update succeeded.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the update of the policy template.
+        '''
+        result = await self.__do_request('PUT',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates/{policy_template_id}',
+                json.dumps(policy_template), 'application/json')
+        if result['status_code'] == 204:
+            return True
+        if result['status_code'] == 404:
+            return False
+        self.__default_response(result)
+        return False
+
+    async def patchPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, patch: str) -> Optional[PolicyTemplateResponse]:
+        '''Patch a PolicyTemplate for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to modify the PolicyTemplate for.
+        :param ResourceId policy_template_id: The PolicyTemplateId for the PolicyTemplate in the provisioning session.
+        :param str patch: The JSON patch to apply to the ConsumptionReportingConfiguration.
+
+        :return: A `PolicyTemplateResponse` containing the new template after the patch is applied.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the patching of the policy template.
+        '''
+        result = await self.__do_request('PATCH',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates/{policy_template_id}',
+                patch, 'application/json-patch+json')
+        if result['status_code'] == 200:
+            ret: PolicyTemplateResponse = self.__tag_and_date(result)
+            ret['PolicyTemplate'] = PolicyTemplate.fromJSON(result['body'])
+            return ret
+        if result['status_code'] == 404:
+            return None
+        self.__default_response(result)
+        return None
+
+    async def destroyPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> bool:
+        '''Destroy a PolicyTemplate in a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to modify the PolicyTemplate for.
+        :param ResourceId policy_template_id: The PolicyTemplateId for the PolicyTemplate in the provisioning session.
+
+        :return: `True` if the PolicyTemplate was deleted or `False` if the PolicyTemplate didn't exist.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the deletion of the provisioning session.
+        '''
+        result = await self.__do_request('DELETE',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates/{policy_template_id}',
+                '', 'application/json')
+        if result['status_code'] == 204:
+            return True
+        if result['status_code'] == 404:
+            return False
+        self.__default_response(result)
+        return False
 
     # Private methods
 
@@ -778,6 +887,7 @@ __all__ = [
         'ServerCertificateResponse',
         'ServerCertificateSigningRequestResponse',
         'ContentProtocolsResponse',
+        'PolicyTemplateResponse',
         # Classes
         'M1Client',
         ]
