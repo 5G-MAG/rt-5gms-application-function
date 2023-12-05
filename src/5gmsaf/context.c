@@ -161,7 +161,10 @@ int msaf_context_parse_config(void)
     ogs_assert(document);
 
     rv = msaf_context_prepare();
-    if (rv != OGS_OK) return rv;
+    if (rv != OGS_OK) {
+        ogs_debug("msaf_context_prepare() failed");
+        return rv;
+    }
 
     ogs_yaml_iter_init(&root_iter, document);
     while (ogs_yaml_iter_next(&root_iter)) {
@@ -339,7 +342,10 @@ int msaf_context_parse_config(void)
                                 dev = ogs_yaml_iter_value(&sbi_iter);
                             } else if (!strcmp(sbi_key, "option")) {
                                 rv = ogs_app_config_parse_sockopt(&sbi_iter, &option);
-                                if (rv != OGS_OK) return rv;
+                                if (rv != OGS_OK) {
+                                    ogs_debug("ogs_app_config_parse_sockopt() failed");
+                                    return rv;
+                                }
                                 is_option = true;
                             } else if (!strcmp(sbi_key, "tls")) {
                                 ogs_yaml_iter_t tls_iter;
@@ -596,10 +602,16 @@ int msaf_context_parse_config(void)
     }
 
     rv = check_for_network_assistance_support();
-    if (rv != OGS_OK) return rv;
+    if (rv != OGS_OK) {
+        ogs_debug("check_for_network_assistance_support() failed");
+        return rv;
+    }
 
     rv = msaf_context_validation();
-    if (rv != OGS_OK) return rv;
+    if (rv != OGS_OK) {
+        ogs_debug("msaf_context_validation() failed");
+        return rv;
+    }
 
     return OGS_OK;
 }
@@ -625,7 +637,7 @@ static void msaf_context_network_assistance_session_init(void)
 static int check_for_network_assistance_support(void){
 
     if(self->config.offerNetworkAssistance && !self->config.open5gsIntegration_flag) {
-        ogs_info("For network assistance, set \"offerNetworkAssistance: true\" and \"open5gsIntegration: true\" in the configuration file");
+        ogs_info("msaf.open5gsIntegration must be true if msaf.offerNetworkAssistance is true. For network assistance set both \"offerNetworkAssistance: true\" and \"open5gsIntegration: true\" in the configuration file");
 	return OGS_ERROR;
     }
 

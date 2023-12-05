@@ -28,18 +28,27 @@ int msaf_initialize()
     int rv;
 
     rv = msaf_set_time();
-    if(rv != 0) return OGS_ERROR;
+    if (rv != 0) {
+        ogs_debug("msaf_set_time() failed");
+        return OGS_ERROR;
+    }
 
     ogs_sbi_context_init(OpenAPI_nf_type_AF);
 
     msaf_context_init();
 
     rv = msaf_context_parse_config();
-    if (rv != OGS_OK) return rv;
+    if (rv != OGS_OK) {
+        ogs_debug("msaf_context_parse_config() failed");
+        return rv;
+    }
 
     if (msaf_self()->config.open5gsIntegration_flag) {
         rv = ogs_sbi_context_parse_config("msaf", "nrf", "scp");
-        if (rv != OGS_OK) return rv;
+        if (rv != OGS_OK) {
+            ogs_debug("ogs_sbi_context_parse_config() failed");
+            return rv;
+        }
     }
 
     if (!msaf_distribution_certificate_check()) {
@@ -48,19 +57,31 @@ int msaf_initialize()
     }
 
     rv = bsf_parse_config("bsf", "bsf-service-consumer");
-    if (rv != OGS_OK) return rv;
+    if (rv != OGS_OK) {
+        ogs_debug("bsf_parse_config() failed");
+        return rv;
+    }
 
     /*rv = pcf_initialize();
     if (rv != OGS_OK) return rv;*/
 
     rv = ogs_log_config_domain(ogs_app()->logger.domain, ogs_app()->logger.level);
-    if (rv != OGS_OK) return rv;
+    if (rv != OGS_OK) {
+        ogs_debug("ogs_log_config_domain failed");
+        return rv;
+    }
 
     rv = msaf_sbi_open();
-    if (rv != 0) return OGS_ERROR;
+    if (rv != 0) {
+        ogs_debug("msaf_sbi_open() failed");
+        return OGS_ERROR;
+    }
 
     thread = ogs_thread_create(msaf_main, NULL);
-    if (!thread) return OGS_ERROR;
+    if (!thread) {
+        ogs_debug("ogs_thread_create() failed");
+        return OGS_ERROR;
+    }
 
     initialized = 1;
 
