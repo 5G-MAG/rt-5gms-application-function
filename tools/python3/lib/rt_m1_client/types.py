@@ -408,7 +408,7 @@ class ConsumptionReportingConfiguration(TypedDict, total=False):
         if 'accessReporting' in crc and crc['accessReporting']:
             ret += f"{prefix}With access reporting\n"
         if len(ret) == 0:
-            ret = f'{prefix}Active with no parameters set\n'
+            ret = f"{prefix}Active with no parameters set\n"
         return ret
 
 # TS 26.512 PolicyTemplate
@@ -764,14 +764,14 @@ class ChargingSpecification(TypedDict, total=False):
         '''Format a ChargingSpecification as a multiline string
         '''
         prefix: str = ' ' * indent
+        nlprefix: str = f"\n{prefix}"
         ret: str = ''
         if 'sponId' in cs:
-            ret += f"\n{prefix}Sponsor ID: {cs['sponId']}"
+            ret += f"{nlprefix}Sponsor ID: {cs['sponId']}"
         if 'sponStatus' in cs:
-            ret += f"\n{prefix}Sponsor Status: {cs['sponStatus']}"
+            ret += f"{nlprefix}Sponsor Status: {cs['sponStatus']}"
         if 'gpsi' in cs:
-            ret += f'''\n{prefix}GPSIs:
-{prefix}  {f'\n{prefix}  '.join(cs['gpsi'])}'''
+            ret += f"{nlprefix}GPSIs:{nlprefix}  {f'{nlprefix}  '.join(cs['gpsi'])}"
         return ret[1:]
 
 class PolicyTemplateMandatory(TypedDict):
