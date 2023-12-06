@@ -117,9 +117,10 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
                 return 0;
 	    }
 
-	    if(service_data_flow_description->flow_description){
+	    if (service_data_flow_description->flow_description) {
 
                 if (!service_data_flow_description->flow_description->direction) {
+                    ogs_error("Mandatory direction property missing");
                     msaf_dynamic_policy_remove(dyn_policy);
                     return 0;
                 }
@@ -127,14 +128,22 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
                 ue_connection = populate_ue_connection_information(service_data_flow_description);
 
 		msaf_policy_template = msaf_provisioning_session_get_policy_template_by_id(dynamic_policy->provisioning_session_id, dynamic_policy->policy_template_id);
-		if(!msaf_policy_template) return 0;
+		if (!msaf_policy_template) {
+                    ogs_error("Cannot find policy template %s in provisioning session %s", dynamic_policy->policy_template_id, dynamic_policy->provisioning_session_id);
+                    msaf_dynamic_policy_remove(dyn_policy);
+                    return 0;
+                }
 
                 media_component = populate_media_component(msaf_policy_template->policy_template->qo_s_specification, service_data_flow_description->flow_description, dynamic_policy->qos_specification?dynamic_policy->qos_specification: NULL, dynamic_policy->media_type?dynamic_policy->media_type: OpenAPI_media_type_VIDEO);
-                 
-		 dynamic_policy_set_enforcement_bit_rate(msaf_policy_template, dynamic_policy);
+                if (!media_component) {
+                    ogs_error("Unable to convert policy to MediaComponent");
+                    msaf_dynamic_policy_remove(dyn_policy);
+                    return 0;
+                } 
+                dynamic_policy_set_enforcement_bit_rate(msaf_policy_template, dynamic_policy);
 		 /*
 	         dynamic_policy->is_enforcement_bit_rate = true;
-		 if(!dynamic_policy->qos_specification) {
+		 if (!dynamic_policy->qos_specification) {
 		        dynamic_policy->enforcement_bit_rate = ogs_sbi_bitrate_from_string(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl);
                  } else {
 		        dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl, dynamic_policy->qos_specification->mar_bw_dl_bit_rate); 
@@ -319,23 +328,25 @@ static OpenAPI_list_t *populate_media_component(msaf_api_m1_qo_s_specification_t
         char *remote_addr;
         char *remote_port;
 
-        if(!strcmp(flow_description->direction, "UPLINK")){
+        if (!strcmp(flow_description->direction, "UPLINK")) {
             remote_addr = flow_description->dst_ip?flow_description->dst_ip:"any";
             remote_port = flow_description_port(flow_description->dst_port);
 
             ue_addr = flow_description->src_ip?flow_description->src_ip:"any";
             ue_port = flow_description_port(flow_description->dst_port);
 
-        }
-
-        if(!strcmp(flow_description->direction, "DOWNLINK")){
+        } else if (!strcmp(flow_description->direction, "DOWNLINK")) {
 
             remote_addr = flow_description->src_ip?flow_description->src_ip:"any";
             remote_port = flow_description_port(flow_description->src_port);
 
             ue_addr = flow_description->dst_ip?flow_description->dst_ip:"any";
             ue_port = flow_description_port(flow_description->dst_port);
-         }
+        } else {
+            ogs_error("Unknown flow direction %s", flow_description->direction);
+            OpenAPI_list_free(MediaComponentList);
+            return NULL;
+        }
 
         flow_descs = OpenAPI_list_create();
         ogs_assert(flow_descs);
