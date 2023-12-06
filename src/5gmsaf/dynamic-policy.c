@@ -184,7 +184,7 @@ int msaf_dynamic_policy_update_pcf(msaf_dynamic_policy_t *msaf_dynamic_policy, m
         dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(msaf_policy_template->policy_template->qo_s_specification->max_btr_dl, dynamic_policy->qos_specification->mar_bw_dl_bit_rate);
     } 
     */   
-    media_comps = update_media_component(msaf_policy_template->policy_template->qo_s_specification, dynamic_policy->qos_specification?dynamic_policy->qos_specification: NULL, dynamic_policy->media_type?dynamic_policy->media_type: OpenAPI_media_type_VIDEO);
+    media_comps = update_media_component(msaf_policy_template->policy_template->qo_s_specification, dynamic_policy->qos_specification, dynamic_policy->media_type?dynamic_policy->media_type: OpenAPI_media_type_VIDEO);
 
     if (msaf_dynamic_policy->pcf_app_session) {
 
@@ -406,7 +406,7 @@ static OpenAPI_list_t *populate_media_component(msaf_api_m1_qo_s_specification_t
 static OpenAPI_list_t *update_media_component(msaf_api_m1_qo_s_specification_t *m1_qos, msaf_api_m5_qo_s_specification_t *requested_qos, msaf_api_media_type_e media_type) {
 
     OpenAPI_list_t *media_comps;
-    OpenAPI_media_component_t *media_comp;
+    OpenAPI_media_component_rm_t *media_comp;
     OpenAPI_map_t *media_comp_map;
     char *mar_bw_dl_bit_rate;
     char *mar_bw_ul_bit_rate;
@@ -442,11 +442,11 @@ static OpenAPI_list_t *update_media_component(msaf_api_m1_qo_s_specification_t *
         }
     }
 
-    media_comp = OpenAPI_media_component_create(NULL, NULL, NULL, false, 0, NULL, NULL,
+    media_comp = OpenAPI_media_component_rm_create(NULL, NULL, NULL, NULL, NULL, false, 0,
             false, 0, NULL, false, 0.0, false, 0.0, NULL, OpenAPI_flow_status_NULL,
             msaf_strdup(mar_bw_dl_bit_rate), msaf_strdup(mar_bw_ul_bit_rate),
             false, 0, false, 0, NULL, NULL, 0, NULL, media_type,
-            requested_qos?requested_qos->min_des_bw_dl_bit_rate: NULL, requested_qos?requested_qos->min_des_bw_ul_bit_rate: NULL,
+            requested_qos?msaf_strdup(requested_qos->min_des_bw_dl_bit_rate): NULL, requested_qos?msaf_strdup(requested_qos->min_des_bw_ul_bit_rate): NULL,
             requested_qos?msaf_strdup(requested_qos->mir_bw_dl_bit_rate): NULL, requested_qos?msaf_strdup(requested_qos->mir_bw_ul_bit_rate): NULL,
             OpenAPI_preemption_capability_NULL, OpenAPI_preemption_vulnerability_NULL,
             OpenAPI_priority_sharing_indicator_NULL, OpenAPI_reserv_priority_NULL,

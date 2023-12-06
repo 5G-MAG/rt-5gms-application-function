@@ -305,13 +305,13 @@ void msaf_network_assistance_session_remove_all_pcf_app_session(void)
 static OpenAPI_list_t *update_media_component(char *mir_bw_dl_bit_rate) {
 
     OpenAPI_list_t *media_comps;
-    OpenAPI_media_component_t *media_comp;
+    OpenAPI_media_component_rm_t *media_comp;
     OpenAPI_map_t *media_comp_map;
 
     media_comps = OpenAPI_list_create();
     ogs_assert(media_comps);
 
-    media_comp = OpenAPI_media_component_create(NULL , NULL, NULL, false , 0, NULL, NULL, false, 0, NULL, false, 0.0,
+    media_comp = OpenAPI_media_component_rm_create(NULL , NULL, NULL, NULL, NULL, false , 0, false, 0, NULL, false, 0.0,
             false, 0.0, NULL, OpenAPI_flow_status_NULL, NULL, NULL, false, 0, false, 0, NULL, NULL, 0, NULL,
             OpenAPI_media_type_VIDEO, NULL, NULL, mir_bw_dl_bit_rate, NULL, OpenAPI_preemption_capability_NULL,
             OpenAPI_preemption_vulnerability_NULL, OpenAPI_priority_sharing_indicator_NULL, OpenAPI_reserv_priority_NULL,
