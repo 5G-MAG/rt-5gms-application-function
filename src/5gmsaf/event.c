@@ -29,7 +29,6 @@ const char *msaf_event_get_name(msaf_event_t *e)
     return ogs_event_get_name(&e->h);
 }
 
-
 int check_event_addresses(msaf_event_t *e, ogs_sockaddr_t *sockaddr_v4, ogs_sockaddr_t *sockaddr_v6)
 {
     ogs_sbi_stream_t *stream = e->h.sbi.data;
@@ -40,53 +39,42 @@ int check_event_addresses(msaf_event_t *e, ogs_sockaddr_t *sockaddr_v4, ogs_sock
         server = ogs_sbi_server_from_stream(stream);
         ogs_assert(server);
 
-        if(sockaddr_v4 && (ogs_sockaddr_is_equal(server->node.addr, sockaddr_v4) || (sockaddr_v6 && ogs_sockaddr_is_equal(server->node.addr, sockaddr_v6)) )){
-      
+        if ((sockaddr_v4 && ogs_sockaddr_is_equal(server->node.addr, sockaddr_v4)) ||
+            (sockaddr_v6 && ogs_sockaddr_is_equal(server->node.addr, sockaddr_v6))
+           ) {
             return 1;
         }     
-       
     }
+
     return 0;
-
 }
 
-
-msaf_event_t *populate_msaf_event_with_metadata( msaf_event_t *e, const nf_server_interface_metadata_t *nf_server_interface_metadata, const nf_server_app_metadata_t *app_meta)
+msaf_event_t *populate_msaf_event_with_metadata(msaf_event_t *e, const nf_server_interface_metadata_t *nf_server_interface_metadata,
+                                                const nf_server_app_metadata_t *app_meta)
 {
-	msaf_event_t *event;
-	int rv, i;
-        event = (msaf_event_t*) ogs_event_new(OGS_EVENT_SBI_SERVER);
-	/*
-        event->h.sbi.request = e->h.sbi.request;
-        ogs_assert(event->h.sbi.request);
-	*/
-        event->h.sbi.data = e->h.sbi.data;
-        ogs_assert(event->h.sbi.data);
-	event->message = ogs_calloc(1, sizeof(ogs_sbi_message_t));
-        ogs_assert(event->message);
+    msaf_event_t *event;
+    int rv;
+    event = (msaf_event_t*) ogs_event_new(OGS_EVENT_SBI_SERVER);
 
-	if (e->message->h.service.name) ogs_free(e->message->h.service.name);
-        if (e->message->h.api.version) ogs_free(e->message->h.api.version);
-        for (i = 0; i < OGS_SBI_MAX_NUM_OF_RESOURCE_COMPONENT &&
-                        e->message->h.resource.component[i]; i++)
-            ogs_free(e->message->h.resource.component[i]);
+    event->h.sbi.data = e->h.sbi.data;
+    ogs_assert(event->h.sbi.data);
+    event->message = ogs_calloc(1, sizeof(ogs_sbi_message_t));
+    ogs_assert(event->message);
 
-        //ogs_sbi_parse_request(event->message, e->h.sbi.request);
-	rv = ogs_sbi_parse_header(event->message, &e->h.sbi.request->h);
-        if (rv != OGS_OK) {
-                ogs_error("ogs_sbi_parse_header() failed");
-            }
+    rv = ogs_sbi_parse_header(event->message, &e->h.sbi.request->h);
+    if (rv != OGS_OK) {
+        ogs_error("ogs_sbi_parse_header() failed");
+    }
     
-	event->nf_server_interface_metadata = nf_server_interface_metadata;
-        event->app_meta = msaf_app_metadata();
+    event->nf_server_interface_metadata = nf_server_interface_metadata;
+    event->app_meta = msaf_app_metadata();
 
-	return event;
-
+    return event;
 }
 
 
-void msaf_event_free(msaf_event_t *e) {
-
+void msaf_event_free(msaf_event_t *e)
+{
     if (e->message) {
         ogs_sbi_message_free(e->message);
         ogs_free(e->message);
