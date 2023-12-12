@@ -633,12 +633,11 @@ static bool app_session_change_callback(pcf_app_session_t *app_session, void *da
         {
 	    ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));
             msaf_dynamic_policy_remove(dynamic_policy);
-
-        } else if (dynamic_policy->metadata->delete_event) {
-            msaf_dynamic_policy_delete(dynamic_policy);
+            return true;
         }
 
-        return false;
+        msaf_dynamic_policy_delete(dynamic_policy);
+        return true;
     }
 
     if(app_session && dynamic_policy->metadata->create_event){
@@ -654,14 +653,16 @@ static void msaf_dynamic_policy_delete(msaf_dynamic_policy_t *dynamic_policy) {
     ogs_sbi_response_t *response;
 
     ogs_assert(dynamic_policy->metadata);
-    ogs_assert(dynamic_policy->metadata->delete_event);
-    response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, dynamic_policy->metadata->delete_event->nf_server_interface_metadata, dynamic_policy->metadata->delete_event->app_meta);
-    nf_server_populate_response(response, 0, NULL, 204);
-    ogs_assert(response);
-    ogs_assert(true == ogs_sbi_server_send_response(dynamic_policy->metadata->delete_event->h.sbi.data, response));
+
+    if (dynamic_policy->metadata->delete_event) {
+        response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, dynamic_policy->metadata->delete_event->nf_server_interface_metadata, dynamic_policy->metadata->delete_event->app_meta);
+        nf_server_populate_response(response, 0, NULL, 204);
+        ogs_assert(response);
+        ogs_assert(true == ogs_sbi_server_send_response(dynamic_policy->metadata->delete_event->h.sbi.data, response));
+    }
+
     msaf_dynamic_policy_hash_remove((const char *)dynamic_policy->dynamicPolicyId);
     msaf_dynamic_policy_remove(dynamic_policy);
-
 }
 
 static void
