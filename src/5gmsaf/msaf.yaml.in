@@ -196,7 +196,12 @@ msaf:
         m5ServiceAccessInformation: 60
     dataCollectionDir: @data-collection-dir@
     offerNetworkAssistance: false
-#
+#    networkAssistance:
+#      deliveryBoost:
+#        minDlBitRate: 1 Mbps
+#        boostPeriod: 30
+
+
 # nrf:
 #
 #  <SBI Client>>
