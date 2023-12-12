@@ -9,7 +9,7 @@
 #===========================================================================
 #
 logger:
- level: debug
+  level: info
 #
 #  o Set OGS_LOG_INFO to all domain level
 #   - If `level` is omitted, the default level is OGS_LOG_INFO)
@@ -195,6 +195,7 @@ msaf:
         m1ConsumptionReportingConfiguration: 60
         m5ServiceAccessInformation: 60
     dataCollectionDir: @data-collection-dir@
+    offerNetworkAssistance: false
 #
 # nrf:
 #
@@ -239,6 +240,12 @@ nrf:
           - 127.0.0.10
           - ::1
         port: 7777
+
+bsf:
+  notificationListener:
+    - addr:
+      - 127.0.0.99
+      port: 7779
 
 #
 # parameter:
