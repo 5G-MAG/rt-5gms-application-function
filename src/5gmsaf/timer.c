@@ -1,7 +1,10 @@
 /*
  * Copyright (C) 2019-2022 by Sukchan Lee <acetcom@gmail.com>
+ * Copyright (C) 2023 British Broadcasting Corporation
  *
- * This file is part of Open5GS.
+ * Authors: Sukchan Lee & Dev Audsin
+ *
+ * This file is derived from Open5GS with additions by the BBC for 5G-MAG.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
