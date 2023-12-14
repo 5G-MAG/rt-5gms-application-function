@@ -28,6 +28,8 @@ import configparser
 import os
 import os.path
 
+from typing import List
+
 class Configuration:
     '''Application configuration container
 
