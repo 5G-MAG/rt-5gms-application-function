@@ -96,3 +96,7 @@ This project follows
 the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow). The
 `development` branch of this project serves as an integration branch for new features. Consequently, please make sure to
 switch to the `development` branch before starting the implementation of a new feature.
+
+## Support
+
+The reference implementation of the Network Assistance and Dynamic Policies features was funded by the UK Government through the [REASON](https://reason-open-networks.ac.uk/) project.
