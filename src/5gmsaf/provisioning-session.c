@@ -191,6 +191,15 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
             OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
         }
 
+        if (msaf_provisioning_session->policy_templates && ogs_hash_first(msaf_provisioning_session->policy_templates) != NULL) {
+            ogs_hash_index_t *pol_node;
+            provisioning_session->policy_template_ids = (OpenAPI_set_t*)OpenAPI_list_create();
+            for (pol_node=ogs_hash_first(msaf_provisioning_session->policy_templates); pol_node; pol_node=ogs_hash_next(pol_node)) {
+                ogs_debug("msaf_provisioning_session_get_json: Add policy template %s", (const char *)ogs_hash_this_key(pol_node));
+                OpenAPI_list_add(provisioning_session->policy_template_ids, (void*)ogs_hash_this_key(pol_node));
+            }
+        }
+
         provisioning_session_json = msaf_api_provisioning_session_convertResponseToJSON(provisioning_session);
 
         OpenAPI_list_free(provisioning_session->server_certificate_ids);
