@@ -503,11 +503,11 @@ class M1Session:
         '''Retrieve a policy template
 
         '''
-        if provisioning_session not in self.__provisioning_sessions:
+        if provisioning_session_id not in self.__provisioning_sessions:
             return None
-        await self.__cachePolicyTemplates(provisioning_session, policy_template_id)
-        ps = await self.__getProvisioningSessionCache(provisioning_session)
-        if ps is None or ps['policyTemplates'] is None or policy_template_id not in ps['policyTemplates']:
+        await self.__cachePolicyTemplates(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        if ps is None or 'policyTemplates' not in ps or ps['policyTemplates'] is None or policy_template_id not in ps['policyTemplates']:
             return None
         return PolicyTemplate(ps['policyTemplates'][policy_template_id]['policytemplate'])
 
@@ -515,19 +515,19 @@ class M1Session:
         '''Update a policy template
 
         '''
-        if provisioning_session not in self.__provisioning_sessions:
+        if provisioning_session_id not in self.__provisioning_sessions:
             return False
         await self.__connect()
-        return await self.__m1_client.updatePolicyTemplate(provisioning_session, policy_template_id, policy_template)
+        return await self.__m1_client.updatePolicyTemplate(provisioning_session_id, policy_template_id, policy_template)
 
     async def policyTemplateDelete(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> bool:
         '''Delete a policy template
 
         '''
-        if provisioning_session not in self.__provisioning_sessions:
+        if provisioning_session_id not in self.__provisioning_sessions:
             return False
         await self.__connect()
-        return await self.__m1_client.destroyPolicyTemplate(provisioning_session, policy_template_id)
+        return await self.__m1_client.destroyPolicyTemplate(provisioning_session_id, policy_template_id)
 
     # Convenience methods
 
@@ -784,9 +784,14 @@ class M1Session:
                     'content-hosting-configuration': None,
                     'consumption-reporting-configuration': None,
                     'certificates': None,
+                    'policyTemplates': None,
                     })
+                # initialise ServerCertificates cache with the available IDs
                 if 'serverCertificateIds' in ps['provisioningsession']:
                     ps['certificates'] = {k: None for k in ps['provisioningsession']['serverCertificateIds']}
+                # initialise PolicyTemplate cache with the available IDs
+                if 'policyTemplateIds' in ps['provisioningsession']:
+                    ps['policyTemplates'] = {k: None for k in ps['provisioningsession']['policyTemplateIds']}
 
     async def __cacheProtocols(self, provisioning_session_id: ResourceId):
         '''Cache the ContentProtocols for a provisioning session
@@ -896,7 +901,7 @@ class M1Session:
         await self.__cacheProvisioningSession(provisioning_session_id)
         ps = self.__provisioning_sessions[provisioning_session_id]
         now = datetime.datetime.now(datetime.timezone.utc)
-        if ps['policyTemplates'] is None:
+        if ps is None or 'policyTemplates' not in ps or ps['policyTemplates'] is None:
             return
         ret_err = None
         for pol_id,pol in list(ps['policyTemplates'].items()):

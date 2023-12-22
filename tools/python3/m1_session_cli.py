@@ -150,7 +150,7 @@ if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.p
 from rt_m1_client.session import M1Session
 from rt_m1_client.exceptions import M1Error
 from rt_m1_client.data_store import JSONFileDataStore
-from rt_m1_client.types import ContentHostingConfiguration, ConsumptionReportingConfiguration
+from rt_m1_client.types import ContentHostingConfiguration, ConsumptionReportingConfiguration, PolicyTemplate
 from rt_m1_client.configuration import Configuration
 
 async def cmd_configure_show(args: argparse.Namespace, config: Configuration) -> int:
@@ -277,6 +277,14 @@ async def cmd_list_verbose(args: argparse.Namespace, config: Configuration) -> i
             print(ConsumptionReportingConfiguration.format(crc, indent=4))
         else:
             print('    Not defined')
+        pol_ids = await session.policyTemplateIds(ps_id)
+        if pol_ids is not None and len(pol_ids) > 0:
+            print('  PolicyTemplates:')
+            for polid in pol_ids:
+                print(f'    {polid}:')
+                pol = await session.policyTemplateGet(ps_id, polid)
+                if pol is not None:
+                    print(PolicyTemplate.format(pol, indent=6))
     return 0
 
 async def cmd_list(args: argparse.Namespace, config: Configuration) -> int:
