@@ -307,17 +307,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                     ogs_free(err);
                                 } else {
-                                    if(msaf_provisioning_session->contentHostingConfiguration) {
-                                        msaf_api_content_hosting_configuration_free(
-                                                msaf_provisioning_session->contentHostingConfiguration);
-                                        msaf_provisioning_session->contentHostingConfiguration = NULL;
-                                        msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
-                                    }
+                                    const char *reason;
 
-                                    rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
+                                    rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session, &reason);
                                     content_hosting_config = NULL;
     
-                                    if(rv){
+                                    if (rv) {
     
                                         ogs_debug("Content Hosting Configuration created successfully");
                                         if (msaf_application_server_state_set_on_post(msaf_provisioning_session)) {
@@ -347,16 +342,16 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
                                         } else {
                                             char *err = NULL;
-                                            err = ogs_msprintf("Verification error on Content Hosting Configuration for the Provisioning Session [%s].", message->h.resource.component[1]);
+                                            err = ogs_msprintf("Unable to retrieve certificate for the Provisioning Session [%s].", message->h.resource.component[1]);
                                             ogs_error("%s", err);
-                                            ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad Content Hosting Configuration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                            ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Internal Server Error.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                             ogs_free(err);
                                         }
                                     } else {
                                         char *err = NULL;
-                                        err = ogs_msprintf("Creation of the Content Hosting Configuration failed for the Provisioning Session [%s]", message->h.resource.component[1]);
+                                        err = ogs_msprintf("Creation of the Content Hosting Configuration failed for the Provisioning Session [%s]: %s", message->h.resource.component[1], reason);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Creation of the Content Hosting Configuration failed.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Creation of the Content Hosting Configuration failed.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                         ogs_free(err);
                                     }
 
@@ -625,15 +620,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             }
                             provisioning_session_type = entry->valuestring;
 
-                            entry = cJSON_GetObjectItemCaseSensitive(prov_sess, "externalApplicationId");
+                            entry = cJSON_GetObjectItemCaseSensitive(prov_sess, "appId");
                             if (!entry) {
-                                const char *err = "createProvisioningSession: \"externalApplicationId\" is not present";
+                                const char *err = "createProvisioningSession: \"appId\" is not present";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                                 break;
                             }
                             if (!cJSON_IsString(entry)) {
-                                const char *err = "createProvisioningSession: \"externalApplicationId\" is not a string";
+                                const char *err = "createProvisioningSession: \"appId\" is not a string";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Provisioning session failed.", err, NULL, m1_provisioningsession_api, app_meta));
                                 break;
@@ -961,13 +956,14 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                     // process the PUT body
                                     int rv;
+                                    const char *reason = NULL;
                                     cJSON *content_hosting_config = cJSON_Parse(request->http.content);
 
                                     if (!content_hosting_config) {
                                         char *err = NULL;
                                         err = ogs_msprintf("While updating the Content Hosting Configuration for the Provisioning Session [%s], Failure parsing ContentHostingConfiguration JSON.",message->h.resource.component[1]);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 422, 2, message, "Bad ContentHosting Configuration JSON.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad ContentHosting Configuration JSON.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                         ogs_free(err);
                                         break;
                                     }
@@ -984,7 +980,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
                                     }
 
-                                    rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session);
+                                    rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session, &reason);
                                     content_hosting_config = NULL;
                                     if (rv){
                                         msaf_application_server_state_update(msaf_provisioning_session);
@@ -1000,9 +996,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                     } else {
                                         char *err = NULL;
-                                        err = ogs_msprintf("Provisioning Session [%s]: Update to Content Hosting Configuration failed.", message->h.resource.component[1]);
+                                        err = ogs_msprintf("Provisioning Session [%s]: Update to Content Hosting Configuration failed: %s", message->h.resource.component[1], reason);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Failed to update the contentHostingConfiguration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Failed to update the contentHostingConfiguration.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
                                         ogs_free(err);
                                     }
                                 } else {
@@ -1777,7 +1773,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 }
 
 
-                                if((response->status == 404) || (response->status == 413) || (response->status == 414) || (response->status == 415) || (response->status == 422) || (response->status == 500) || (response->status == 503)) {
+                                if((response->status == 400) || (response->status == 404) || (response->status == 413) || (response->status == 414) || (response->status == 415) || (response->status == 422) || (response->status == 500) || (response->status == 503)) {
                                     char *error;
                                     purge_resource_id_node_t *content_hosting_cache, *next = NULL;
                                     cJSON *purge_cache_err = NULL;
@@ -1788,23 +1784,23 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         cJSON_free(txt);
                                     }
 
-                                    if(response->status == 404) {
-
+                                    if (response->status == 400) {
+                                        ogs_error("Error message from the Application Server [%s] with response code [%d]: Bad Request\n", as_state->application_server->canonicalHostname, response->status);
+                                    } else if (response->status == 404) {
                                         ogs_error("Error message from the Application Server [%s] with response code [%d]: Cache not found\n", as_state->application_server->canonicalHostname, response->status);
-                                    } else if(response->status == 413) {
+                                    } else if (response->status == 413) {
                                         ogs_error("Error message from the Application Server [%s] with response code [%d]: Pay load too large\n", as_state->application_server->canonicalHostname, response->status);
-                                    } else if(response->status == 414) {
+                                    } else if (response->status == 414) {
                                         ogs_error("Error message from the Application Server [%s] with response code [%d]: URI too long\n", as_state->application_server->canonicalHostname, response->status);
-                                    } else if(response->status == 415) {
+                                    } else if (response->status == 415) {
                                         ogs_error("Error message from the Application Server [%s] with response code [%d]: Unsupported media type\n", as_state->application_server->canonicalHostname, response->status);
-                                    } else if(response->status == 422) {
+                                    } else if (response->status == 422) {
                                         ogs_error("Error message from the Application Server [%s] with response code [%d]: Unprocessable Entity\n", as_state->application_server->canonicalHostname, response->status);
-                                    } else if(response->status == 500) {
+                                    } else if (response->status == 500) {
                                         ogs_error("Error message from the Application Server [%s] with response code [%d]: Internal server error\n", as_state->application_server->canonicalHostname, response->status);
-                                    } else if(response->status == 503) {
+                                    } else if (response->status == 503) {
                                         ogs_error("Error message from the Application Server [%s] with response code [%d]: Service Unavailable\n", as_state->application_server->canonicalHostname, response->status);
                                     } else {
-
                                         ogs_error("Application Server [%s] sent unrecognised response code [%d]", as_state->application_server->canonicalHostname, response->status);
                                     }
 

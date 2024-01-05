@@ -1,0 +1,6 @@
+{
+	"reportingInterval":	10,
+	"locationReporting":	false,
+	"accessReporting":	false,
+	"samplePercentage":	90
+}

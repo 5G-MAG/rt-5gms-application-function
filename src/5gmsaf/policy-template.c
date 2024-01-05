@@ -13,12 +13,6 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "hash.h"
 #include "sai-cache.h"
 
-#if 0
-static msaf_api_m1_qo_s_specification_t *msaf_policy_template_qos_specification_new(cJSON *policy_template);
-static msaf_api_policy_template_application_session_context_t *msaf_policy_template_application_session_context(cJSON *policy_template);
-static msaf_api_charging_specification_t *msaf_policy_template_charging_specification(cJSON *policy_template);
-#endif
-
 static void msaf_policy_template_set_state_reason(msaf_api_policy_template_t *policy_template, char *cause, char *detail, char *instance, char *nrf_id, char *supported_features, char *title, char *type);
 
 /***** Public functions *****/
@@ -200,18 +194,6 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
    }
    return false;
 
-}
-
-msaf_api_policy_template_t *msaf_policy_template_new(const char *external_reference, msaf_api_m1_qo_s_specification_t *qos_specification, msaf_api_policy_template_application_session_context_t *application_session_context, msaf_api_charging_specification_t *charging_specification)
-{
-    msaf_api_policy_template_t *policy_template;
-    char *policy_template_id = NULL;
-    msaf_api_policy_template_state_e state = msaf_api_policy_template_STATE_NULL;
-
-    policy_template = msaf_api_policy_template_create(application_session_context, charging_specification,
-                    msaf_strdup(external_reference), policy_template_id, qos_specification, state, NULL);
-
-    return policy_template;
 }
 
 cJSON *msaf_policy_template_convertToJSON(msaf_api_policy_template_t *policy_template)

@@ -111,7 +111,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     msaf_provisioning_session->provisioningSessionId = msaf_strdup(provisioning_session->provisioning_session_id);
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
     msaf_provisioning_session->aspId = msaf_strdup(provisioning_session->asp_id);
-    msaf_provisioning_session->externalApplicationId = msaf_strdup(provisioning_session->external_application_id);
+    msaf_provisioning_session->appId = msaf_strdup(provisioning_session->app_id);
     msaf_provisioning_session->httpMetadata.provisioningSession.received = time(NULL);
     msaf_provisioning_session->httpMetadata.provisioningSession.hash = calculate_provisioning_session_hash(provisioning_session);
 
@@ -142,7 +142,7 @@ void msaf_provisioning_session_free(msaf_provisioning_session_t *provisioning_se
     }
     safe_ogs_free(provisioning_session->provisioningSessionId);
     safe_ogs_free(provisioning_session->aspId);
-    safe_ogs_free(provisioning_session->externalApplicationId);
+    safe_ogs_free(provisioning_session->appId);
     safe_ogs_free(provisioning_session->httpMetadata.provisioningSession.hash);
     if (provisioning_session->contentHostingConfiguration) {
         msaf_api_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
@@ -183,7 +183,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session->provisioning_session_id = msaf_provisioning_session->provisioningSessionId;
         provisioning_session->provisioning_session_type = msaf_provisioning_session->provisioningSessionType;
         provisioning_session->asp_id = msaf_provisioning_session->aspId;
-        provisioning_session->external_application_id = msaf_provisioning_session->externalApplicationId;
+        provisioning_session->app_id = msaf_provisioning_session->appId;
 
         provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
         for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {
@@ -416,7 +416,7 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
 }
 
 int
-msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session)
+msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session, const char **reason_ret)
 {
     OpenAPI_lnode_t *dist_config_node = NULL;
     msaf_api_distribution_configuration_t *dist_config = NULL;
@@ -425,17 +425,21 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     static const char macro[] = "{provisioningSessionId}";
     msaf_application_server_node_t *msaf_as = NULL;
     char *content_hosting_config_to_hash = NULL;
-    const char *reason;
 
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
 
     url_path = url_path_create(macro, provisioning_session->provisioningSessionId, msaf_as);
 
     msaf_api_content_hosting_configuration_t *content_hosting_configuration
-        = msaf_api_content_hosting_configuration_parseRequestFromJSON(content_hosting_config, &reason);
+        = msaf_api_content_hosting_configuration_parseRequestFromJSON(content_hosting_config, reason_ret);
 
     if (!content_hosting_configuration) {
-        ogs_error("%s", reason);
+        if (reason_ret) {
+            ogs_error("JSON validation of ContentHostingConfiguration failed: %s", *reason_ret);
+        } else {
+            ogs_error("JSON validation of ContentHostingConfiguration failed");
+        }
+        cJSON_Delete(content_hosting_config);
         ogs_free(url_path);
         return 0;
     }
@@ -447,6 +451,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
             dist_config = (msaf_api_distribution_configuration_t*)dist_config_node->data;
 
             if(dist_config->entry_point && !uri_relative_check(dist_config->entry_point->relative_path)) {
+                if (reason_ret) *reason_ret = "distributionConfiguration.entryPoint.relativePath malformed";
                 ogs_error("distributionConfiguration.entryPoint.relativePath malformed for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
                 cJSON_Delete(content_hosting_config);
                 ogs_free(url_path);
@@ -455,6 +460,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
             }
 
             if (dist_config->entry_point && dist_config->entry_point->profiles && dist_config->entry_point->profiles->first == NULL) {
+                if (reason_ret) *reason_ret = "distributionConfiguration.entryPoint.profiles present but empty";
                 ogs_error("distributionConfiguration.entryPoint.profiles present but empty for Provisioning Session [%s]", provisioning_session->provisioningSessionId);
                 cJSON_Delete(content_hosting_config);
                 ogs_free(url_path);
