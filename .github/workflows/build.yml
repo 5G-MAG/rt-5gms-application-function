@@ -2,7 +2,7 @@ name: Build Application Function
 
 on:
   push:
-    branches: [ feature/cicd_clean ]
+    branches: [ development ]
   schedule:
     - cron: '0 0 * * 0' # Executes every Sunday at midnight UT
 jobs:
