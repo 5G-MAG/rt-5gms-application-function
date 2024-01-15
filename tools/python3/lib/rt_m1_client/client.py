@@ -133,7 +133,7 @@ class M1Client:
                      provisioning_session_type, external_application_id, asp_id)
         send: ProvisioningSession = {
                 'provisioningSessionType': provisioning_session_type,
-                'externalApplicationId': external_application_id
+                'appId': external_application_id
                 }
         if asp_id is not None:
             send['aspId'] = asp_id

@@ -46,11 +46,11 @@ ProvisioningSessionId = ResourceId
 ProvisioningSessionType = Literal['DOWNLINK','UPLINK']
 
 class ProvisioningSessionMandatory(TypedDict):
-    '''Madatory fields for a `ProvisioningSession`
+    '''Madatory fields for a `ProvisioningSession` v17.7.0
     '''
     provisioningSessionId: ProvisioningSessionId
     provisioningSessionType: ProvisioningSessionType
-    externalApplicationId: ApplicationId
+    appId: ApplicationId
 
 class ProvisioningSession (ProvisioningSessionMandatory, total=False):
     '''A `ProvisioningSession` object as defined in TS 26.512
@@ -779,13 +779,13 @@ class PolicyTemplateMandatory(TypedDict):
     Mandatory fields from PolicyTemplate structure in TS 26.512
     '''
     externalReference: str
-    applicationSessionContext: AppSessionContext
 
 class PolicyTemplate(PolicyTemplateMandatory, total=False):
     '''
     PolicyTemplate structure from TS 26.512
     '''
     policyTemplateId: ResourceId
+    applicationSessionContext: AppSessionContext
     state: PolicyTemplateState
     stateReason: "ProblemDetail"
     qoSSpecification: M1QoSSpecification
@@ -817,7 +817,8 @@ class PolicyTemplate(PolicyTemplateMandatory, total=False):
         if 'state' in pt:
             pt['state'] = PolicyTemplateState[pt['state']]
         #ProblemDetail.validate(pt['stateReason'])
-        AppSessionContext.validate(pt['applicationSessionContext'], policy_template_json)
+        if 'applicationSessionContext' in pt:
+            AppSessionContext.validate(pt['applicationSessionContext'], policy_template_json)
         if 'qoSSpecification' in pt:
             M1QoSSpecification.validate(pt['qoSSpecification'], policy_template_json)
         if 'chargingSpecification' in pt:
@@ -833,9 +834,9 @@ class PolicyTemplate(PolicyTemplateMandatory, total=False):
 {prefix}  State Reason:
 {ProblemDetail.format(pt['stateReason'],indent+4)}
 {prefix}  External Reference: {pt['externalReference']}
-{prefix}  AppSessionContext:
-{AppSessionContext.format(pt['applicationSessionContext'], indent+4)}
 '''
+        if 'applicationSessionContext' in pt:
+            ret += f"{prefix}  AppSessionContext:\n{AppSessionContext.format(pt['applicationSessionContext'], indent+4)}"
         if 'qoSSpecification' in pt:
             ret += f"{prefix}  QoS Specification:\n{M1QoSSpecification.format(pt['qoSSpecification'], indent+4)}"
         if 'chargingSpecification' in pt:
