@@ -776,11 +776,15 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                             consumption_report = msaf_api_consumption_report_parseRequestFromJSON(json, &reason);
                                             if (consumption_report) {
+                                                struct timespec ts;
+                                                char buf[32];
+                                                char *filetime = NULL;
+                                                clock_gettime(CLOCK_REALTIME, &ts);
+                                                strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", gmtime(&ts.tv_sec));
+                                                filetime = ogs_msprintf("%s.%.6iZ", buf, (int)(ts.tv_nsec/1000));
                                                 if (msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
-                                                                    consumption_report->reporting_client_id, NULL,
-                                                                    ((msaf_api_consumption_reporting_unit_t*)
-                                                                     (consumption_report->consumption_reporting_units->first->data)
-                                                                    )->start_time, "json", request->http.content)) {
+                                                                    consumption_report->reporting_client_id, NULL, filetime,
+                                                                    "json", request->http.content)) {
                                                     ogs_sbi_response_t *response;
                                                     response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, NULL, m5_consumptionreporting_api, app_meta);
                                                     ogs_assert(response);
@@ -794,6 +798,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1, message, "Data storage error", err, NULL, m5_consumptionreporting_api, app_meta));
                                                     ogs_free(err);
                                                 }
+                                                ogs_free(filetime);
                                                 msaf_api_consumption_report_free(consumption_report);
                                             } else {
                                                 char *err;
