@@ -46,7 +46,7 @@ ProvisioningSessionId = ResourceId
 ProvisioningSessionType = Literal['DOWNLINK','UPLINK']
 
 class ProvisioningSessionMandatory(TypedDict):
-    '''Madatory fields for a `ProvisioningSession` v17.7.0
+    '''Mandatory fields for a `ProvisioningSession` v17.7.0
     '''
     provisioningSessionId: ProvisioningSessionId
     provisioningSessionType: ProvisioningSessionType
