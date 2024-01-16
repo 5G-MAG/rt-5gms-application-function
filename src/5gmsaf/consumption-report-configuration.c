@@ -102,20 +102,6 @@ msaf_api_consumption_reporting_configuration_t *msaf_consumption_report_configur
         return NULL;
     }
 
-#if 0
-    if (crc->is_sample_percentage && (crc->sample_percentage < 0.0 || crc->sample_percentage > 100.0)) {
-        *err_out = "Bad value: samplePercentage out of range, should be between 0.0 and 100.0 inclusive";
-        msaf_api_consumption_reporting_configuration_free(crc);
-        return NULL;
-    }
-
-    if (crc->is_reporting_interval && crc->reporting_interval <= 0) {
-        *err_out = "Bad value: reportingInterval must be greater than 0";
-        msaf_api_consumption_reporting_configuration_free(crc);
-        return NULL;
-    }
-#endif
-
     return crc;
 }
 
