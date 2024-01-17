@@ -129,6 +129,7 @@ import aiofiles
 import argparse
 import asyncio
 import configparser
+import copy
 import datetime
 from io import StringIO
 import logging
@@ -136,7 +137,7 @@ import os
 import os.path
 import sys
 import traceback
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 #logging.basicConfig(level=logging.DEBUG)
 
@@ -150,7 +151,7 @@ if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.p
 from rt_m1_client.session import M1Session
 from rt_m1_client.exceptions import M1Error
 from rt_m1_client.data_store import JSONFileDataStore
-from rt_m1_client.types import ContentHostingConfiguration, ConsumptionReportingConfiguration, PolicyTemplate
+from rt_m1_client.types import ContentHostingConfiguration, ConsumptionReportingConfiguration, PolicyTemplate, BitRate, SponsoringStatus
 from rt_m1_client.configuration import Configuration
 
 async def cmd_configure_show(args: argparse.Namespace, config: Configuration) -> int:
@@ -583,6 +584,231 @@ async def cmd_del_consumption(args: argparse.Namespace, config: Configuration) -
     print('No consumption reporting to remove')
     return 1
 
+async def _make_policy_template_from_args(args: argparse.Namespace, extra_flags: bool = False,
+                                          base_policy: Optional[PolicyTemplate] = None) -> Optional[PolicyTemplate]:
+    if base_policy is None:
+        pt = dict()
+    else:
+        pt = copy.deepcopy(base_policy)
+    if not extra_flags:
+        if args.external_policy_id:
+            pt['externalReference'] = args.external_policy_id
+    else:
+        for v,a in [('dnn', 'dnn'), ('qos_reference', 'qos-reference'), ('max_auth_up', 'max-auth-up'), ('max_auth_down', 'max-auth-down'), ('default_packet_loss_up', 'default-packet-loss-up'), ('default_packet_loss_down', 'default-packet-loss-down'), ('gpsi', 'gpsi')]:
+            if getattr(args, 'no_'+v, False) and getattr(args, v, None) is not None:
+                print(f'Cannot specify both --no-{a} and --{a} arguments')
+                return None
+        if getattr(args, 'chg_sponsor_none', False) and (getattr(args, 'chg_sponsor_status', None) is not None or getattr(args, 'chg_sponsor_id', None) is not None):
+            print('Cannot specify both --chg-sponsor-none and other --chg-sponsor-... arguments')
+            return None
+
+    # [--s-nssai <SST[:SD]>]
+    v = getattr(args, 's_nssai', None)
+    if v is not None:
+        (sst,sd) = (v.split(':') + [None])[:2]
+        if 'applicationSessionContext' not in pt:
+            pt['applicationSessionContext'] = {}
+        pt['applicationSessionContext']['sliceInfo'] = {'sst': int(sst)}
+        if sd is not None:
+            pt['applicationSessionContext']['sliceInfo']['sd'] = sd
+
+    # [--no-s-nssai]
+    v = getattr(args, 'no_s_nssai', False)
+    if v:
+        if 'applicationSessionContext' in pt and 'sliceInfo' in pt['applicationSessionContext']:
+            del pt['applicationSessionContext']['sliceInfo']
+            if len(pt['applicationSessionContext'].keys()) == 0:
+                del pt['applicationSessionContext']
+
+    # [--dnn <DNN>]
+    v = getattr(args, 'dnn', None)
+    if v is not None:
+        if 'applicationSessionContext' not in pt:
+            pt['applicationSessionContext'] = {}
+        pt['applicationSessionContext']['dnn'] = v
+
+    # [--no-dnn]
+    v = getattr(args, 'no_dnn', False)
+    if v:
+        if 'applicationSessionContext' in pt and 'dnn' in pt['applicationSessionContext']:
+            del pt['applicationSessionContext']['dnn']
+            if len(pt['applicationSessionContext'].keys()) == 0:
+                del pt['applicationSessionContext']
+
+    # [--qos-reference <qos-ref>]
+    v = getattr(args, 'qos_reference', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['qosReference'] = v
+
+    # [--no-qos-reference]
+    v = getattr(args, 'no_qos_reference', False)
+    if v:
+        if 'qoSSpecification' in pt and 'qosReference' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['qosReference']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--max-auth-up <bitrate>]
+    v = getattr(args, 'max_auth_up', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['maxAuthBtrUl'] = BitRate(v)
+
+    # [--no-max-auth-up]
+    v = getattr(args, 'no_max_auth_up', False)
+    if v:
+        if 'qoSSpecification' in pt and 'maxAuthBtrUl' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['maxAuthBtrUl']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--max-auth-down <bitrate>]
+    v = getattr(args, 'max_auth_down', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['maxAuthBtrDl'] = BitRate(v)
+
+    # [--no-max-auth-down]
+    v = getattr(args, 'no_max_auth_down', False)
+    if v:
+        if 'qoSSpecification' in pt and 'maxAuthBtrDl' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['maxAuthBtrDl']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--default-packet-loss-up <rate>]
+    v = getattr(args, 'default_packet_loss_up', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['defPacketLossRateUl'] = int(v)
+
+    # [--no-default-packet-loss-up]
+    v = getattr(args, 'no_default_packet_loss_up', False)
+    if v:
+        if 'qoSSpecification' in pt and 'defPacketLossRateUl' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['defPacketLossRateUl']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--default-packet-loss-down <rate>]
+    v = getattr(args, 'default_packet_loss_down', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['defPacketLossRateDl'] = int(v)
+
+    # [--no-default-packet-loss-down]
+    v = getattr(args, 'no_default_packet_loss_down', False)
+    if v:
+        if 'qoSSpecification' in pt and 'defPacketLossRateDl' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['defPacketLossRateDl']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--chg-sponsor-id <sponsor-id>]
+    v = getattr(args, 'chg_sponsor_id', None)
+    if v is not None:
+        if 'chargingSpecification' not in pt:
+            pt['chargingSpecification'] = {}
+        pt['chargingSpecification']['sponId'] = v
+        if 'sponStatus' not in pt['chargingSpecification']:
+            pt['chargingSpecification']['sponStatus'] = SponsoringStatus.SPONSOR_DISABLED
+
+    # [--chg-sponsor-enabled]
+    # [--chg-sponsor-disabled]
+    v = getattr(args, 'chg_sponsor_status', None)
+    if v is not None:
+        if 'chargingSpecification' not in pt:
+            pt['chargingSpecification'] = {}
+        if v:
+            pt['chargingSpecification']['sponStatus'] = SponsoringStatus.SPONSOR_ENABLED
+        else:
+            pt['chargingSpecification']['sponStatus'] = SponsoringStatus.SPONSOR_DISABLED
+
+    # [--chg-sponsor-none]
+    v = getattr(args, 'chg_sponsor_none', False)
+    if v:
+        if 'chargingSpecification' in pt:
+            if 'sponId' in pt['chargingSpecification']:
+                del pt['chargingSpecification']['sponId']
+            if 'sponStatus' in pt['chargingSpecification']:
+                del pt['chargingSpecification']['sponStatus']
+            if len(pt['chargingSpecification'].keys()) == 0:
+                del pt['chargingSpecification']
+
+    # [--gpsi <gpsi>...]
+    v = getattr(args, 'gpsi', None)
+    if v is not None:
+        if not isinstance(v, list):
+            v = [v]
+        if 'chargingSpecification' not in pt:
+            pt['chargingSpecification'] = {}
+        pt['chargingSpecification']['gpsi'] = v
+
+    # --no-gpsi
+    v = getattr(args, 'no_gpsi', False)
+    if v:
+        if 'chargingSpecification' in pt and 'gpsi' in pt['chargingSpecification']:
+            del pt['chargingSpecification']['gpsi']
+            if len(pt['chargingSpecification'].keys()) == 0:
+                del pt['chargingSpecification']
+
+    return PolicyTemplate(pt)
+
+async def cmd_new_policy_template(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    pol = await _make_policy_template_from_args(args, extra_flags=False)
+    result: Optional[ResourceId] = await session.policyTemplateCreate(ps_id, pol)
+    if result is not None:
+        print(f'Added PolicyTemplate {result} to provisioning session')
+        return 0
+    print(f'Addition of PolicyTemplate to provisioning session failed!')
+    return 1
+
+async def cmd_update_policy_template(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    pol_id = args.policy_template_id
+    pol: Optional[PolicyTemplate] = await session.policyTemplateGet(ps_id, pol_id)
+    if pol is None:
+        print('Attempt to update a PolicyTemplate that does not exist')
+        return 1
+    pol = await _make_policy_template_from_args(args, extra_flags=True, base_policy=pol)
+    result: Optional[PolicyTemplate] = await session.policyTemplateUpdate(ps_id, pol_id, pol)
+    if result is not None:
+        print(f'Updated PolicyTemplate for the provisioning session')
+        return 0
+    print(f'Update of PolicyTemplate {pol_id} for the provisioning session {ps_id} failed!')
+    return 1
+
+async def cmd_del_policy_template(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    pol_id = args.policy_template_id
+    result: bool = await session.policyTemplateDelete(ps_id, pol_id)
+    if result:
+        print(f'Policy template {pol_id} removed from provisioning session {ps_id}')
+        return 0
+    print(f'Failed to delete policy template {pol_id} removed from provisioning session {ps_id}')
+    return 1
+
+async def cmd_show_policy_template(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    pol_id = args.policy_template_id
+    result: Optional[PolicyTemplate] = await session.policyTemplateGet(ps_id, pol_id)
+    if result is not None:
+        print(PolicyTemplate.format(result, indent=0))
+        return 0
+    print(f'Failed to find policy template {pol_id} for provisioning session {ps_id}')
+    return 1
+
 async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     '''Parse command line options and load app configuration
 
@@ -750,6 +976,105 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_del_consumption.set_defaults(command=cmd_del_consumption)
     parser_del_consumption.add_argument('-p', '--provisioning-session', required=True,
                                         help='Provisioning session id to remove the consumption reporting for')
+
+    # m1-session-cli new-policy-template -p <provisioning-session-id> -e <external-policy-id> [-D <dnn>] [-S <s-nssai>]
+    #                                    [--qos-reference <qos-ref>] [--max-auth-up <bitrate>] [--max-auth-down <bitrate>]
+    #                                    [--default-packet-loss-up <rate>] [--default-packet-loss-down <rate>]
+    #                                    [--chg-sponsor-id <sponsor-id>] [--chg-sponsor-enabled|--chg-sponsor-disabled]
+    #                                    [--gpsi <gpsi>]...
+    parser_new_policy_template = subparsers.add_parser('new-policy-template', help='Add a new policy template')
+    parser_new_policy_template.set_defaults(command=cmd_new_policy_template)
+    parser_new_policy_template.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to create the policy template for')
+    parser_new_policy_template.add_argument('-e', '--external-policy-id', required=True,
+                                        help='The external identifier for this policy template')
+    parser_new_policy_template.add_argument('-D', '--dnn', help='The designated network name for the app session context')
+    parser_new_policy_template.add_argument('-S', '--s-nssai', metavar='SST[:SD]',
+                                        help='The Single NSSAI which will be used in the app session context')
+    parser_new_policy_template.add_argument('--qos-reference', help='The QoS reference for the QoS Specification')
+    parser_new_policy_template.add_argument('--max-auth-up', type=BitRate,
+                                        help='The maximum authorised uplink bitrate for the QoS Specification')
+    parser_new_policy_template.add_argument('--max-auth-down', type=BitRate,
+                                        help='The maximum authorised downlink bitrate for the QoS Specification')
+    parser_new_policy_template.add_argument('--default-packet-loss-up', type=int,
+                                        help='The number of packets that can be lost for an uplink in the QoS Specification')
+    parser_new_policy_template.add_argument('--default-packet-loss-down', type=int,
+                                        help='The number of packets that can be lost for an downlink in the QoS Specification')
+    parser_new_policy_template.add_argument('--chg-sponsor-id', metavar='sponsor-id',
+                                        help='The Sponsor id for the charging specification')
+    parser_new_policy_template.add_argument('--chg-sponsor-enabled', action='store_true', dest='chg_sponsor_status', default=None,
+                                        help='The Sponsor is enabled for charging')
+    parser_new_policy_template.add_argument('--chg-sponsor-disabled', action='store_false', dest='chg_sponsor_status', default=None,
+                                        help='The Sponsor is disabled for charging')
+    parser_new_policy_template.add_argument('--gpsi', action='append', help='The GPSI(s) to use for charging')
+
+    # m1-session-cli update-policy-template -p <provisioning-session-id> -t <policy-template-id> [-D <dnn>] [-S <s-nssai>]
+    #                                    [--qos-reference <qos-ref>] [--max-auth-up <bitrate>|--no-max-auth-up]
+    #                                    [--max-auth-down <bitrate>|--no-max-auth-down]
+    #                                    [--default-packet-loss-up <rate>|--no-default-packet-loss-up]
+    #                                    [--default-packet-loss-down <rate>|--no-default-packet-loss-down]
+    #                                    [--chg-sponsor-id <sponsor-id> [--chg-sponsor-enabled|--chg-sponsor-disabled]
+    #                                     |--chg-sponsor-none]
+    #                                    [--gpsi <gpsi> [--gpsi <gpsi>]...|--no-gpsi]
+    parser_update_policy_template = subparsers.add_parser('update-policy-template', help='Modify a policy template')
+    parser_update_policy_template.set_defaults(command=cmd_update_policy_template)
+    parser_update_policy_template.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to update the policy template for')
+    parser_update_policy_template.add_argument('-t', '--policy-template-id', required=True,
+                                        help='The policy template id of the policy template to update')
+    parser_update_policy_template.add_argument('-D', '--dnn', help='The designated network name for the app session context')
+    parser_update_policy_template.add_argument('--no-dnn', action='store_true',
+                                        help='Remove the designated network name for the app session context')
+    parser_update_policy_template.add_argument('-S', '--s-nssai', metavar='SST[:SD]',
+                                        help='The Single NSSAI which will be used in the app session context')
+    parser_update_policy_template.add_argument('--no-s-nssai', action='store_true',
+                                        help='Remove the Single NSSAI used in the app session context')
+    parser_update_policy_template.add_argument('--qos-reference', help='The QoS reference for the QoS Specification')
+    parser_update_policy_template.add_argument('--no-qos-reference', action='store_true',
+                                        help='Remove the QoS reference from the QoS Specification')
+    parser_update_policy_template.add_argument('--max-auth-up', type=BitRate,
+                                        help='The maximum authorised uplink bitrate for the QoS Specification')
+    parser_update_policy_template.add_argument('--no-max-auth-up', action='store_true',
+                                        help='Remove maximum authorised uplink bitrate for the QoS Specification')
+    parser_update_policy_template.add_argument('--max-auth-down', type=BitRate,
+                                        help='The maximum authorised downlink bitrate for the QoS Specification')
+    parser_update_policy_template.add_argument('--no-max-auth-down', action='store_true',
+                                        help='Remove maximum authorised downlink bitrate for the QoS Specification')
+    parser_update_policy_template.add_argument('--default-packet-loss-up', type=int,
+                                        help='The number of packets that can be lost for an uplink in the QoS Specification')
+    parser_update_policy_template.add_argument('--no-default-packet-loss-up', action='store_true',
+                                        help='Remove number of packets that can be lost for an uplink in the QoS Specification')
+    parser_update_policy_template.add_argument('--default-packet-loss-down', type=int,
+                                        help='The number of packets that can be lost for an downlink in the QoS Specification')
+    parser_update_policy_template.add_argument('--no-default-packet-loss-down', action='store_true',
+                                        help='Remove number of packets that can be lost for an downlink in the QoS Specification')
+    parser_update_policy_template.add_argument('--chg-sponsor-id', metavar='sponsor-id',
+                                        help='The Sponsor id for the charging specification')
+    parser_update_policy_template.add_argument('--chg-sponsor-enabled', action='store_true', dest='chg_sponsor_status', default=None,
+                                        help='The Sponsor is enabled for charging')
+    parser_update_policy_template.add_argument('--chg-sponsor-disabled', action='store_false', dest='chg_sponsor_status', default=None,
+                                        help='The Sponsor is disabled for charging')
+    parser_update_policy_template.add_argument('--chg-sponsor-none', action='store_true', dest='chg_sponsor_none',
+                                        help='The Sponsor status and id should be removed for charging')
+    parser_update_policy_template.add_argument('--gpsi', action='append',
+                                        help='The set the GPSI(s) to use for charging (use --no-gpsi to remove gpsis)')
+    parser_update_policy_template.add_argument('--no-gpsi', action='store_true', help='Remove all GPSI values for charging')
+
+    # m1-session-cli del-policy-template -p <provisioning-session-id> -t <policy-template-id>
+    parser_del_policy_template = subparsers.add_parser('del-policy-template', help='Delete a policy template')
+    parser_del_policy_template.set_defaults(command=cmd_del_policy_template)
+    parser_del_policy_template.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to remove the policy template for')
+    parser_del_policy_template.add_argument('-t', '--policy-template-id', required=True,
+                                        help='The policy template id of the policy template to delete')
+
+    # m1-session-cli show-policy-template -p <provisioning-session-id> -t <policy-template-id>
+    parser_show_policy_template = subparsers.add_parser('show-policy-template', help='Display a policy template')
+    parser_show_policy_template.set_defaults(command=cmd_show_policy_template)
+    parser_show_policy_template.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to display the policy template for')
+    parser_show_policy_template.add_argument('-t', '--policy-template-id', required=True,
+                                        help='The policy template id of the policy template to display')
 
     args = parser.parse_args()
 

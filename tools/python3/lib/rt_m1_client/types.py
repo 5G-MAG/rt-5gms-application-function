@@ -473,14 +473,18 @@ class BitRate(object):
     '''
     def __init__(self, *args, **kwargs):
         if len(args) == 1 and len(kwargs) == 0:
+            if isinstance(args[0], bytes):
+                args[0] = args[0].decode('utf-8')
             if isinstance(args[0], str):
                 self.__bitrate = self.__parseBitrateString(args[0])
             elif isinstance(args[0], int):
                 self.__bitrate = float(args[0])
             elif isinstance(args[0], float):
                 self.__bitrate = args[0]
+            elif isinstance(args[0], BitRate):
+                self.__bitrate = args[0].bitrate()
             else:
-                raise TypeError('BitRate initialiser must be str, int or float')
+                raise TypeError(f'BitRate initialiser must be str, int or float: given {type(args[0]).__name__}')
         elif len(args) == 0 and len(kwargs) == 1 and kwargs.keys()[0] in ['bps', 'kbps', 'mbps', 'gbps', 'tbps', 'pbps']:
             k,v = kwargs.items()[0]
             if k == 'bps':
@@ -497,6 +501,9 @@ class BitRate(object):
                 self.__bitrate = v*1000000000000000.0
         else:
             raise ValueError('Only a bitrate string or one of the bitrate keywords can be used to initialise a BitRate')
+
+    def bitrate(self):
+        return self.__bitrate
 
     def __repr__(self) -> str:
         if self.__bitrate < 1000:
