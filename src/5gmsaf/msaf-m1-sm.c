@@ -8,6 +8,9 @@
  * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
  */
 
+#include <math.h>
+#include <string.h>
+
 #include "ogs-sbi.h"
 
 #include "sbi-path.h"
@@ -83,6 +86,9 @@ maf_management_api_metadata = {
     MAF_MANAGEMENT_API_NAME,
     MAF_MANAGEMENT_API_VERSION
 };
+
+static void _policy_template_extra_validation(msaf_api_policy_template_t **policy_template, const char **parse_err);
+static void _policy_template_remove_read_only(msaf_api_policy_template_t *policy_template);
 
 void msaf_m1_state_initial(ogs_fsm_t *s, msaf_event_t *e)
 {
@@ -534,7 +540,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 pol_temp = cJSON_Print(policy_template);
                                 ogs_debug("Requested Policy Template: %s", pol_temp);
                                 policy_temp = msaf_policy_template_parseFromJSON(policy_template, &parse_err);
-                                if(policy_temp) {
+                                _policy_template_extra_validation(&policy_temp, &parse_err);
+                                if (policy_temp) {
+                                    _policy_template_remove_read_only(policy_temp);
+                                    /* add policy template */
                                     if (msaf_provisioning_session_add_policy_template(msaf_provisioning_session, policy_temp, time(NULL))) {
                                         char *location;
                                         msaf_policy_template_node_t *msaf_policy_template;
@@ -1175,8 +1184,11 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 					policy_template_received = cJSON_Parse(request->http.content); 	
 				    	     	    
 					policy_template = msaf_policy_template_parseFromJSON(policy_template_received, &parse_err);
+					cJSON_Delete(policy_template_received);
 
-					if (!policy_template) {
+                                        _policy_template_extra_validation(&policy_template, &parse_err);
+
+                                        if (!policy_template) {
                                             char *err = ogs_msprintf("Updating policy template: Could not parse request body as JSON: %s", parse_err);
                                             ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Updating policy template failed.", 
@@ -1185,6 +1197,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             break;
                                         }
 
+                                        /* validation passed, remove read-only fields if present */
+                                        _policy_template_remove_read_only(policy_template);
+
+                                        /* update policy template */
 					if(msaf_provisioning_session_update_policy_template(msaf_provisioning_session, msaf_policy_template, policy_template)) {
 					        
 				            response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, m1_policytemplatesprovisioning_api, app_meta);
@@ -1197,9 +1213,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Updating policy template failed.",
                                                     err, NULL, m1_policytemplatesprovisioning_api, app_meta));
-                                            break;
                                         }
-					cJSON_Delete(policy_template_received);
 					       	
 
 				    } else {
@@ -2333,6 +2347,102 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     if (message) {
         ogs_sbi_message_free(message);
         ogs_free(message);
+    }
+}
+
+static void _policy_template_extra_validation(msaf_api_policy_template_t **policy_temp_ptr, const char **parse_err)
+{
+    msaf_api_policy_template_t *policy_template = *policy_temp_ptr;
+
+    /* extra validation checks */
+    if (policy_template && policy_template->qo_s_specification &&
+            policy_template->qo_s_specification->max_auth_btr_dl) {
+        double bitrate;
+        bitrate = str_to_bitrate(policy_template->qo_s_specification->max_auth_btr_dl, parse_err);
+        if (isnan(bitrate)) {
+            msaf_api_policy_template_free(policy_template);
+            policy_template = NULL;
+            *policy_temp_ptr = NULL;
+        }
+    }
+    if (policy_template && policy_template->qo_s_specification &&
+            policy_template->qo_s_specification->max_auth_btr_ul) {
+        double bitrate;
+        bitrate = str_to_bitrate(policy_template->qo_s_specification->max_auth_btr_ul, parse_err);
+        if (isnan(bitrate)) {
+            msaf_api_policy_template_free(policy_template);
+            policy_template = NULL;
+            *policy_temp_ptr = NULL;
+        }
+    }
+    if (policy_template && policy_template->application_session_context &&
+            policy_template->application_session_context->slice_info &&
+            policy_template->application_session_context->slice_info->sd &&
+            (strlen(policy_template->application_session_context->slice_info->sd) != 6 ||
+             strspn(policy_template->application_session_context->slice_info->sd,
+                 "0123456789ABCDEFabcdef") != 6
+            )) {
+        *parse_err = "S-NSSAI SD value must be 6 hexadecimal digits";
+        msaf_api_policy_template_free(policy_template);
+        policy_template = NULL;
+        *policy_temp_ptr = NULL;
+    }
+    if (policy_template && policy_template->charging_specification &&
+            policy_template->charging_specification->gpsi) {
+        OpenAPI_lnode_t *node = NULL;
+        OpenAPI_list_for_each(policy_template->charging_specification->gpsi, node) {
+            const char *s = (const char*)node->data;
+            if (!strncmp(s, "msisdn-", 7) && (strlen(s) < 12 || strlen(s) > 22 ||
+                        strspn(s+7, "0123456789") != strlen(s+7))) {
+                *parse_err = "GPSI MSISDN must have between 5 and 15 decimal digits";
+                msaf_api_policy_template_free(policy_template);
+                policy_template = NULL;
+                *policy_temp_ptr = NULL;
+                break;
+            }
+            if (!strncmp(s, "extid-", 6)) {
+                char *at = strchr(s+6, '@');
+                if (!at || at == s+6 || at[1] == '\0' || strchr(at+1, '@') != NULL) {
+                    *parse_err = "GPSI EXTID must be of the form <a>@<b>, where <a> & <b> may not contain the @ symbol";
+                    msaf_api_policy_template_free(policy_template);
+                    policy_template = NULL;
+                    *policy_temp_ptr = NULL;
+                    break;
+                }
+            }
+            if (strlen(s) == 0) {
+                *parse_err = "GPSI cannot be an empty string";
+                msaf_api_policy_template_free(policy_template);
+                policy_template = NULL;
+                *policy_temp_ptr = NULL;
+                break;
+            }
+        }
+    }
+}
+
+static void _policy_template_remove_read_only(msaf_api_policy_template_t *policy_temp)
+{
+    if (!policy_temp) return;
+    /* validation passed, remove read-only fields if present */
+    if (policy_temp->policy_template_id) {
+        ogs_free(policy_temp->policy_template_id);
+        policy_temp->policy_template_id = NULL;
+    }
+    if (policy_temp->state != msaf_api_policy_template_STATE_NULL) {
+        policy_temp->state = msaf_api_policy_template_STATE_NULL;
+    }
+    if (policy_temp->state_reason) {
+        msaf_api_problem_details_free(policy_temp->state_reason);
+        policy_temp->state_reason = NULL;
+    }
+    if (policy_temp->qo_s_specification && policy_temp->qo_s_specification->max_btr_dl) {
+        ogs_free(policy_temp->qo_s_specification->max_btr_dl);
+        policy_temp->qo_s_specification->max_btr_dl = NULL;
+    }
+    if (policy_temp->qo_s_specification && policy_temp->qo_s_specification->max_btr_ul) {
+        ogs_free(policy_temp->qo_s_specification->max_btr_ul);
+        policy_temp->qo_s_specification->max_btr_ul = NULL;
     }
 }
 
