@@ -778,28 +778,28 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
     }
     *{{name}}Ptr = {{{name}}}->valuedouble;
 		    {{#composedSchemas.allOf.0.minimum}}
-    if ({{{name}}}->valuedouble <{{#composedSchemas.allOf.0.exclusiveMinimum}}={{/composedSchemas.allOf.0.exclusiveMinimum}} {{composedSchemas.allOf.0.minimum}}) {
+    if (*{{name}}Ptr <{{#composedSchemas.allOf.0.exclusiveMinimum}}={{/composedSchemas.allOf.0.exclusiveMinimum}} {{composedSchemas.allOf.0.minimum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number less than {{#composedSchemas.allOf.0.exclusiveMinimum}}or equal to {{/composedSchemas.allOf.0.exclusiveMinimum}}{{composedSchemas.allOf.0.minimum}}");
         if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is less than {{#composedSchemas.allOf.0.exclusiveMinimum}}or equal to {{/composedSchemas.allOf.0.exclusiveMinimum}}{{composedSchemas.allOf.0.minimum}} [range {{#composedSchemas.allOf.0.exclusiveMinimum}}({{/composedSchemas.allOf.0.exclusiveMinimum}}{{^composedSchemas.allOf.0.exclusiveMinimum}}[{{/composedSchemas.allOf.0.exclusiveMinimum}}{{composedSchemas.allOf.0.minimum}}..{{#composedSchemas.allOf.0.maximum}}{{composedSchemas.allOf.0.maximum}}{{#composedSchemas.allOf.0.exclusiveMaximum}}){{/composedSchemas.allOf.0.exclusiveMaximum}}{{^composedSchemas.allOf.0.exclusiveMaximum}}]{{/composedSchemas.allOf.0.exclusiveMaximum}}{{/composedSchemas.allOf.0.maximum}}{{^composedSchemas.allOf.0.maximum}}inf]{{/composedSchemas.allOf.0.maximum}}]";
         goto end;
     }
                     {{/composedSchemas.allOf.0.minimum}}
                     {{#minimum}}
-    if ({{{name}}}->valuedouble <{{#exclusiveMinimum}}={{/exclusiveMinimum}} {{minimum}}) {
+    if (*{{name}}Ptr <{{#exclusiveMinimum}}={{/exclusiveMinimum}} {{minimum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number less than {{#exclusiveMinimum}}or equal to {{/exclusiveMinimum}}{{minimum}}");
         if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is less than {{#exclusiveMinimum}}or equal to {{/exclusiveMinimum}}{{minimum}} [range {{#exclusiveMinimum}}({{/exclusiveMinimum}}{{^exclusiveMinimum}}[{{/exclusiveMinimum}}{{minimum}}..{{#maximum}}{{maximum}}{{#exclusiveMaximum}}){{/exclusiveMaximum}}{{^exclusiveMaximum}}]{{/exclusiveMaximum}}{{/maximum}}{{^maximum}}inf]{{/maximum}}]";
         goto end;
     }
                     {{/minimum}}
 		    {{#composedSchemas.allOf.0.maximum}}
-    if ({{{name}}}->valuedouble >{{#composedSchemas.allOf.0.exclusiveMaximum}}={{/composedSchemas.allOf.0.exclusiveMaximum}} {{composedSchemas.allOf.0.maximum}}) {
+    if (*{{name}}Ptr >{{#composedSchemas.allOf.0.exclusiveMaximum}}={{/composedSchemas.allOf.0.exclusiveMaximum}} {{composedSchemas.allOf.0.maximum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number greater than {{#composedSchemas.allOf.0.exclusiveMaximum}}or equal to {{/composedSchemas.allOf.0.exclusiveMaximum}}{{composedSchemas.allOf.0.maximum}}");
         if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is greater than {{#composedSchemas.allOf.0.exclusiveMaximum}}or equal to {{/composedSchemas.allOf.0.exclusiveMaximum}}{{composedSchemas.allOf.0.maximum}} [range {{#composedSchemas.allOf.0.minimum}}{{#composedSchemas.allOf.0.exclusiveMinimum}}({{/composedSchemas.allOf.0.exclusiveMinimum}}{{^composedSchemas.allOf.0.exclusiveMinimum}}[{{/composedSchemas.allOf.0.exclusiveMinimum}}{{composedSchemas.allOf.0.minimum}}{{/composedSchemas.allOf.0.minimum}}{{^composedSchemas.allOf.0.minimum}}[-inf{{/composedSchemas.allOf.0.minimum}}..{{composedSchemas.allOf.0.maximum}}{{#composedSchemas.allOf.0.exclusiveMaximum}}){{/composedSchemas.allOf.0.exclusiveMaximum}}{{^composedSchemas.allOf.0.exclusiveMaximum}}]{{/composedSchemas.allOf.0.exclusiveMaximum}}]";
         goto end;
     }
                     {{/composedSchemas.allOf.0.maximum}}
                     {{#maximum}}
-    if ({{{name}}}->valuedouble >{{#exclusiveMaximum}}={{/exclusiveMaximum}} {{maximum}}) {
+    if (*{{name}}Ptr >{{#exclusiveMaximum}}={{/exclusiveMaximum}} {{maximum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number greater than {{#exclusiveMaximum}}or equal to {{/exclusiveMaximum}}{{maximum}}");
         if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is greater than {{#exclusiveMaximum}}or equal to {{/exclusiveMaximum}}{{maximum}} [range {{#minimum}}{{#exclusiveMinimum}}({{/exclusiveMinimum}}{{^exclusiveMinimum}}[{{/exclusiveMinimum}}{{minimum}}{{/minimum}}{{^minimum}}[-inf{{/minimum}}..{{maximum}}{{#exclusiveMaximum}}){{/exclusiveMaximum}}{{^exclusiveMaximum}}]{{/exclusiveMaximum}}]";
         goto end;
@@ -842,14 +842,14 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
         goto end;
     }
 		  {{#minimum}}
-    if ({{{name}}}->valuedouble <{{#exclusiveMinimum}}={{/exclusiveMinimum}} {{minimum}}) {
+    if (({{dataType}})({{{name}}}->valuedouble) <{{#exclusiveMinimum}}={{/exclusiveMinimum}} {{minimum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number less than {{#exclusiveMinimum}}or equal to {{/exclusiveMinimum}}{{minimum}}");
 	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is less than {{#exclusiveMinimum}}or equal to {{/exclusiveMinimum}}{{minimum}} [range {{#exclusiveMinimum}}({{/exclusiveMinimum}}{{^exclusiveMinimum}}[{{/exclusiveMinimum}}{{minimum}}..{{#maximum}}{{maximum}}{{#exclusiveMaximum}}){{/exclusiveMaximum}}{{^exclusiveMaximum}}]{{/exclusiveMaximum}}{{/maximum}}{{^maximum}}inf]{{/maximum}}]";
         goto end;
     }
                   {{/minimum}}
                   {{#maximum}}
-    if ({{{name}}}->valuedouble >{{#exclusiveMaximum}}={{/exclusiveMaximum}} {{maximum}}) {
+    if (({{dataType}})({{{name}}}->valuedouble) >{{#exclusiveMaximum}}={{/exclusiveMaximum}} {{maximum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number greater than {{#exclusiveMaximum}}or equal to {{/exclusiveMaximum}}{{maximum}}");
 	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is greater than {{#exclusiveMaximum}}or equal to {{/exclusiveMaximum}}{{maximum}} [range {{#minimum}}{{#exclusiveMinimum}}({{/exclusiveMinimum}}{{^exclusiveMinimum}}[{{/exclusiveMinimum}}{{minimum}}{{/minimum}}{{^minimum}}[-inf{{/minimum}}..{{maximum}}{{#exclusiveMaximum}}){{/exclusiveMaximum}}{{^exclusiveMaximum}}]{{/exclusiveMaximum}}]";
         goto end;
