@@ -566,7 +566,7 @@ class BitRate(object):
 
     @staticmethod
     def __parseBitrateString(br: str) -> float:
-        val,units = br.split(' ',1)
+        val,units = (br.split(' ',1) + [None])[:2]
         val = float(val)
         if units not in ['bps', 'Kbps', 'Mbps', 'Gbps', 'Tbps', 'Pbps']:
             raise ValueError('BitRate string must have units of bps, Kbps, Mbps, Gbps, Tbps or Pbps')
