@@ -9,8 +9,6 @@
   },
   "qoSSpecification": {
     "qosReference": "qos-1",
-    "maxBtrUl": "100 Kbps",
-    "maxBtrDl": "10 Mbps",
     "maxAuthBtrUl": "200 Kbps",
     "maxAuthBtrDl": "20 Mbps",
     "defPacketLossRateDl": 0,
@@ -19,6 +17,6 @@
   "chargingSpecification": {
     "sponId": "sponsor-id-1",
     "sponStatus": "SPONSOR_ENABLED",
-    "gpsi": ["msimsi-1234567890"]
+    "gpsi": ["msisdn-441234567890"]
   }
 }
