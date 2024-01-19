@@ -20,6 +20,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include <ctype.h>
 #include <ctype.h>
 #include <time.h>
+#include <math.h>
 
 #include "utilities.h"
 
@@ -137,6 +138,66 @@ uint16_t ascii_to_uint16(const char *str)
         ret = 0;
     }
     return ret;
+}
+
+/** TS 29.571 BitRate String to bit rate
+ * This converts a TS 29.571 BitRate string into a double representing the bit rate.
+ *
+ * @param ts29571_bitrate [in] The TS 29.571 BitRate string.
+ * @param err [out,null] A pointer to set for the reason for a parse error.
+ *
+ * @return The bit rate parsed from the string or @const NAN if there was a parse error (*err will point to the error string if err
+ *         is not @const NULL).
+ */
+double str_to_bitrate(const char *ts29571_bitrate, const char **err)
+{
+    double bitrate = NAN;
+    const char *units;
+    char *end = NULL;
+
+    if (!ts29571_bitrate) {
+        if (err) *err = "No bitrate to convert";
+        return bitrate;
+    }
+    units = strrchr(ts29571_bitrate, ' ');
+
+    if (!units) {
+        if (err) *err = "No units in bitrate";
+        return bitrate;
+    }
+
+    if (units == ts29571_bitrate) {
+        if (err) *err = "No bitrate number present";
+        return bitrate;
+    }
+
+    bitrate = strtod(ts29571_bitrate, &end);
+    if (end != units) {
+        if (err) *err = "Bitrate is not a decimal number";
+        return NAN;
+    }
+
+    SWITCH(units+1)
+    CASE("bps")
+      break;
+    CASE("Kbps")
+      bitrate *= 1e3;
+      break;
+    CASE("Mbps")
+      bitrate *= 1e6;
+      break;
+    CASE("Gbps")
+      bitrate *= 1e9;
+      break;
+    CASE("Tbps")
+      bitrate *= 1e12;
+      break;
+    DEFAULT
+      if (err) *err = "Bitrate units not valid";
+      return NAN;
+    END
+
+    return bitrate;
 }
 
 char *check_http_content_type(ogs_sbi_http_message_t http, char *content_type)

@@ -39,6 +39,7 @@ extern uint16_t ascii_to_uint16(const char *str);
 extern int str_match(const char *line, const char *word_to_find);
 extern const char *get_time(time_t time_epoch);
 extern time_t str_to_time(const char *str_time);
+extern double str_to_bitrate(const char *ts29571_bitrate, const char **err);
 
 extern char *check_http_content_type(ogs_sbi_http_message_t http, char *content_type);
 

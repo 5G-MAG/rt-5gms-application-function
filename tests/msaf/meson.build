@@ -18,6 +18,8 @@ test_msaf_sources = files('''
     pcf-cache-test.h
     sai-cache-test.c
     sai-cache-test.h
+    utilities-test.c
+    utilities-test.h
 
     tests.c
     tests.h

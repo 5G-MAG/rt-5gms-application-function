@@ -15,6 +15,7 @@
 /* Unit test includes */
 #include "pcf-cache-test.h"
 #include "sai-cache-test.h"
+#include "utilities-test.h"
 
 #include "tests.h"
 
@@ -22,7 +23,8 @@ static struct {
     abts_suite *(*func)(abts_suite *suite);
 } alltests[] = {
     {test_pcf_cache},
-    {test_sai_cache}
+    {test_sai_cache},
+    {test_utilities}
 };
 
 abts_suite *tests_run(abts_suite *suite)
