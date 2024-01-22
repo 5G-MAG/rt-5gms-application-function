@@ -536,6 +536,14 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 char *pol_temp;
                                 const char *parse_err;
 
+                                if (!msaf_self()->config.open5gsIntegration_flag) {
+                                    const char *err = "Policy Templates are not available on this instance of the 5GMS Application Function.";
+                                    ogs_error("%s",err);
+                                    ogs_error("To allow Policy Templates please set open5gsIntegration to true in the configuration file and point the nrf section to a valid 5G core.");
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Problem adding the policy template.", err, NULL, api, app_meta));
+                                    break;
+                                }
+
                                 policy_template = cJSON_Parse(request->http.content);
                                 pol_temp = cJSON_Print(policy_template);
                                 ogs_debug("Requested Policy Template: %s", pol_temp);
