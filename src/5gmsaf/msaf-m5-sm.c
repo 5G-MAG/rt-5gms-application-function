@@ -229,7 +229,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                 const char *err = "Problem in obtaining the information required to create the Dynamic Policy";
                                 ogs_error("%s", err);
-                                ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Dynamic Policy failed.", err, NULL, m5_dynamicpolicy_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Dynamic Policy failed.", err, NULL, m5_dynamicpolicy_api, app_meta));
                                 cJSON_Delete(dynamic_policy);
                                 break;
                             }

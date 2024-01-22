@@ -99,24 +99,36 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
     add_create_event_metadata_to_dynamic_policy_context(dyn_policy, e);
 
     if (dynamic_policy->service_data_flow_descriptions) {
+        if (dynamic_policy->service_data_flow_descriptions->first == NULL) {
+            ogs_error("Service Data Flow Descriptions must have at least one entry");
+            msaf_dynamic_policy_remove(dyn_policy);
+            return 0;
+        }
         OpenAPI_list_for_each(dynamic_policy->service_data_flow_descriptions, node) {
             const ogs_sockaddr_t *pcf_address;
             ue_network_identifier_t *ue_connection;
 
             service_data_flow_description = (msaf_api_service_data_flow_description_t *)node->data;
 
+            /* Not Implemented Yet */
 	    if(service_data_flow_description->domain_name) {
-	        ogs_debug("Service Data Flow Descriptions specified using a domain name are not yet supported by this implementation");
+	        ogs_error("Service Data Flow Descriptions specified using a domain name are not yet supported by this implementation");
                 msaf_dynamic_policy_remove(dyn_policy);
                 return 0;		
 	    }	
-		    
 
-	    if(service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
-	        ogs_error("Validation of service data flow description failed: Exactly one of flowDescription or domainName must be present");
+            /* Validate SDF */
+	    if (service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
+	        ogs_error("Validation of service data flow description failed: Only one of flowDescription or domainName may be present");
                 msaf_dynamic_policy_remove(dyn_policy);
                 return 0;
 	    }
+
+            if (!service_data_flow_description->flow_description && !service_data_flow_description->domain_name) {
+                ogs_error("Validation of service data flow description failed: flowDescription or domainName must be present");
+                msaf_dynamic_policy_remove(dyn_policy);
+                return 0;
+            }
 
 	    if (service_data_flow_description->flow_description) {
 
@@ -124,9 +136,50 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
                     ogs_error("Mandatory direction property missing");
                     msaf_dynamic_policy_remove(dyn_policy);
                     return 0;
+                } else {
+                    /* direction passed to Npcf_PolicyAuthorization so needs to match rules for FlowDirection enumerated type */
+                    SWITCH(service_data_flow_description->flow_description->direction)
+                    CASE("DOWNLINK")
+                        if (!service_data_flow_description->flow_description->dst_ip) {
+                            ogs_error("Validation of service data flow description failed: Need dstIp for DOWNLINK flow direction");
+                            msaf_dynamic_policy_remove(dyn_policy);
+                            return 0;
+                        }
+                        break;
+                    CASE("UPLINK")
+                        if (!service_data_flow_description->flow_description->src_ip) {
+                            ogs_error("Validation of service data flow description failed: Need srcIp for UPLINK flow direction");
+                            msaf_dynamic_policy_remove(dyn_policy);
+                            return 0;
+                        }
+                        break;
+                    CASE("BIDIRECTIONAL")
+                        if (!service_data_flow_description->flow_description->dst_ip) {
+                            ogs_error("Validation of service data flow description failed: Need dstIp for BIDIRECTIONAL flow direction");
+                            msaf_dynamic_policy_remove(dyn_policy);
+                            return 0;
+                        }
+                        break;
+                    /*CASE("UNSPECIFIED")
+                        if (!service_data_flow_description->flow_description->dst_ip) {
+                            ogs_error("Validation of service data flow description failed: Need dstIp for UNSPECIFIED flow direction");
+                            msaf_dynamic_policy_remove(dyn_policy);
+                            return 0;
+                        }
+                        break; */
+                    DEFAULT
+                        ogs_error("Validation of service data flow description failed: flowDescription.direction \"%s\" not implemented", service_data_flow_description->flow_description->direction);
+                        msaf_dynamic_policy_remove(dyn_policy);
+                        return 0;
+                    END
                 }
 
                 ue_connection = populate_ue_connection_information(service_data_flow_description);
+                if (!ue_connection) {
+                    ogs_error("Cannot find UE address, unable to request policy authorization");
+                    msaf_dynamic_policy_remove(dyn_policy);
+                    return 0;
+                }
 
 		msaf_policy_template = msaf_provisioning_session_get_policy_template_by_id(dynamic_policy->provisioning_session_id, dynamic_policy->policy_template_id);
 		if (!msaf_policy_template) {
@@ -160,6 +213,10 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
                 ue_connection_details_free(ue_connection);
             }
 	}
+    } else {
+        ogs_error("Must have a serviceDataFlowDescriptions");
+        msaf_dynamic_policy_remove(dyn_policy);
+        return 0;
     }
     return 1;
 
@@ -336,7 +393,7 @@ static OpenAPI_list_t *populate_media_component(msaf_api_m1_qo_s_specification_t
             ue_addr = flow_description->src_ip?flow_description->src_ip:"any";
             ue_port = flow_description_port(flow_description->dst_port);
 
-        } else if (!strcmp(flow_description->direction, "DOWNLINK")) {
+        } else if (!strcmp(flow_description->direction, "DOWNLINK") || !strcmp(flow_description->direction, "BIDIRECTIONAL")) {
 
             remote_addr = flow_description->src_ip?flow_description->src_ip:"any";
             remote_port = flow_description_port(flow_description->src_port);
@@ -470,34 +527,38 @@ static ue_network_identifier_t *populate_ue_connection_information(msaf_api_serv
     int rv;
     ue_network_identifier_t *ue_connection;
 
-    ue_connection = ogs_calloc(1, sizeof(ue_network_identifier_t));
+    ue_connection = ogs_calloc(1, sizeof(*ue_connection));
     ogs_assert(ue_connection);
 
     if (service_data_flow_information->domain_name) {
         ue_connection->ip_domain = msaf_strdup(service_data_flow_information->domain_name);
+    } else {
+        if (!strcmp(service_data_flow_information->flow_description->direction, "UPLINK")) {
+
+            rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->src_ip, service_data_flow_information->flow_description->src_port, 0);
+        } else if (!strcmp(service_data_flow_information->flow_description->direction, "DOWNLINK") || !strcmp(service_data_flow_information->flow_description->direction, "BIDIRECTIONAL")) {
+            ogs_info("%s: dst_ip", service_data_flow_information->flow_description->dst_ip);
+            rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->dst_ip, service_data_flow_information->flow_description->dst_port, 0);
+        } else {
+            ogs_error("Flow direction \"%s\" not implemented", service_data_flow_information->flow_description->direction);
+            ue_connection_details_free(ue_connection);
+            return NULL;
+        }
+
+        if (rv != OGS_OK) {
+            ogs_error("getaddrinfo failed");
+            ue_connection_details_free(ue_connection);
+            return NULL;
+        }
     }
 
-    if (!strcmp(service_data_flow_information->flow_description->direction, "UPLINK")) {
-
-        rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->src_ip, service_data_flow_information->flow_description->src_port, 0);
-    }
-
-    if (!strcmp(service_data_flow_information->flow_description->direction, "DOWNLINK")) {
-        ogs_info("%s: dst_ip", service_data_flow_information->flow_description->dst_ip);
-
-        rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->dst_ip, service_data_flow_information->flow_description->dst_port, 0);
-    }
-
-    if (rv != OGS_OK) {
-        ogs_error("getaddrinfo failed");
+    if (ue_connection->address == NULL) {
+        ogs_error("Could not get the address for the UE connection");
+        ue_connection_details_free(ue_connection);
         return NULL;
     }
 
-    if (ue_connection->address == NULL)
-        ogs_error("Could not get the address for the UE connection");
-
     return ue_connection;
-
 }
 
 static char *set_max_bit_rate_compliant_with_policy_template(char *policy_template_m1_qos_bit_rate, char *m5_qos_bit_rate) {
