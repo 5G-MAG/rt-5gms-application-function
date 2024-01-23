@@ -113,7 +113,7 @@ const char *{{name}}{{classname}}_ToString(const {{classname}}_{{name}}_e {{name
                 {{#isString}}
     {{datatype}} *{{name}}{{^-last}},{{/-last}}
                 {{/isString}}
-		{{#isModel}}
+                {{#isModel}}
     {{datatype}} *{{name}}{{^-last}},{{/-last}}
                 {{/isModel}}
                 {{#isByteArray}}
@@ -238,12 +238,12 @@ void {{classname}}_free({{classname}}_t *{{classname}})
         {{classname}}->{{name}} = NULL;
     }
                 {{/isString}}
-		{{#isModel}}
+                {{#isModel}}
     if ({{{classname}}}->{{{name}}}) {
         ogs_free({{{classname}}}->{{{name}}});
         {{classname}}->{{name}} = NULL;
     }
-		{{/isModel}}
+                {{/isModel}}
                 {{#isByteArray}}
     if ({{{classname}}}->{{{name}}}) {
         ogs_free({{{classname}}}->{{{name}}});
@@ -402,15 +402,15 @@ cJSON *{{classname}}_convertToJSON(const {{classname}}_t *{{classname}}, bool {{
         goto end;
     }
                 {{/isString}}
-		{{#isModel}}
-		  {{#composedSchemas.allOf.0.isNumeric}}
+                {{#isModel}}
+                  {{#composedSchemas.allOf.0.isNumeric}}
     if ({{{classname}}}->{{{name}}}) {
         if (cJSON_AddNumberToObject(item, "{{{baseName}}}", *{{{classname}}}->{{{name}}}) == NULL) {
             ogs_error("{{classname}}_convertToJSON() failed [{{{name}}}]");
             goto end;
         }
     }
-	          {{/composedSchemas.allOf.0.isNumeric}}
+                  {{/composedSchemas.allOf.0.isNumeric}}
                   {{#composedSchemas.allOf.0.isString}}
     if ({{{classname}}}->{{{name}}}) {
         if (cJSON_AddStringToObject(item, "{{{baseName}}}", {{{classname}}}->{{{name}}}) == NULL) {
@@ -418,8 +418,8 @@ cJSON *{{classname}}_convertToJSON(const {{classname}}_t *{{classname}}, bool {{
             goto end;
         }
     }   
-		  {{/composedSchemas.allOf.0.isString}}
-		{{/isModel}}
+                  {{/composedSchemas.allOf.0.isString}}
+                {{/isModel}}
                 {{#isByteArray}}
     if (cJSON_AddStringToObject(item, "{{{baseName}}}", {{{classname}}}->{{{name}}}) == NULL) {
         ogs_error("{{classname}}_convertToJSON() failed [{{{name}}}]");
@@ -688,9 +688,9 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
             {{#isBinary}}
     OpenAPI_binary_t *decoded_str_{{{name}}} = NULL;
             {{/isBinary}}
-	    {{#isModel}}
+            {{#isModel}}
     {{dataType}} *{{name}}Ptr = NULL;
-	    {{/isModel}}
+            {{/isModel}}
         {{/isPrimitiveType}}
         {{^isPrimitiveType}}
             {{#isEnum}}
@@ -757,14 +757,19 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
             {{#isEnum}}
     if (!cJSON_IsString({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an enumeration string";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an enumeration string";
         goto end;
     }
     {{name}}Variable = {{name}}{{classname}}_FromString({{{name}}}->valuestring);
+    if ({{name}}Variable == {{classname}}_{{#lambda.uppercase}}{{name}}{{/lambda.uppercase}}_NULL) {
+        ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" enumeration value not recognised";
+        goto end;
+    }
             {{/isEnum}}
             {{^isEnum}}
-		{{#isModel}}
-		  {{#composedSchemas.allOf.0.isNumeric}}
+                {{#isModel}}
+                  {{#composedSchemas.allOf.0.isNumeric}}
     if (!cJSON_IsNumber({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
         if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a number";
@@ -777,7 +782,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
         goto end;
     }
     *{{name}}Ptr = {{{name}}}->valuedouble;
-		    {{#composedSchemas.allOf.0.minimum}}
+                    {{#composedSchemas.allOf.0.minimum}}
     if (*{{name}}Ptr <{{#composedSchemas.allOf.0.exclusiveMinimum}}={{/composedSchemas.allOf.0.exclusiveMinimum}} {{composedSchemas.allOf.0.minimum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number less than {{#composedSchemas.allOf.0.exclusiveMinimum}}or equal to {{/composedSchemas.allOf.0.exclusiveMinimum}}{{composedSchemas.allOf.0.minimum}}");
         if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is less than {{#composedSchemas.allOf.0.exclusiveMinimum}}or equal to {{/composedSchemas.allOf.0.exclusiveMinimum}}{{composedSchemas.allOf.0.minimum}} [range {{#composedSchemas.allOf.0.exclusiveMinimum}}({{/composedSchemas.allOf.0.exclusiveMinimum}}{{^composedSchemas.allOf.0.exclusiveMinimum}}[{{/composedSchemas.allOf.0.exclusiveMinimum}}{{composedSchemas.allOf.0.minimum}}..{{#composedSchemas.allOf.0.maximum}}{{composedSchemas.allOf.0.maximum}}{{#composedSchemas.allOf.0.exclusiveMaximum}}){{/composedSchemas.allOf.0.exclusiveMaximum}}{{^composedSchemas.allOf.0.exclusiveMaximum}}]{{/composedSchemas.allOf.0.exclusiveMaximum}}{{/composedSchemas.allOf.0.maximum}}{{^composedSchemas.allOf.0.maximum}}inf]{{/composedSchemas.allOf.0.maximum}}]";
@@ -791,7 +796,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
         goto end;
     }
                     {{/minimum}}
-		    {{#composedSchemas.allOf.0.maximum}}
+                    {{#composedSchemas.allOf.0.maximum}}
     if (*{{name}}Ptr >{{#composedSchemas.allOf.0.exclusiveMaximum}}={{/composedSchemas.allOf.0.exclusiveMaximum}} {{composedSchemas.allOf.0.maximum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number greater than {{#composedSchemas.allOf.0.exclusiveMaximum}}or equal to {{/composedSchemas.allOf.0.exclusiveMaximum}}{{composedSchemas.allOf.0.maximum}}");
         if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is greater than {{#composedSchemas.allOf.0.exclusiveMaximum}}or equal to {{/composedSchemas.allOf.0.exclusiveMaximum}}{{composedSchemas.allOf.0.maximum}} [range {{#composedSchemas.allOf.0.minimum}}{{#composedSchemas.allOf.0.exclusiveMinimum}}({{/composedSchemas.allOf.0.exclusiveMinimum}}{{^composedSchemas.allOf.0.exclusiveMinimum}}[{{/composedSchemas.allOf.0.exclusiveMinimum}}{{composedSchemas.allOf.0.minimum}}{{/composedSchemas.allOf.0.minimum}}{{^composedSchemas.allOf.0.minimum}}[-inf{{/composedSchemas.allOf.0.minimum}}..{{composedSchemas.allOf.0.maximum}}{{#composedSchemas.allOf.0.exclusiveMaximum}}){{/composedSchemas.allOf.0.exclusiveMaximum}}{{^composedSchemas.allOf.0.exclusiveMaximum}}]{{/composedSchemas.allOf.0.exclusiveMaximum}}]";
@@ -805,22 +810,22 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
         goto end;
     }
                     {{/maximum}}
-		  {{/composedSchemas.allOf.0.isNumeric}}
-		  {{#composedSchemas.allOf.0.isString}}
+                  {{/composedSchemas.allOf.0.isNumeric}}
+                  {{#composedSchemas.allOf.0.isString}}
     if (!cJSON_IsString({{{name}}}){{^required}} && !cJSON_IsNull({{{name}}}){{/required}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
         if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a string{{^required}} or 'null'{{/required}}";
         goto end;
     }
-    		    {{^required}}
+                    {{^required}}
     if (!cJSON_IsNull({{{name}}})) {
                     {{/required}}
-	{{name}}Ptr = ogs_strdup({{{name}}}->valuestring);
-		    {{^required}}
+        {{name}}Ptr = ogs_strdup({{{name}}}->valuestring);
+                    {{^required}}
     }
-		    {{/required}}
-		  {{/composedSchemas.allOf.0.isString}}
-		{{/isModel}}
+                    {{/required}}
+                  {{/composedSchemas.allOf.0.isString}}
+                {{/isModel}}
                 {{#isString}}
     if (!cJSON_IsString({{{name}}}){{^required}} && !cJSON_IsNull({{{name}}}){{/required}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
@@ -838,20 +843,20 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                 {{#isNumeric}}
     if (!cJSON_IsNumber({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a number";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a number";
         goto end;
     }
-		  {{#minimum}}
+                  {{#minimum}}
     if (({{dataType}})({{{name}}}->valuedouble) <{{#exclusiveMinimum}}={{/exclusiveMinimum}} {{minimum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number less than {{#exclusiveMinimum}}or equal to {{/exclusiveMinimum}}{{minimum}}");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is less than {{#exclusiveMinimum}}or equal to {{/exclusiveMinimum}}{{minimum}} [range {{#exclusiveMinimum}}({{/exclusiveMinimum}}{{^exclusiveMinimum}}[{{/exclusiveMinimum}}{{minimum}}..{{#maximum}}{{maximum}}{{#exclusiveMaximum}}){{/exclusiveMaximum}}{{^exclusiveMaximum}}]{{/exclusiveMaximum}}{{/maximum}}{{^maximum}}inf]{{/maximum}}]";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is less than {{#exclusiveMinimum}}or equal to {{/exclusiveMinimum}}{{minimum}} [range {{#exclusiveMinimum}}({{/exclusiveMinimum}}{{^exclusiveMinimum}}[{{/exclusiveMinimum}}{{minimum}}..{{#maximum}}{{maximum}}{{#exclusiveMaximum}}){{/exclusiveMaximum}}{{^exclusiveMaximum}}]{{/exclusiveMaximum}}{{/maximum}}{{^maximum}}inf]{{/maximum}}]";
         goto end;
     }
                   {{/minimum}}
                   {{#maximum}}
     if (({{dataType}})({{{name}}}->valuedouble) >{{#exclusiveMaximum}}={{/exclusiveMaximum}} {{maximum}}) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]: Out of range, number greater than {{#exclusiveMaximum}}or equal to {{/exclusiveMaximum}}{{maximum}}");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is greater than {{#exclusiveMaximum}}or equal to {{/exclusiveMaximum}}{{maximum}} [range {{#minimum}}{{#exclusiveMinimum}}({{/exclusiveMinimum}}{{^exclusiveMinimum}}[{{/exclusiveMinimum}}{{minimum}}{{/minimum}}{{^minimum}}[-inf{{/minimum}}..{{maximum}}{{#exclusiveMaximum}}){{/exclusiveMaximum}}{{^exclusiveMaximum}}]{{/exclusiveMaximum}}]";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" value is greater than {{#exclusiveMaximum}}or equal to {{/exclusiveMaximum}}{{maximum}} [range {{#minimum}}{{#exclusiveMinimum}}({{/exclusiveMinimum}}{{^exclusiveMinimum}}[{{/exclusiveMinimum}}{{minimum}}{{/minimum}}{{^minimum}}[-inf{{/minimum}}..{{maximum}}{{#exclusiveMaximum}}){{/exclusiveMaximum}}{{^exclusiveMaximum}}]{{/exclusiveMaximum}}]";
         goto end;
     }
                   {{/maximum}}
@@ -859,7 +864,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                 {{#isBoolean}}
     if (!cJSON_IsBool({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a boolean";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a boolean";
         goto end;
     }
                 {{/isBoolean}}
@@ -869,27 +874,27 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
     ogs_assert(decoded_str_{{{name}}});
     if (!cJSON_IsString({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a string";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a string";
         goto end;
     }
     decoded_str_{{{name}}}->data = OpenAPI_base64decode({{{name}}}->valuestring, strlen({{{name}}}->valuestring), &decoded_str_{{{name}}}->len);
     if (!decoded_str_{{{name}}}->data) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not base 64 encoded";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not base 64 encoded";
         goto end;
     }
             {{/isBinary}}
             {{#isDate}}
     if (!cJSON_IsString({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a date string";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a date string";
         goto end;
     }
             {{/isDate}}
             {{#isDateTime}}
     if (!cJSON_IsString({{{name}}}) && !cJSON_IsNull({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a date-time string";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a date-time string";
         goto end;
     }
             {{/isDateTime}}
@@ -898,17 +903,22 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
             {{#isEnum}}
     if (!cJSON_IsString({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an enumeration string"; 
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an enumeration string"; 
         goto end;
     }
     {{name}}Variable = {{complexType}}_FromString({{{name}}}->valuestring);
+    if ({{name}}Variable == {{complexType}}_NULL) {
+        ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" enumeration value not recognised";
+        goto end;
+    }
             {{/isEnum}}
             {{^isEnum}}
                 {{#isModel}}
     {{{name}}}_local_nonprim = {{complexType}}{{#isFreeFormObject}}object{{/isFreeFormObject}}_parseFromJSON({{{name}}}, {{classname}}_as_request, {{classname}}_parse_err);
     if (!{{{name}}}_local_nonprim) {
         ogs_error("{{complexType}}{{#isFreeFormObject}}object{{/isFreeFormObject}}_parseFromJSON failed [{{{name}}}]");
-	/* {{classname}}_parse_err already filled in by sub-parser */
+        /* {{classname}}_parse_err already filled in by sub-parser */
         goto end;
     }
                 {{/isModel}}
@@ -916,21 +926,21 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                     {{#isUuid}}
     if (!cJSON_IsString({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a string";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a string";
         goto end;
     }
                     {{/isUuid}}
                     {{#isEmail}}
     if (!cJSON_IsString({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a string";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a string";
         goto end;
     }
                     {{/isEmail}}
                     {{#isFreeFormObject}}
     if (!cJSON_IsObject({{{name}}})) {
         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an object";
+        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an object";
         goto end;
     }
     {{{name}}}_local_object = OpenAPI_object_parseFromJSON({{{name}}}, {{classname}}_as_request, {{classname}}_parse_err);
@@ -947,7 +957,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
         cJSON *{{{name}}}_local = NULL;
         if (!cJSON_IsArray({{{name}}})) {
             ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an array";
+            if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an array";
             goto end;
         }
 
@@ -955,12 +965,19 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
 
         cJSON_ArrayForEach({{{name}}}_local, {{{name}}}) {
             {{#isEnum}}
+            {{{complexType}}}_e {{{name}}}_local_value;
             if (!cJSON_IsString({{{name}}}_local)) {
                 ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not an enumeration string";
+                if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not an enumeration string";
                 goto end;
             }
-            OpenAPI_list_add({{{name}}}List, (void *){{{complexType}}}_FromString({{{name}}}_local->valuestring));
+            {{{name}}}_local_value = {{{complexType}}}_FromString({{{name}}}_local->valuestring);
+            if ({{{name}}}_local_value == {{{complexType}}}_NULL) {
+                ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
+                if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" enumerated value not recognised";
+                goto end;
+            }
+            OpenAPI_list_add({{{name}}}List, (void *){{{name}}}_local_value);
             {{/isEnum}}
             {{^isEnum}}
                 {{#items}}
@@ -968,7 +985,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                         {{#isString}}
             if (!cJSON_IsString({{{name}}}_local)) {
                 ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not a string";
+                if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not a string";
                 goto end;
             }
             OpenAPI_list_add({{{name}}}List, ogs_strdup({{{name}}}_local->valuestring));
@@ -976,7 +993,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                         {{#isByteArray}}
             if (!cJSON_IsString({{{name}}}_local)) {
                 ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not a string";
+                if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not a string";
                 goto end;
             }
             OpenAPI_list_add({{{name}}}List, ogs_strdup({{{name}}}_local->valuestring));
@@ -984,14 +1001,14 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                         {{#isNumeric}}
             if (!cJSON_IsNumber({{{name}}}_local)) {
                 ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not a number";
+                if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not a number";
                 goto end;
             }
             {
                 double *localDouble = (double *)ogs_calloc(1, sizeof(double));
                 if (!localDouble) {
                     ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Failed to allocate memory for \"{{{baseName}}}\" array element";
+                    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Failed to allocate memory for \"{{{baseName}}}\" array element";
                     goto end;
                 }
                 *localDouble = {{{name}}}_local->valuedouble;
@@ -1001,14 +1018,14 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                         {{#isBoolean}}
             if (!cJSON_IsBool({{{name}}}_local)) {
                 ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not a boolean";
+                if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not a boolean";
                 goto end;
             }
             {
                 int *localInt = (int *)ogs_calloc(1, sizeof(int));
                 if (!localInt) {
                     ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Failed to allocate memory for \"{{{baseName}}}\" array element";
+                    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Failed to allocate memory for \"{{{baseName}}}\" array element";
                     goto end;
                 }
                 *localInt = {{{name}}}_local->valueint;
@@ -1019,13 +1036,13 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                     {{^isPrimitiveType}}
             if (!cJSON_IsObject({{{name}}}_local)) {
                 ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not an object";
+                if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" array element is not an object";
                 goto end;
             }
             {{complexType}}_t *{{{name}}}Item = {{complexType}}_parseFromJSON({{{name}}}_local, {{classname}}_as_request, {{classname}}_parse_err);
             if (!{{{name}}}Item) {
                 ogs_error("No {{{name}}}Item");
-		/* {{classname}}_parse_err given by sub-parser */
+                /* {{classname}}_parse_err given by sub-parser */
                 goto end;
             }
             OpenAPI_list_add({{{name}}}List, {{{name}}}Item);
@@ -1038,7 +1055,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
         cJSON *{{{name}}}_local_map = NULL;
         if (!cJSON_IsObject({{{name}}}) && !cJSON_IsNull({{{name}}})) {
             ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-	    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an object or 'null'";
+            if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not an object or 'null'";
             goto end;
         }
         if (cJSON_IsObject({{{name}}})) {
@@ -1047,12 +1064,19 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
             cJSON_ArrayForEach({{{name}}}_local_map, {{{name}}}) {
                 cJSON *localMapObject = {{{name}}}_local_map;
             {{#isEnum}}
+                {{{complexType}}}_e {{{name}}}_local_value;
                 if (!cJSON_IsString(localMapObject)) {
                     ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a map of enumeration strings";
+                    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" is not a map of enumeration strings";
                     goto end;
                 }
-                localMapKeyPair = OpenAPI_map_create(ogs_strdup(localMapObject->string), (void *){{{complexType}}}_FromString(localMapObject->string));
+                {{{name}}}_local_value = {{{complexType}}}_FromString(localMapObject->string);
+                if ({{{name}}}_local_value == {{{complexType}}}_NULL) {
+                    ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
+                    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" enumeration value not recognised";
+                    goto end;
+                }
+                localMapKeyPair = OpenAPI_map_create(ogs_strdup(localMapObject->string), (void *){{{name}}}_local_value);
             {{/isEnum}}
             {{^isEnum}}
                 {{#items}}
@@ -1060,7 +1084,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                         {{#isString}}
                 if (!cJSON_IsString(localMapObject)) {
                     ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" map value is not a string";
+                    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" map value is not a string";
                     goto end;
                 }
                 localMapKeyPair = OpenAPI_map_create(ogs_strdup(localMapObject->string), ogs_strdup(localMapObject->valuestring));
@@ -1076,14 +1100,14 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                         {{#isNumeric}}
                 if (!cJSON_IsNumber(localMapObject)) {
                     ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" map value is not a number";
+                    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" map value is not a number";
                     goto end;
                 }
-		{
+                {
                     double *localDouble = (double *)ogs_calloc(1, sizeof(double));
                     if (!localDouble) {
                         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-			if ({{classname}}_parse_err) *{{classname}}_parse_err = "Failed to allocate memory for \"{{{baseName}}}\" map element";
+                        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Failed to allocate memory for \"{{{baseName}}}\" map element";
                         goto end;
                     }
                     *localDouble = localMapObject->valuedouble;
@@ -1093,14 +1117,14 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                         {{#isBoolean}}
                 if (!cJSON_IsBool(localMapObject)) {
                     ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" map value is not a boolean";
+                    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" map value is not a boolean";
                     goto end;
                 }
                 {
                     int *localInt = (int *)ogs_calloc(1, sizeof(int));
                     if (!localInt) {
                         ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-			if ({{classname}}_parse_err) *{{classname}}_parse_err = "Failed to allocate memory for \"{{{baseName}}}\" map element";
+                        if ({{classname}}_parse_err) *{{classname}}_parse_err = "Failed to allocate memory for \"{{{baseName}}}\" map element";
                         goto end;
                     }
                     *localInt = localMapObject->valueint;
@@ -1116,7 +1140,7 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                     localMapKeyPair = OpenAPI_map_create(ogs_strdup(localMapObject->string), NULL);
                 } else {
                     ogs_error("{{classname}}_parseFromJSON() failed [{{{name}}}]");
-		    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" map value is not an object or 'null'";
+                    if ({{classname}}_parse_err) *{{classname}}_parse_err = "Field \"{{{baseName}}}\" map value is not an object or 'null'";
                     goto end;
                 }
                     {{/isPrimitiveType}}
@@ -1180,8 +1204,8 @@ cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}})
                 {{#isString}}
         {{{name}}} && !cJSON_IsNull({{{name}}}) ? ogs_strdup({{{name}}}->valuestring) : NULL{{^-last}},{{/-last}}
                 {{/isString}}
-		{{#isModel}}
-	{{{name}}}Ptr{{^-last}},{{/-last}}
+                {{#isModel}}
+        {{{name}}}Ptr{{^-last}},{{/-last}}
                 {{/isModel}}
                 {{#isByteArray}}
         {{{name}}} && !cJSON_IsNull({{{name}}}) ? ogs_strdup({{{name}}}->valuestring) : NULL{{^-last}},{{/-last}}
@@ -1239,17 +1263,17 @@ end:
                 {{/isModel}}
             {{/isEnum}}
         {{/isPrimitiveType}}
-	{{#isPrimitiveType}}
-	  {{#isModel}}
+        {{#isPrimitiveType}}
+          {{#isModel}}
     if ({{name}}Ptr) ogs_free({{name}}Ptr);
           {{/isModel}}
-	{{/isPrimitiveType}}
+        {{/isPrimitiveType}}
     {{/isContainer}}
     {{#isContainer}}
         {{#isArray}}
     if ({{{name}}}List) {
             {{^isEnum}}
-	OpenAPI_lnode_t *node = NULL;
+        OpenAPI_lnode_t *node = NULL;
         OpenAPI_list_for_each({{{name}}}List, node) {
                 {{#isPrimitiveType}}
             ogs_free(node->data);
