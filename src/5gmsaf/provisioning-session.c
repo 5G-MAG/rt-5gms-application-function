@@ -203,6 +203,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session_json = msaf_api_provisioning_session_convertResponseToJSON(provisioning_session);
 
         OpenAPI_list_free(provisioning_session->server_certificate_ids);
+        OpenAPI_list_free(provisioning_session->policy_template_ids);
         ogs_free(provisioning_session);
     } else {
         ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
