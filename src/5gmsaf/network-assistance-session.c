@@ -83,21 +83,61 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
 		    
 
 	    if(service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
-	        ogs_error("Validation of service data flow description failed: Exactly one of flowDescription or domainName must be present");
+	        ogs_error("Validation of service data flow description failed: Only one of flowDescription or domainName may be present");
                 msaf_network_assistance_session_remove(na_sess);
                 return 0;
 	    }
 
+            if(!service_data_flow_description->flow_description && !service_data_flow_description->domain_name) {
+                ogs_error("Validation of service data flow description failed: flowDescription or domainName must be present");
+                msaf_network_assistance_session_remove(na_sess);
+                return 0;
+            }
+
 	    if(service_data_flow_description->flow_description){
 
                 if (!service_data_flow_description->flow_description->direction) {
+                    ogs_error("Validation of service data flow description failed: no flowDescription.direction present");
                     msaf_network_assistance_session_remove(na_sess);
                     return 0;
                 }
 
-                ue_connection = populate_ue_connection_details(service_data_flow_description);
+                SWITCH(service_data_flow_description->flow_description->direction)
+                CASE("UPLINK")
+                    if (!service_data_flow_description->flow_description->src_ip) {
+                        ogs_error("Validation of service data flow description failed: flowDescription.srcIp must be set for UPLINK");
+                        msaf_network_assistance_session_remove(na_sess);
+                        return 0;
+                    }
+                    break;
+                CASE("DOWNLINK")
+                    if (!service_data_flow_description->flow_description->dst_ip) {
+                        ogs_error("Validation of service data flow description failed: flowDescription.dstIp must be set for DOWNLINK");
+                        msaf_network_assistance_session_remove(na_sess);
+                        return 0;
+                    }
+                    break;
+                CASE("BIDIRECTIONAL")
+                    if (!service_data_flow_description->flow_description->dst_ip) {
+                        ogs_error("Validation of service data flow description failed: flowDescription.dstIp must be set for BIDIRECTIONAL");
+                        msaf_network_assistance_session_remove(na_sess);
+                        return 0;
+                    }
+                    break;
+                DEFAULT
+                    ogs_error("Validation of service data flow description failed: flowDescription.direction of \"%s\" not implemented", service_data_flow_description->flow_description->direction);
+                    msaf_network_assistance_session_remove(na_sess);
+                    return 0;
+                END
 
-                media_component = populate_media_component(na_sess->NetworkAssistanceSession->policy_template_id, service_data_flow_description->flow_description, na_sess->NetworkAssistanceSession->requested_qo_s, na_sess->NetworkAssistanceSession->media_type?na_sess->NetworkAssistanceSession->media_type: OpenAPI_media_type_VIDEO);
+                ue_connection = populate_ue_connection_details(service_data_flow_description);
+                if (!ue_connection) {
+                    ogs_error("Validation of service data flow description failed: Failed to find UE connection details");
+                    msaf_network_assistance_session_remove(na_sess);
+                    return 0;
+                }
+
+                media_component = populate_media_component(na_sess->NetworkAssistanceSession->policy_template_id, service_data_flow_description->flow_description, na_sess->NetworkAssistanceSession->requested_qo_s, na_sess->NetworkAssistanceSession->media_type?na_sess->NetworkAssistanceSession->media_type:OpenAPI_media_type_VIDEO);
 
                 pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, ue_connection->address);
 

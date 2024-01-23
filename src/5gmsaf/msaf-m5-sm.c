@@ -144,7 +144,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     break;
                 }
                 SWITCH(message->h.resource.component[0])
-		    CASE("dynamic-policies")
+		CASE("dynamic-policies")
                     SWITCH(message->h.method)
 		    CASE(OGS_SBI_HTTP_METHOD_DELETE)
                         if(message->h.resource.component[1] && !message->h.resource.component[2])
@@ -375,7 +375,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     END
                     break;
  
-		    CASE("network-assistance")
+	        CASE("network-assistance")
                     SWITCH(message->h.method)
 		    CASE(OGS_SBI_HTTP_METHOD_DELETE)
                         if(message->h.resource.component[1])
@@ -654,7 +654,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                 const char *err = "Problem in obtaining the information required to create the Network Assitance Session";
                                 ogs_error("%s", err);
-                                ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
                                 cJSON_Delete(network_assistance_sess);
                                 break;
 
