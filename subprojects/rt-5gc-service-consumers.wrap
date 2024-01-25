@@ -1,0 +1,4 @@
+[wrap-git]
+directory = rt-5gc-service-consumers
+url = https://github.com/5G-MAG/rt-5gc-service-consumers.git
+revision = development

@@ -8,9 +8,15 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
+#include "ogs-core.h"
+#include "ogs-sbi.h"
+
 #include "certmgr.h"
 #include "context.h"
+#include "provisioning-session.h"
 #include "utilities.h"
+
+#include "openapi/model/msaf_api_content_hosting_configuration.h"
 
 #include "application-server-context.h"
 
@@ -162,7 +168,7 @@ msaf_application_server_state_set(msaf_application_server_state_node_t *as_state
 }
 
 msaf_application_server_node_t *
-msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_format, int m3_port)
+msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_format, int m3_port, char *m3_host)
 {
     msaf_application_server_node_t *msaf_as = NULL;
 
@@ -172,6 +178,7 @@ msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_form
     msaf_as->canonicalHostname = canonical_hostname;
     msaf_as->urlPathPrefixFormat = url_path_prefix_format;
     msaf_as->m3Port = m3_port;
+    msaf_as->m3Host = m3_host;
     ogs_list_add(&msaf_self()->config.applicationServers_list, msaf_as);
 
     application_server_state_init(msaf_as);
@@ -223,7 +230,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
             ogs_debug("M3 client: Sending PUT method to Application Server [%s] for Certificate: [%s]", as_state->application_server->canonicalHostname, upload_cert->state);
             m3_client_as_state_requests(as_state, NULL, "application/x-pem-file", certificate->certificate, (char *)OGS_SBI_HTTP_METHOD_PUT, component);
         } else {
-            ogs_debug("M3 client: Sending POST method to Application Server [%s]for Certificate: [%s]", as_state->application_server->canonicalHostname, upload_cert->state);
+            ogs_debug("M3 client: Sending POST method to Application Server [%s] for Certificate: [%s]", as_state->application_server->canonicalHostname, upload_cert->state);
             m3_client_as_state_requests(as_state, NULL, "application/x-pem-file", certificate->certificate, (char *)OGS_SBI_HTTP_METHOD_POST, component);
         }
         msaf_certificate_free(certificate);
@@ -233,7 +240,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
     } else if (ogs_list_first(&as_state->upload_content_hosting_configurations) !=  NULL) {
 
         msaf_provisioning_session_t *provisioning_session;
-        OpenAPI_content_hosting_configuration_t *chc_with_af_unique_cert_id;
+        msaf_api_content_hosting_configuration_t *chc_with_af_unique_cert_id;
         char *data;
         char *component;
         resource_id_node_t *chc_id_node;
@@ -250,7 +257,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
 
         chc_with_af_unique_cert_id = msaf_content_hosting_configuration_with_af_unique_cert_id(provisioning_session);
 
-        json = OpenAPI_content_hosting_configuration_convertToJSON(chc_with_af_unique_cert_id);
+        json = msaf_api_content_hosting_configuration_convertResponseToJSON(chc_with_af_unique_cert_id);
         data = cJSON_Print(json);
 
         component = ogs_msprintf("content-hosting-configurations/%s", upload_chc->state);
@@ -262,7 +269,7 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
             ogs_debug("M3 client: Sending POST method to Application Server [%s] for Content Hosting Configuration:  [%s]", as_state->application_server->canonicalHostname, upload_chc->state);
             m3_client_as_state_requests(as_state, NULL, "application/json", data, (char *)OGS_SBI_HTTP_METHOD_POST, component);
         }
-        if (chc_with_af_unique_cert_id) OpenAPI_content_hosting_configuration_free(chc_with_af_unique_cert_id);
+        if (chc_with_af_unique_cert_id) msaf_api_content_hosting_configuration_free(chc_with_af_unique_cert_id);
         ogs_free(component);
         cJSON_Delete(json);
         cJSON_free(data);
@@ -342,6 +349,7 @@ static void msaf_application_server_remove(msaf_application_server_node_t *msaf_
     ogs_list_remove(&msaf_self()->config.applicationServers_list, msaf_as);
     if (msaf_as->canonicalHostname) ogs_free(msaf_as->canonicalHostname);
     if (msaf_as->urlPathPrefixFormat) ogs_free(msaf_as->urlPathPrefixFormat);
+    if (msaf_as->m3Host) ogs_free(msaf_as->m3Host);
     ogs_free(msaf_as);
 }
 
@@ -350,6 +358,7 @@ static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port)
     int rv;
     ogs_sbi_client_t *client = NULL;
     ogs_sockaddr_t *addr = NULL;
+    OpenAPI_uri_scheme_e scheme = OpenAPI_uri_scheme_http;
 
     rv = ogs_getaddrinfo(&addr, AF_UNSPEC, hostname, port, 0);
     if (rv != OGS_OK) {
@@ -360,7 +369,7 @@ static ogs_sbi_client_t *msaf_m3_client_init(const char *hostname, int port)
     if (addr == NULL)
         ogs_error("Could not get the address of the Application Server");
 
-    client = ogs_sbi_client_add(addr);
+    client = ogs_sbi_client_add(scheme, addr);
     ogs_assert(client);
 
     ogs_freeaddrinfo(addr);
@@ -373,12 +382,14 @@ static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_
         const char *component)
 {
     ogs_sbi_request_t *request;
+    const char *m3_host;
 
+    m3_host = as_state->application_server->m3Host?
+            as_state->application_server->m3Host:
+            as_state->application_server->canonicalHostname;
     request = ogs_sbi_request_new();
-    request->h.method = msaf_strdup(method);	
-    request->h.uri = ogs_msprintf("http://%s:%i/3gpp-m3/v1/%s",
-            as_state->application_server->canonicalHostname,
-            as_state->application_server->m3Port, component);
+    request->h.method = msaf_strdup(method);
+    request->h.uri = ogs_msprintf("http://%s:%i/3gpp-m3/v1/%s", m3_host, as_state->application_server->m3Port, component);
     request->h.api.version = msaf_strdup("v1");
     if (data) {
         request->http.content = msaf_strdup(data);
@@ -388,8 +399,7 @@ static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_
         ogs_sbi_header_set(request->http.headers, "Content-Type", type);
 
     if (as_state->client == NULL) {
-        as_state->client = msaf_m3_client_init(as_state->application_server->canonicalHostname,
-                as_state->application_server->m3Port);
+        as_state->client = msaf_m3_client_init(m3_host, as_state->application_server->m3Port);
     }
     client_request_info_t *request_info = ogs_calloc(1, sizeof(client_request_info_t));
     request_info->as_state = as_state;
@@ -400,7 +410,7 @@ static int m3_client_as_state_requests(msaf_application_server_state_node_t *as_
     ogs_sbi_request_free(request);
 
     return 1;
-}		
+}
 
 static int client_notify_cb(int status, ogs_sbi_response_t *response, void *data)
 {

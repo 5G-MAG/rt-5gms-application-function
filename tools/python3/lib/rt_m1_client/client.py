@@ -6,7 +6,7 @@
 # File: m1_client/client.py
 # License: 5G-MAG Public License (v1.0)
 # Author: David Waring
-# Copyright: (C) 2022 British Broadcasting Corporation
+# Copyright: (C) 2023 British Broadcasting Corporation
 #
 # For full license terms please see the LICENSE file distributed with this
 # program. If this file is missing then the license can be retrieved from
@@ -36,12 +36,13 @@ should be performed outside of this class.
 import datetime
 import json
 import logging
-from typing import Optional, Union, Tuple, Dict, Any, TypedDict
+from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List
 
 import httpx
 
 from .exceptions import (M1ClientError, M1ServerError)
 from .types import (ApplicationId, ContentHostingConfiguration, ContentProtocols,
+                    ConsumptionReportingConfiguration, PolicyTemplate,
                     ProvisioningSessionType, ProvisioningSession, ResourceId)
 
 class TagAndDateResponse(TypedDict, total=False):
@@ -82,6 +83,18 @@ class ContentProtocolsResponse(TagAndDateResponse, total=False):
     ProvisioningSessionId: ResourceId
     ContentProtocols: ContentProtocols
 
+class ConsumptionReportingConfigurationResponse(TagAndDateResponse, total=False):
+    '''Response containing a consumption reporting configuration
+    '''
+    ProvisioningSessionId: ResourceId
+    ConsumptionReportingConfiguration: ConsumptionReportingConfiguration
+
+class PolicyTemplateResponse(TagAndDateResponse, total=False):
+    '''Response containing a policy template
+    '''
+    ProvisioningSessionId: ResourceId
+    PolicyTemplate: PolicyTemplate
+
 class M1Client:
     '''5G-MAG Reference Tools: M1 Client
     '''
@@ -120,7 +133,7 @@ class M1Client:
                      provisioning_session_type, external_application_id, asp_id)
         send: ProvisioningSession = {
                 'provisioningSessionType': provisioning_session_type,
-                'externalApplicationId': external_application_id
+                'appId': external_application_id
                 }
         if asp_id is not None:
             send['aspId'] = asp_id
@@ -357,16 +370,19 @@ class M1Client:
 
     # TS26512_M1_ServerCertificatesProvisioning
 
-    async def createOrReserveServerCertificate(self, provisioning_session_id: ResourceId, csr=False) -> Optional[ServerCertificateSigningRequestResponse]:
+    async def createOrReserveServerCertificate(self, provisioning_session_id: ResourceId, extra_domain_names: Optional[List[str]] = None, csr: bool = False) -> Optional[ServerCertificateSigningRequestResponse]:
         '''Create or reserve a server certificate for a provisioing session
 
         :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
+        :param extra_domain_names: An optional list of extra domain names to include a CSR as SubjectAltName entries.
         :param bool csr: Whether to reserve a certificate and return the CSR PEM data.
 
         If *csr* is ``True`` then this will reserve the certificate and request the CSR PEM data be returned along side the Id
-        of the newly reserved certificate.
+        of the newly reserved certificate. The *extra_domain_names* parameter may contain a list of extra domain names to include
+        in the SubjectAltNames extension.
 
-        If *csr* is ``False`` or not provided then create a new certificate and just return the new certificate Id.
+        If *csr* is ``False`` or not provided then create a new certificate and just return the new certificate Id. The
+        *extra_domain_names* must be an empty list or ``None``.
 
         :return: a `ServerCertificateSigningRequestResponse` containing the certificate id and metadata optionally with CSR PEM
                  data if *csr* was ``True``.
@@ -375,9 +391,16 @@ class M1Client:
         '''
 
         url = f'/provisioning-sessions/{provisioning_session_id}/certificates'
+        if extra_domain_names is not None and not isinstance(extra_domain_names,list):
+            raise M1ServerError(reason = f'Bad parameter passed during certificate creation', status_code = 500)
         if csr:
             url += '?csr=true'
-        result = await self.__do_request('POST', url, '', 'application/octet-stream')
+        elif extra_domain_names is not None and len(extra_domain_names) > 0:
+            raise M1ClientError(reason = f'Extra domain names cannot be specified when not generating a CSR', status_code = 400)
+        body=''
+        if extra_domain_names is not None and len(extra_domain_names) > 0:
+            body = json.dumps(extra_domain_names)
+        result = await self.__do_request('POST', url, body, 'application/json')
         if result['status_code'] == 200:
             certificate_id = result['headers'].get('Location','').rsplit('/',1)[1]
             ret: ServerCertificateSigningRequestResponse = self.__tag_and_date(result)
@@ -405,17 +428,18 @@ class M1Client:
         result = await self.createOrReserveServerCertificate(provisioning_session_id, csr=False)
         return result
 
-    async def reserveServerCertificate(self, provisioning_session_id: ResourceId) -> ServerCertificateSigningRequestResponse:
+    async def reserveServerCertificate(self, provisioning_session_id: ResourceId, extra_domain_names: Optional[List[str]] = None) -> ServerCertificateSigningRequestResponse:
         '''Reserve a certificate for a provisioning session and get the CSR PEM
 
         :param ResourceId provisioning_session_id: The provisioning session to create the new certificate entry in.
+        :param extra_domain_names: An optional list of extra domain names to include as Subject Alt Names.
 
         :return: a `ServerCertificateSigningRequestResponse` containing the CSR as a PEM string plus metadata for the reserved
                  certificate.
         :raise M1ClientError: if there was a problem with the request.
         :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
         '''
-        result = await self.createOrReserveServerCertificate(provisioning_session_id, csr=True)
+        result = await self.createOrReserveServerCertificate(provisioning_session_id, extra_domain_names=extra_domain_names, csr=True)
         if result is None or 'CertificateSigningRequestPEM' not in result:
             raise M1ClientError(reason = f'Failed to retrieve CSR for session {provisioning_session_id}', status_code = 200)
         return result
@@ -507,11 +531,110 @@ class M1Client:
         return None
 
     # TS26512_M1_ConsumptionReportingProvisioning
-    #async def activateConsumptionReporting(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> Optional[ResourceId]:
-    #async def retrieveConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_id: ResourceId) -> ConsumptionReportingConfigurationResponse:
-    #async def updateConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> bool:
-    #async def patchConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, patch: str) -> ConsumptionReportingConfigurationResponse:
-    #async def destroyConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_id: ResourceId) -> bool:
+    async def activateConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> Union[Optional[ConsumptionReportingConfigurationResponse],bool]:
+        '''Set the ConsumptionReportingConfiguration for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to set the ConsumptionReportingConfiguration for.
+        :param ConsumptionReportingConfiguration consumption_reporting_config: The ConsumptionReportingConfiguration to set.
+
+        :return: `True` if the ConsumptionReportingConfiguration was set and the Application Function didn't report back the
+                 configuration, or a `ConsumptionReportingConfigurationResponse` if the configuration was reported back, or `None`
+                 if setting the configuration failed.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('POST',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                json.dumps(consumption_reporting_config), 'application/json')
+        if result['status_code'] == 200:
+            ret: ConsumptionReportingConfigurationResponse = self.__tag_and_date(result)
+            ret['ConsumptionReportingConfiguration'] = ConsumptionReportingConfiguration.fromJSON(result['body'])
+            return ret
+        elif result['status_code'] == 204:
+            return True
+        self.__default_response(result)
+        return None
+
+    async def retrieveConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId) -> Optional[ConsumptionReportingConfigurationResponse]:
+        '''Get the ConsumptionReportingConfiguration for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to get the ConsumptionReportingConfiguration for.
+
+        :return: A `ConsumptionReportingConfigurationResponse` for the current configuration in the provisioning session.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('GET',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                '', 'application/octet-stream')
+        if result['status_code'] == 200:
+            ret: ConsumptionReportingConfigurationResponse = self.__tag_and_date(result)
+            ret['ConsumptionReportingConfiguration'] = ConsumptionReportingConfiguration.fromJSON(result['body'])
+            return ret
+        if result['status_code'] == 404:
+            return None
+        self.__default_response(result)
+        return None
+
+    async def updateConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, consumption_reporting_config: ConsumptionReportingConfiguration) -> bool:
+        '''Modify the ConsumptionReportingConfiguration for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to modify the ConsumptionReportingConfiguration for.
+        :param ConsumptionReportingConfiguration consumption_reporting_config: The ConsumptionReportingConfiguration to apply.
+
+        :return: `True` if the configuration was changed successfully.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('PUT',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                json.dumps(consumption_reporting_config), 'application/json')
+        if result['status_code'] == 204:
+            return True
+        self.__default_response(result)
+        return False
+
+    async def patchConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId, patch: str) -> ConsumptionReportingConfigurationResponse:
+        '''Patch the ConsumptionReportingConfiguration for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to modify the ConsumptionReportingConfiguration for.
+        :param str patch: The JSON patch to apply to the ConsumptionReportingConfiguration.
+
+        :return: A `ConsumptionReportingConfigurationResponse` containing the new configuration after the patch is applied.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('PATCH',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                patch, 'application/json-patch+json')
+        if result['status_code'] == 200:
+            ret: ConsumptionReportingConfigurationResponse = self.__tag_and_date(result)
+            ret['ConsumptionReportingConfiguration'] = ConsumptionReportingConfiguration.fromJSON(result['body'])
+            return ret
+        self.__default_response(result)
+        return None
+
+    async def destroyConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId) -> bool:
+        '''Remove the ConsumptionReportingConfiguration from the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to remove the ConsumptionReportingConfiguration from.
+
+        :return: `True` if the ConsumptionReportingConfiguration was successfully removed.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the provisioning session.
+        '''
+        result = await self.__do_request('DELETE',
+                f'/provisioning-sessions/{provisioning_session_id}/consumption-reporting-configuration',
+                '', 'application/octet-stream')
+        if result['status_code'] == 204:
+            return True
+        self.__default_response(result)
+        return False
 
     # TS26512_M1_ContentPreparationTemplatesProvisioning
     #async def createContentPreparationTemplate(self, provisioning_session_id: ResourceId, content_preparation_template: Any) -> Optional[ResourceId]:
@@ -542,11 +665,114 @@ class M1Client:
     #sync def destroyMetricsReportingConfiguration(self, provisioning_session_id: ResourceId, metrics_reporting_config_id: ResourceId) -> bool:
 
     # TS26512_M1_PolicyTemplatesProvisioning
-    #async def createPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template: PolicyTemplate) -> Optional[ResourceId]:
-    #async def retrievePolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> PolicyTemplateResponse:
-    #async def updatePolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, policy_template: PolicyTemplate) -> bool:
-    #async def patchPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, patch: str) -> PolicyTemplateResponse:
-    #async def destroyPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> bool:
+    async def createPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template: PolicyTemplate) -> Optional[PolicyTemplateResponse]:
+        '''Create a new PolicyTemplate in a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to add the PolicyTemaplet to.
+        :param PolicyTemplate policy_template: The PolicyTemplate to add to the provisioning session.
+        :return: The PolicyTemplateResponse if successful.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the creation of the policy template.
+        '''
+        result = await self.__do_request('POST',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates',
+                json.dumps(policy_template), 'application/json')
+        if result['status_code'] == 200:
+            ret: PolicyTemplateResponse = self.__tag_and_date(result)
+            ret['PolicyTemplate'] = PolicyTemplate.fromJSON(result['body'])
+            return ret
+        if result['status_code'] == 201 or result['status_code'] == 204:
+            pol_temp_id: ResourceId = result['headers'].get('location').rsplit('/',1)[-1]
+            return await self.retrievePolicyTemplate(provisioning_session_id, pol_temp_id)
+        self.__default_response(result)
+        return None
+
+    async def retrievePolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> Optional[PolicyTemplateResponse]:
+        '''Retrieve a PolicyTemplate for a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to retrieve the PolicyTemplate from.
+        :param ResourceId policy_template_id: The PolicyTemplate Id of the PolicyTemplate to retrieve.
+        :return: A `PolicyTemplateResponse` which holds the `PolicyTemplate` and the caching metadata or `None` if the
+                 `PolicyTemplate` cannot be found.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the retrieval of the policy template.
+        '''
+        result = await self.__do_request('GET',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates/{policy_template_id}',
+                '', 'application/json')
+        if result['status_code'] == 200:
+            ret: PolicyTemplateResponse = self.__tag_and_date(result)
+            ret['PolicyTemplate'] = PolicyTemplate.fromJSON(result['body'])
+            return ret
+        if result['status_code'] == 404:
+            return None
+        self.__default_response(result)
+        return None
+
+    async def updatePolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, policy_template: PolicyTemplate) -> bool:
+        '''Update an existing PolicyTemplate in a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to replace the PolicyTemplate in.
+        :param ResourceId policy_template_id: The PolicyTemplate Id of the PolicyTemplate to replace.
+        :param PolicyTemplate policy_template: The PolicyTemplate which will replace the existing one in the provisioning session.
+        :return: `True` if the update succeeded.
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the update of the policy template.
+        '''
+        result = await self.__do_request('PUT',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates/{policy_template_id}',
+                json.dumps(policy_template), 'application/json')
+        if result['status_code'] == 204:
+            return True
+        if result['status_code'] == 404:
+            return False
+        self.__default_response(result)
+        return False
+
+    async def patchPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, patch: str) -> Optional[PolicyTemplateResponse]:
+        '''Patch a PolicyTemplate for the provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to modify the PolicyTemplate for.
+        :param ResourceId policy_template_id: The PolicyTemplateId for the PolicyTemplate in the provisioning session.
+        :param str patch: The JSON patch to apply to the ConsumptionReportingConfiguration.
+
+        :return: A `PolicyTemplateResponse` containing the new template after the patch is applied.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the patching of the policy template.
+        '''
+        result = await self.__do_request('PATCH',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates/{policy_template_id}',
+                patch, 'application/json-patch+json')
+        if result['status_code'] == 200:
+            ret: PolicyTemplateResponse = self.__tag_and_date(result)
+            ret['PolicyTemplate'] = PolicyTemplate.fromJSON(result['body'])
+            return ret
+        if result['status_code'] == 404:
+            return None
+        self.__default_response(result)
+        return None
+
+    async def destroyPolicyTemplate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> bool:
+        '''Destroy a PolicyTemplate in a provisioning session
+
+        :param ResourceId provisioning_session_id: The provisioning session to modify the PolicyTemplate for.
+        :param ResourceId policy_template_id: The PolicyTemplateId for the PolicyTemplate in the provisioning session.
+
+        :return: `True` if the PolicyTemplate was deleted or `False` if the PolicyTemplate didn't exist.
+
+        :raise M1ClientError: if there was a problem with the request.
+        :raise M1ServerError: if there was a server side issue preventing the deletion of the provisioning session.
+        '''
+        result = await self.__do_request('DELETE',
+                f'/provisioning-sessions/{provisioning_session_id}/policy-templates/{policy_template_id}',
+                '', 'application/json')
+        if result['status_code'] == 204:
+            return True
+        if result['status_code'] == 404:
+            return False
+        self.__default_response(result)
+        return False
 
     # Private methods
 
@@ -657,9 +883,11 @@ __all__ = [
         # Types
         'ProvisioningSessionResponse',
         'ContentHostingConfigurationResponse',
+        'ConsumptionReportingConfigurationResponse',
         'ServerCertificateResponse',
         'ServerCertificateSigningRequestResponse',
         'ContentProtocolsResponse',
+        'PolicyTemplateResponse',
         # Classes
         'M1Client',
         ]

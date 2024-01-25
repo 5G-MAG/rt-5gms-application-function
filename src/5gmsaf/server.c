@@ -32,7 +32,7 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
     char *server = NULL;
 
     response = ogs_sbi_response_new();
-    ogs_expect_or_return_val(response, NULL);
+    ogs_expect(response);
 
     if(content_type)
     {
@@ -60,7 +60,7 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
     {
         char *response_cache_control;
         response_cache_control = ogs_msprintf("max-age=%d", cache_control);
-        ogs_sbi_header_set(response->http.headers, "Cache-Control", response_cache_control);    	
+        ogs_sbi_header_set(response->http.headers, "Cache-Control", response_cache_control);
         ogs_free(response_cache_control);
     }
 
@@ -138,7 +138,7 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
         int i;
         problem.type = ogs_msprintf("/%s/%s",
                 message->h.service.name, message->h.api.version);
-        ogs_expect_or_return_val(problem.type, false);
+        ogs_expect(problem.type);
 
         problem.instance = ogs_msprintf("/%s", message->h.resource.component[0]);
 
@@ -149,7 +149,7 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
             ogs_free(problem.instance);
             problem.instance = instance;
         }
-        ogs_expect_or_return_val(problem.instance, NULL);
+        ogs_expect(problem.instance);
     }
     if (status) {
         problem.is_status = true;
@@ -183,14 +183,13 @@ static ogs_sbi_response_t *nf_build_response(ogs_sbi_message_t *message, int sta
 
     response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, interface, app);
 
-    //response = ogs_sbi_response_new();
-    ogs_expect_or_return_val(response, NULL);
+    ogs_expect(response);
 
     response->status = status;
 
     if (response->status != OGS_SBI_HTTP_STATUS_NO_CONTENT) {
-        ogs_expect_or_return_val(true ==
-                nf_build_content(&response->http, message), NULL);
+        ogs_expect(true ==
+                nf_build_content(&response->http, message));
     }
 
     if (message->http.location) {

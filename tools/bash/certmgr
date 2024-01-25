@@ -78,13 +78,13 @@ CERTOP:
   list		List the available certificates/keys
 
 newcsr parameters:
-  syntax: newcsr <certificate-id>
+  syntax: newcsr <certificate-id> <common-name> [<extra-domain-name>...]
 
   certificate-id        The certificate ID to create a new key and certificate
                         signing request.
 
 newcert parameters:
-  syntax: newcert <certificate-id>
+  syntax: newcert <certificate-id> <common-name>
 
   certificate-id	The certificate ID to create a new key and public
                         certificate.
@@ -187,12 +187,28 @@ cert_store_check() {
     fi
 }
 
+fqdn_check() {
+    fqdn="$1"
+    if echo "$fqdn" | grep -viq '^[a-z0-9][-a-z0-9]*\(\.[a-z0-9][-a-z0-9]*\)*$'; then
+	error_exit 3 "Bad domain name: $fqdn"
+    fi
+}
+
 new_csr() {
     cert_id="$1"
     common_name="$2"
+    shift 2
     cert_store_check "$cert_id"
+    fqdn_check "$common_name"
 
-    openssl req -new -newkey rsa:2048 -batch -nodes -keyout "$cert_store/private/$cert_id.pem" -out "$cert_store/csrs/$cert_id.pem" -subj "/C=GB/L=London/CN=$common_name" -addext "subjectAltName=DNS:$common_name" > /dev/null 2>&1
+    extra_domain_args=""
+    while [ "$#" -gt "0" ]; do
+	fqdn_check "$1"
+	extra_domain_args=",DNS:$1"
+	shift
+    done
+
+    openssl req -new -newkey rsa:2048 -batch -nodes -keyout "$cert_store/private/$cert_id.pem" -out "$cert_store/csrs/$cert_id.pem" -subj "/C=GB/L=London/CN=$common_name" -addext "subjectAltName=DNS:$common_name$extra_domain_args" > /dev/null 2>&1
 
     ts=`stat -c '%Y' "$cert_store/csrs/$cert_id.pem"`
     timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
@@ -366,7 +382,7 @@ certificate_delete() {
 
 parse_opts() {
     if [ "$CERTOPS" == "newcsr" ]; then
-        if [ $# -ne 2 ]; then
+        if [ $# -lt 2 ]; then
             echo "$CERTOPS: Wrong parameters to create a new csr"
             exit 1
         fi

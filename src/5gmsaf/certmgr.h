@@ -29,11 +29,16 @@ typedef struct msaf_certificate_s {
 } msaf_certificate_t;
 
 typedef struct msaf_assigned_certificate_s {
-    ogs_lnode_t       node;	
+    ogs_lnode_t node;
     char *certificate_id;
 } msaf_assigned_certificate_t;
 
-extern msaf_certificate_t *server_cert_new(const char *operation, const char *operation_params);
+typedef struct fqdn_list_node_s {
+    ogs_lnode_t node;
+    char *fqdn;
+} fqdn_list_node_t;
+
+extern msaf_certificate_t *server_cert_new(const char *operation, const char *common_name, ogs_list_t *extra_fqdns);
 extern int server_cert_set(const char *cert_id, const char *cert);
 extern msaf_certificate_t *server_cert_retrieve(const char *certid);
 extern msaf_certificate_t *server_cert_get_servercert(const char *certid);
@@ -44,5 +49,8 @@ extern void msaf_certificate_free(msaf_certificate_t *cert);
 #ifdef __cplusplus
 }
 #endif
+
+/* vim:ts=8:sts=4:sw=4:expandtab:
+ */
 
 #endif /* MSAF_CERT_MGR_H */

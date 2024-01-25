@@ -1,0 +1,22 @@
+{
+  "externalReference": "policy-external-ref-1",
+  "applicationSessionContext": {
+    "sliceInfo": {
+      "sst": 1,
+      "sd": "000001"
+    },
+    "dnn": "internet"
+  },
+  "qoSSpecification": {
+    "qosReference": "qos-1",
+    "maxAuthBtrUl": "400 Kbps",
+    "maxAuthBtrDl": "40 Mbps",
+    "defPacketLossRateDl": 10,
+    "defPacketLossRateUl": 20
+  },
+  "chargingSpecification": {
+    "sponId": "sponsor-id-2",
+    "sponStatus": "SPONSOR_ENABLED",
+    "gpsi": ["msisdn-447000123456"]
+  }
+}

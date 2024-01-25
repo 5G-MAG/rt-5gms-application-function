@@ -1,3 +1,11 @@
+# License: 5G-MAG Public License (v1.0)
+# Authors: Dev Audsin & David Waring
+# Copyright: (C) 2023 British Broadcasting Corporation
+#
+# For full license terms please see the LICENSE file distributed with this
+# program. If this file is missing then the license can be retrieved from
+# https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+
 pymod = import('python')
 fs = import('fs')
 
@@ -12,7 +20,8 @@ scripts = {
 }
 
 support_scripts = {
-  'bash/certmgr': 'self-signed-certmgr'
+  'bash/certmgr': 'self-signed-certmgr',
+  'bash/le-certmgr': 'lets-encrypt-certmgr'
 }
 
 self_signed_certmgr_runtime = support_scripts_dir / 'self-signed-certmgr'
@@ -42,6 +51,9 @@ endforeach
 
 sh = find_program('sh')
 foreach pm : python3_modules
-  mod_files = files(run_command(sh, '-c', 'cd "$MESON_SOURCE_ROOT/$MESON_SUBDIR"; find "' + pm + '" -type f -name "*.py" -print').stdout().strip().split('\n'))
-  python3.install_sources(mod_files, subdir: fs.name(pm))
+  mod_files = run_command([sh, '-c', 'cd "$MESON_SOURCE_ROOT/$MESON_SUBDIR/'+fs.parent(pm)+'"; find "' + fs.name(pm) + '" -type f -name "*.py" -print'], check: false).stdout().strip().split('\n')
+  foreach mod_filepath : mod_files
+    mod_file = files([fs.parent(pm) / mod_filepath])
+    python3.install_sources(mod_file, subdir: fs.parent(mod_filepath))
+  endforeach
 endforeach

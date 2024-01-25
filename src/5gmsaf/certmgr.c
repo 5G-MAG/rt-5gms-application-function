@@ -1,7 +1,7 @@
 /*
  * License: 5G-MAG Public License (v1.0)
- * Author: Dev Audsin
- * Copyright: (C) 2022 British Broadcasting Corporation
+ * Authors: Dev Audsin & David Waring
+ * Copyright: (C) 2023 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
  * program. If this file is missing then the license can be retrieved from
@@ -193,22 +193,17 @@ int server_cert_set(const char *cert_id, const char *cert)
     return out_return_code;
 }
 
-
-msaf_certificate_t *server_cert_new(const char *operation, const char *operation_params)
+msaf_certificate_t *server_cert_new(const char *operation, const char *common_name, ogs_list_t *extra_fqdns)
 {
     const char *commandLine[OGS_ARG_MAX];
     ogs_proc_t *current = NULL;
     FILE *out = NULL;
     char buf[OGS_HUGE_LEN];
     char *cert;
-    int ret = 0, out_return_code = 0;
-    char *canonical_domain_name;
+    int ret = 0, out_return_code = 0, n = 0;
     msaf_certificate_t *msaf_certificate = NULL;
     size_t cert_size = 0;
     size_t cert_reserved = 0;
-    msaf_application_server_node_t *msaf_as = NULL;
-    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
-    canonical_domain_name = msaf_as->canonicalHostname;
 
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
@@ -216,12 +211,26 @@ msaf_certificate_t *server_cert_new(const char *operation, const char *operation
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
 
-    commandLine[0] =  msaf_self()->config.certificateManager;
-    commandLine[1] = "-c";
-    commandLine[2] = operation;
-    commandLine[3] = id;
-    commandLine[4] = canonical_domain_name;
-    commandLine[5] = NULL;
+    commandLine[n++] = msaf_self()->config.certificateManager;
+    commandLine[n++] = "-c";
+    commandLine[n++] = operation;
+    commandLine[n++] = id;
+    commandLine[n++] = common_name;
+
+    if (extra_fqdns) {
+        fqdn_list_node_t *node;
+
+        ogs_list_for_each(extra_fqdns, node) {
+            if (n >= OGS_ARG_MAX-1) {
+                n = OGS_ARG_MAX-1;
+                ogs_error("Too many extra domain names for certificate %s, only using first %i extra domain names", id, OGS_ARG_MAX-6);
+                break;
+            }
+            commandLine[n++] = node->fqdn;
+        }
+    }
+
+    commandLine[n] = NULL;
 
     current = (ogs_proc_t*)ogs_calloc(1, sizeof(*current));
     ret = ogs_proc_create(commandLine,
@@ -262,7 +271,9 @@ char *check_in_cert_list(const char *canonical_domain_name)
     char buf[OGS_HUGE_LEN];
     int ret = 0, out_return_code = 0;
     char *certificate = NULL;
-    char *cert_id;
+    char *cert_id = NULL;
+    char *status = NULL;
+    char *saveptr;
 
     commandLine[0] = msaf_self()->config.certificateManager;
     commandLine[1] = "-c";
@@ -280,11 +291,19 @@ char *check_in_cert_list(const char *canonical_domain_name)
 
     while(fgets(buf, OGS_HUGE_LEN, out)) {
 
-	ogs_debug("buf=\"%s\", canonical_domain_name=\"%s\"", buf, canonical_domain_name);
+        ogs_debug("buf=\"%s\", canonical_domain_name=\"%s\"", buf, canonical_domain_name);
         if (str_match(buf, canonical_domain_name)) {
-            certificate = strtok_r(buf,"\t",&cert_id);
-	    ogs_debug("buf=\"%s\", certificate=\"%s\", cert_id=\"%s\"", buf, certificate, cert_id);
-            break;
+            certificate = strtok_r(buf,"\t",&saveptr);
+            if (certificate) cert_id = strtok_r(NULL,"\t",&saveptr);
+            if (cert_id) status = strtok_r(NULL,"\t",&saveptr);
+            if (status == NULL || strlen(status) <= 1 || str_match(status,"Awaiting")) {
+                // Empty or "Awaiting" status can be returned, ignore anything else (i.e. expired or due to expire)
+                ogs_debug("buf=\"%s\", certificate=\"%s\", cert_id=\"%s\", status=\"%s\"", buf, certificate, cert_id, status);
+                break;
+            }
+            certificate = NULL;
+            cert_id = NULL;
+            status = NULL;
         }
     }
 
@@ -317,28 +336,28 @@ static msaf_certificate_t *msaf_certificate_populate(const char *certid, const c
 
     line = cert;
     while ((eol = strchr(line, '\n')) != NULL) {
-	const char *end_field;
-	/* Stop when we get to the certificate, key or CSR */
+        const char *end_field;
+        /* Stop when we get to the certificate, key or CSR */
         if (strncmp(line, begin_marker, sizeof(begin_marker)-1) == 0)
-	    break;
+            break;
         /* otherwise try and interpret as "Field: Value" */
-	end_field = strchr(line, ':');
-	if (end_field) {
-	    char *field;
-	    char *value;
-	    const char *value_start;
-	    const char *value_end;
+        end_field = strchr(line, ':');
+        if (end_field) {
+            char *field;
+            char *value;
+            const char *value_start;
+            const char *value_end;
             field = ogs_strndup(line, end_field-line);
             value_start = end_field+1;
             while (*value_start && *value_start == ' ') value_start++;
-	    value_end = eol-1;
-	    while (value_end>value_start && *value_end == ' ') value_end--;
-	    value = ogs_strndup(value_start, value_end-value_start+1);
+            value_end = eol-1;
+            while (value_end>value_start && *value_end == ' ') value_end--;
+            value = ogs_strndup(value_start, value_end-value_start+1);
             nf_headers_set(msaf_certificate->headers, field, value);
-	    ogs_free(field);
-	    ogs_free(value);
-	}
-	line = eol+1;
+            ogs_free(field);
+            ogs_free(value);
+        }
+        line = eol+1;
     }
 
     msaf_certificate->certificate = msaf_strdup(line);
@@ -367,3 +386,6 @@ void msaf_certificate_free(msaf_certificate_t *cert)
     if (cert->id) ogs_free(cert->id);
     ogs_free(cert);
 }
+
+/* vim:ts=8:sts=4:sw=4:expandtab:
+ */

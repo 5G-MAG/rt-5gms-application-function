@@ -6,7 +6,7 @@
 # File: rt_m1_client/session.py
 # License: 5G-MAG Public License (v1.0)
 # Author: David Waring
-# Copyright: (C) 2023 British Broadcasting Corporation
+# Copyright: (C) 2022-2023 British Broadcasting Corporation
 #
 # For full license terms please see the LICENSE file distributed with this
 # program. If this file is missing then the license can be retrieved from
@@ -35,6 +35,7 @@ Function via the interface at reference point M1.
 '''
 import datetime
 import importlib
+import inspect
 import logging
 import re
 from typing import Optional, Union, Tuple, Dict, Any, TypedDict, List, Iterable
@@ -43,9 +44,10 @@ import OpenSSL
 
 from .exceptions import (M1ClientError, M1ServerError, M1Error)
 from .types import (ApplicationId, ContentHostingConfiguration, ContentProtocols, ProvisioningSessionType, ProvisioningSession,
-                    ResourceId, PROVISIONING_SESSION_TYPE_DOWNLINK)
+                    ConsumptionReportingConfiguration, ResourceId, PolicyTemplate, PROVISIONING_SESSION_TYPE_DOWNLINK)
 from .client import (M1Client, ProvisioningSessionResponse, ContentHostingConfigurationResponse, ServerCertificateResponse,
-                     ServerCertificateSigningRequestResponse, ContentProtocolsResponse)
+                     ServerCertificateSigningRequestResponse, ContentProtocolsResponse, ConsumptionReportingConfigurationResponse,
+                     PolicyTemplateResponse)
 from .data_store import DataStore
 from .certificates import CertificateSigner, DefaultCertificateSigner
 
@@ -280,7 +282,7 @@ class M1Session:
         # Return the cached certificate
         return ps['certificates'][certificate_id]['servercertificate']
 
-    async def certificateNewSigningRequest(self, provisioning_session_id: ResourceId) -> Optional[Tuple[ResourceId,str]]:
+    async def certificateNewSigningRequest(self, provisioning_session_id: ResourceId, extra_domain_names: Optional[List[str]] = None) -> Optional[Tuple[ResourceId,str]]:
         '''Create a new CSR for a provisioning session
 
         This reserves a new certificate in the provisioning session and returns the new certificate id and CSR PEM string.
@@ -288,6 +290,7 @@ class M1Session:
         Server using the `certificateSet` method.
 
         :param provisioning_session_id: The provisioning session to reserve the new certificate in.
+        :param extra_domain_names: An optional list of extra domain names to add as SubjectAltName entries in a CSR.
 
         :return: a tuple of certificate id and CSR PEM string for the new certificate or ``None`` if the provisioning session does
                  not exist or if there was no response from the M1 Server.
@@ -296,7 +299,7 @@ class M1Session:
             return None
         await self.__connect()
         cert_resp: ServerCertificateSigningRequestResponse = await self.__m1_client.reserveServerCertificate(
-                provisioning_session_id)
+                provisioning_session_id, extra_domain_names=extra_domain_names)
         if cert_resp is None:
             return None
         cert_id = cert_resp['ServerCertificateId']
@@ -380,6 +383,152 @@ class M1Session:
         await self.__connect()
         return await self.__m1_client.updateContentHostingConfiguration(provisioning_session, chc)
 
+    # ConsumptionReportingConfiguration methods
+
+    async def consumptionReportingConfigurationCreate(self, provisioning_session: ResourceId, crc: ConsumptionReportingConfiguration) -> bool:
+        '''Store a new `ConsumptionReportingConfiguration` for a provisioning session
+
+        :param provisioning_session: The provisioning session id of the provisioning session to set the
+                                     `ConsumptionReportingConfiguration` in.
+        :param crc: The `ConsumptionReportingConfiguration` to set in the provisioning session.
+        :return: ``True`` if the new `ConsumptionReportingConfiguration` was successfully set in the provisioning session or
+                 ``False`` if the operation failed (e.g. because there was already a `ConsumptionReportingConfiguration` set).
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        crc_resp: Union[bool,ConsumptionReportingConfigurationResponse,None] = \
+                await self.__m1_client.activateConsumptionReportingConfiguration(provisioning_session, crc)
+        if isinstance(crc_resp,bool):
+            return crc_resp
+        ps = await self.__getProvisioningSessionCache(provisioning_session)
+        if ps is not None:
+            ps['consumption-reporting-configuration'] = {k.lower(): v for k,v in crc_resp.items()}
+        return True
+
+    async def consumptionReportingConfigurationGet(self, provisioning_session: ResourceId) -> Optional[ConsumptionReportingConfiguration]:
+        '''Retrieve the `ConsumptionReportingConfiguration` set on a provisioning session
+
+        :param provisioning_session: The provisioning session id to retrieve the `ConsumptionReportingConfiguration` for.
+
+        :return: a `ConsumptionReportingConfiguration` for the provisioning session or ``None`` if the provisioning session does not
+                 exist or if it has no `ConsumptionReportingConfiguration` set.
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return None
+        await self.__cacheConsumptionReportingConfiguration(provisioning_session)
+        ps = await self.__getProvisioningSessionCache(provisioning_session)
+        if ps is None or ps['consumption-reporting-configuration'] is None:
+            return None
+        return ConsumptionReportingConfiguration(ps['consumption-reporting-configuration']['consumptionreportingconfiguration'])
+
+    async def consumptionReportingConfigurationUpdate(self, provisioning_session: ResourceId, crc: ConsumptionReportingConfiguration) -> bool:
+        '''Update the `ConsumptionReportingConfiguration` for a provisioning session
+
+        :param provisioning_session: The provisioning session id of the provisioning session to set the
+                                     `ConsumptionReportingConfiguration` in.
+        :param chc: The `ConsumptionReportingConfiguration` to set in the provisioning session.
+        :return: ``True`` if the new `ConsumptionReportingConfiguration` was successfully set in the provisioning session or
+                 ``False`` if the operation failed (e.g. because there was no `ConsumptionReportingConfiguration` set).
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.updateConsumptionReportingConfiguration(provisioning_session, crc)
+
+    async def consumptionReportingConfigurationDelete(self, provisioning_session: ResourceId) -> bool:
+        '''Remove the `ConsumptionReportingConfiguration` for a provisioning session
+
+        :param provisioning_session: The provisioning session id of the provisioning session to remove the
+                                     `ConsumptionReportingConfiguration` in.
+
+        :return: ``True`` if the `ConsumptionReportingConfiguration` was successfully removed or ``False`` if the operation failed.
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.destroyConsumptionReportingConfiguration(provisioning_session)
+
+    # PolicyTemplate methods
+
+    async def policyTemplateIds(self, provisioning_session_id: ResourceId) -> Optional[List[ResourceId]]:
+        '''Get a list of policy template Ids
+
+        :param provisioning_session_id: The provisioning session id to retrieve policy template ids for.
+        :return: a list of policy template ids or ``None`` if the provisioning session doesn't exist or cannot be retrieved.
+        '''
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return None
+        await self.__cacheProvisioningSession(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]['provisioningsession']
+        if 'policyTemplateIds' not in ps:
+            return []
+        return ps['policyTemplateIds']
+
+    async def policyTemplateCreate(self, provisioning_session_id: ResourceId, policy_template: PolicyTemplate) -> Optional[ResourceId]:
+        '''Create a new policy template
+
+        This creates a new policy template in the provisioning session and returns the new policy template id.
+
+        :param provisioning_session_id: The provisioning session to create the new policy template in.
+        :param policy_template: The policy template to create.
+
+        :return: the policy template id of the new policy template or ``None`` if the provisioning session does not exist or if
+                 there was no response from the M1 Server.
+        '''
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return None
+        await self.__connect()
+        pol_resp: Optional[PolicyTemplateResponse] = await self.__m1_client.createPolicyTemplate(provisioning_session_id, policy_template)
+        if pol_resp is None:
+            return None
+        pol_id = pol_resp['PolicyTemplate']['policyTemplateId']
+        ps = await self.__getProvisioningSessionCache(provisioning_session_id)
+        if ps is not None:
+            if 'policyTemplates' not in ps or ps['policyTemplates'] is None:
+                # create policy template cache
+                ps['policyTemplates'] = {pol_id: {k.lower(): v for k,v in pol_resp.items()}}
+            elif pol_id not in ps['policyTemplates'] or ps['policyTemplates'][pol_id] is None:
+                # Store new policy template info
+                ps['policyTemplates'][pol_id] = {k.lower(): v for k,v in pol_resp.items()}
+            else:
+                # Update the policy template info
+                if pol_resp['PolicyTemplate'] is None:
+                    pol_resp['PolicyTemplate'] = ps['policyTemplates'][pol_id]['policytemplate']
+                ps['policyTemplates'][pol_id] = {k.lower(): v for k,v in pol_resp.items()}
+
+        return pol_id
+
+    async def policyTemplateGet(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> Optional[PolicyTemplate]:
+        '''Retrieve a policy template
+
+        '''
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return None
+        await self.__cachePolicyTemplates(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        if ps is None or 'policyTemplates' not in ps or ps['policyTemplates'] is None or policy_template_id not in ps['policyTemplates']:
+            return None
+        return PolicyTemplate(ps['policyTemplates'][policy_template_id]['policytemplate'])
+
+    async def policyTemplateUpdate(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId, policy_template: PolicyTemplate) -> Optional[bool]:
+        '''Update a policy template
+
+        '''
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.updatePolicyTemplate(provisioning_session_id, policy_template_id, policy_template)
+
+    async def policyTemplateDelete(self, provisioning_session_id: ResourceId, policy_template_id: ResourceId) -> bool:
+        '''Delete a policy template
+
+        '''
+        if provisioning_session_id not in self.__provisioning_sessions:
+            return False
+        await self.__connect()
+        return await self.__m1_client.destroyPolicyTemplate(provisioning_session_id, policy_template_id)
+
     # Convenience methods
 
     async def createDownlinkPullProvisioningSession(self, app_id: ApplicationId, asp_id: Optional[ApplicationId] = None) -> Optional[ResourceId]:
@@ -391,31 +540,41 @@ class M1Session:
         '''
         return await self.provisioningSessionCreate(PROVISIONING_SESSION_TYPE_DOWNLINK, app_id, asp_id)
 
-    async def createNewCertificate(self, provisioning_session: ResourceId, domain_name_alias: Optional[str] = None) -> Optional[ResourceId]:
+    async def createNewCertificate(self, provisioning_session: ResourceId, extra_domain_names: Optional[List[str]] = None) -> Optional[ResourceId]:
         '''Create a new certificate
 
         This will create a new certificate for the provisioning session. If *domain_name_alias* is not given this will leave
-        creation of the certificate up to the M1 server (5GMS Application Function). If *domain_name_alias* is given and is not
-        ``None`` then this will reserve a certificate for the provisioning session, sign the CSR using the local `CertificateSigner`
-        object and set the signed public certificate for the provisioning session.
+        creation of the certificate up to the M1 server (5GMS Application Function). If *extra_domain_names* is given, is not
+        ``None`` and contains at least one entry then this will reserve a certificate for the provisioning session, sign the CSR
+        using the local `CertificateSigner` object and set the signed public certificate for the provisioning session.
 
         :param provisioning_session: The provisioning session id of the provisioning session to create the certificate in.
-        :param domain_name_alias: An optional ``domainNameAlias`` to add to the certificate.
+        :param extra_domain_names: An optional list of domain names to add as extra SubjectAltName entries.
         :return: The certificate id of the newly created certificate or ``None`` if the certificate could not be created.
         '''
         # simple case just create the certificate
-        if domain_name_alias is not None and len(domain_name_alias) == 0:
-            domain_name_alias = None
-        if domain_name_alias is None:
+        if extra_domain_names is not None and isinstance(extra_domain_names, bytes):
+            extra_domain_names = extra_domain_names.decode('utf-8')
+        if extra_domain_names is not None and isinstance(extra_domain_names, str):
+            if len(extra_domain_names) > 0:
+                extra_domain_names = [extra_domain_names]
+            else:
+                extra_domain_names = None
+        if extra_domain_names is not None and len(extra_domain_names) == 0:
+            extra_domain_names = None
+        if extra_domain_names is None:
             return await self.certificateCreate(provisioning_session)
         # When domainNameAlias is used we need to use a CSR
-        csr: Optional[Tuple[ResourceId,str]] = await self.certificateNewSigningRequest(provisioning_session)
+        csr: Optional[Tuple[ResourceId,str]] = await self.certificateNewSigningRequest(provisioning_session,extra_domain_names=extra_domain_names)
         if csr is None:
             return None
         cert_id = csr[0]
         csr_pem = csr[1]
         cert_signer = await self.__getCertificateSigner()
-        cert: str = await cert_signer.signCertificate(csr_pem, domain_name_alias=domain_name_alias)
+        cert: Optional[str] = await cert_signer.signCertificate(csr_pem)
+        if cert is None:
+            self.__log.error('Failed to generate certificate with domainNameAlias')
+            return None
         # Send new cert to the AF
         if not await self.certificateSet(provisioning_session, cert_id, cert):
             self.__log.error('Failed to upload certificate with domainNameAlias')
@@ -461,7 +620,7 @@ class M1Session:
             raise RuntimeError('Failed to create a provisioning session')
         # Create an SSL certificate if requested
         if ssl:
-            cert: Optional[ResourceId] = await self.createNewCertificate(provisioning_session, domain_name_alias=domain_name_alias)
+            cert: Optional[ResourceId] = await self.createNewCertificate(provisioning_session, extra_domaqin_names=[domain_name_alias])
             if cert is None:
                 if insecure:
                     self.__log.warn('Failed to create hosting with HTTPS, continuing with just HTTP')
@@ -501,6 +660,22 @@ class M1Session:
             raise RuntimeError('Failed to create the content hosting configuration')
         return provisioning_session
 
+    async def setOrUpdateConsumptionReporting(self, provisioning_session: ResourceId, crc: ConsumptionReportingConfiguration) -> bool:
+        '''Set or update the consumption reporting parameters for a provisioning session
+
+        :param ResourceId provisioning_session: The provisioning session to set the consumption report on.
+        :param ConsumptionReportingConfiguration crc: The ConsumptionReportingConfiguration to set.
+
+        :return: ``True`` if the configuration was set or ``False`` if the setting failed.
+        '''
+        if provisioning_session not in self.__provisioning_sessions:
+            return False
+        await self.__cacheConsumptionReportingConfiguration(provisioning_session)
+        ps = await self.__getProvisioningSessionCache(provisioning_session)
+        if ps is None or ps['consumption-reporting-configuration'] is None:
+            return await self.consumptionReportingConfigurationCreate(provisioning_session, crc)
+        return await self.consumptionReportingConfigurationUpdate(provisioning_session, crc)
+
     # Private data
 
     __file_suffix_to_mime = {
@@ -533,7 +708,7 @@ class M1Session:
 
     async def __reloadFromDataStore(self) -> None:
         '''Reload persistent information from the DataStore
-        
+
         Checks the provisioning session ids retrieved from the DataStore against the M1 server and will delete any that are no
         longer available.
 
@@ -563,7 +738,7 @@ class M1Session:
         self.__provisioning_sessions = {}
         for prov_sess in sessions:
             self.__provisioning_sessions[prov_sess] = None
-        
+
     async def __getProvisioningSessionCache(self, provisioning_session_id: ResourceId) -> Optional[dict]:
         '''Find a provisioning session cache
 
@@ -607,10 +782,16 @@ class M1Session:
                 ps.update({
                     'protocols': None,
                     'content-hosting-configuration': None,
+                    'consumption-reporting-configuration': None,
                     'certificates': None,
+                    'policyTemplates': None,
                     })
+                # initialise ServerCertificates cache with the available IDs
                 if 'serverCertificateIds' in ps['provisioningsession']:
                     ps['certificates'] = {k: None for k in ps['provisioningsession']['serverCertificateIds']}
+                # initialise PolicyTemplate cache with the available IDs
+                if 'policyTemplateIds' in ps['provisioningsession']:
+                    ps['policyTemplates'] = {k: None for k in ps['provisioningsession']['policyTemplateIds']}
 
     async def __cacheProtocols(self, provisioning_session_id: ResourceId):
         '''Cache the ContentProtocols for a provisioning session
@@ -685,6 +866,60 @@ class M1Session:
             else:
                 ps['content-hosting-configuration'] = None
 
+    async def __cacheConsumptionReportingConfiguration(self, provisioning_session_id: ResourceId) -> None:
+        '''Cache the `ConsumptionReportingConfiguration` for a provisioning session
+
+        Will only cache if the old cache didn't exist or has expired.
+
+        :meta private:
+        :param provisioning_session_id: The id of provisioning session to cache the `ConsumptionReportingConfiguration` for.
+        '''
+        await self.__cacheProvisioningSession(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        crc = ps['consumption-reporting-configuration']
+        if crc is None or crc['cache-until'] is None or crc['cache-until'] < now:
+            await self.__connect()
+            result: Optional[ConsumptionReportingConfigurationResponse] = \
+                    await self.__m1_client.retrieveConsumptionReportingConfiguration(provisioning_session_id)
+            if result is not None:
+                if crc is None:
+                    crc = {}
+                    ps['consumption-reporting-configuration'] = crc
+                crc.update({k.lower(): v for k,v in result.items()})
+            else:
+                ps['consumption-reporting-configuration'] = None
+
+    async def __cachePolicyTemplates(self, provisioning_session_id: ResourceId):
+        '''Cache all policy templates for the provisioning session
+
+        Will only cache if the old cache didn't exist or has expired.
+
+        :meta private:
+        :param provisioning_session_id: The id of provisioning session to cache the policy templates for.
+        '''
+        await self.__cacheProvisioningSession(provisioning_session_id)
+        ps = self.__provisioning_sessions[provisioning_session_id]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if ps is None or 'policyTemplates' not in ps or ps['policyTemplates'] is None:
+            return
+        ret_err = None
+        for pol_id,pol in list(ps['policyTemplates'].items()):
+            if pol is None:
+                pol = {'etag': None, 'last-modified': None, 'cache-until': None, 'policytemplate': None}
+                ps['policyTemplates'][pol_id] = pol
+            if pol['cache-until'] is None or pol['cache-until'] < now:
+                await self.__connect()
+                try:
+                    result = await self.__m1_client.retrievePolicyTemplate(provisioning_session_id, pol_id)
+                    if result is not None:
+                        pol.update({k.lower(): v for k,v in result.items()})
+                except M1Error as err:
+                    if ret_err is None:
+                        ret_err = err
+        if ret_err is not None:
+            raise ret_err
+
     async def __getCertificateSigner(self) -> CertificateSigner:
         '''Get the `CertificateSigner`
 
@@ -694,17 +929,24 @@ class M1Session:
         :return: a `CertificateSigner`
         :raise RuntimeError: if the certificate signer requested is not derived from `CertificateSigner`.
         '''
+        signer_args = {}
         if self.__cert_signer is None:
             self.__cert_signer = 'rt_m1_client.certificates.DefaultCertificateSigner'
         if isinstance(self.__cert_signer, str):
+            if '(' in self.__cert_signer:
+                self.__cert_signer, args_str = self.__cert_signer.split('(',1)
+                args_str = args_str[:-1]
+                signer_args = dict([tuple([p.strip() for p in kv.split('=')]) for kv in args_str.split(',')])
             cert_sign_cls_mod, cert_sign_cls_name = self.__cert_signer.rsplit('.', 1)
             cert_sign_cls_mod = importlib.import_module(cert_sign_cls_mod)
             self.__cert_signer = getattr(cert_sign_cls_mod, cert_sign_cls_name)
         try:
-            if issubclass(self.__cert_signer, CertificateSigner):
-                self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir)
+            if inspect.isclass(self.__cert_signer) and issubclass(self.__cert_signer, CertificateSigner):
+                self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir, **signer_args)
         except TypeError:
             pass
+        if inspect.iscoroutinefunction(self.__cert_signer):
+            self.__cert_signer = await self.__cert_signer(data_store=self.__data_store_dir, **signer_args)
         if not isinstance(self.__cert_signer, CertificateSigner):
             raise RuntimeError('The certificate signer class given is not derived from CertificateSigner')
         return self.__cert_signer
@@ -716,7 +958,7 @@ class M1Session:
         '''
         if self.__m1_client is None:
             self.__m1_client = M1Client(self.__m1_host)
-            
+
     def _dump_state(self) -> None:
         '''Dump the current provisioning session cache to the log
         '''

@@ -1,8 +1,16 @@
+# License: 5G-MAG Public License (v1.0)
+# Authors: David Waring
+# Copyright: (C) 2023 British Broadcasting Corporation
+#
+# For full license terms please see the LICENSE file distributed with this
+# program. If this file is missing then the license can be retrieved from
+# https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+
 prefix = get_option('prefix')
 bindir = prefix / get_option('bindir')
 libdir = prefix / get_option('libdir')
 
-systemd_search_system_unit_paths = run_command(systemd_path_cmd,'systemd-search-system-unit').stdout().strip().split(':')
+systemd_search_system_unit_paths = run_command([systemd_path_cmd,'systemd-search-system-unit'], check:false).stdout().strip().split(':')
 systemd_system_unit_dir = ''
 foreach unit_path : systemd_search_system_unit_paths
   if unit_path.startswith(prefix) and unit_path.endswith('systemd' / 'system')

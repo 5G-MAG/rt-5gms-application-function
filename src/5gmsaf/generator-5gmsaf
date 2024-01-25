@@ -5,7 +5,7 @@
 #
 # Author(s): David Waring <david.warin2@bbc.co.uk>
 #            Dev Audsin <dev.audsin@bbc.co.uk>
-# Copyright: ©2022 British Broadcasting Corporation
+# Copyright: ©2022-2023 British Broadcasting Corporation
 #   License: 5G-MAG Public License v1.0
 #
 # Prerequisites:
@@ -29,10 +29,10 @@ scriptdir=`cd "$scriptdir"; pwd`
 
 # Command line option defaults
 default_branch='REL-17'
-default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation Maf_Management"
+default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery TS26512_M1_ConsumptionReportingProvisioning TS26512_M1_PolicyTemplatesProvisioning TS26512_M1_MetricsReportingProvisioning M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation TS26512_M5_ConsumptionReporting TS26512_M5_NetworkAssistance TS26512_M5_DynamicPolicies Maf_Management"
 
 # Parse command line arguments
-ARGS=`getopt -n "$scriptname" -o 'a:b:h' -l 'api:,branch:,help' -s sh -- "$@"`
+ARGS=`getopt -n "$scriptname" -o 'a:b:hM:' -l 'api:,branch:,help,model-deps:' -s sh -- "$@"`
 
 if [ $? -ne 0 ]; then
     print_syntax >&2
@@ -40,7 +40,7 @@ if [ $? -ne 0 ]; then
 fi
 
 print_syntax() {
-    echo "Syntax: $scriptname [-h] [-b <release-branch>] [-a <API-name>]"
+    echo "Syntax: $scriptname [-h] [-b <release-branch>] [-a <API-name>] [-M <model-deps-file>"
 }
 
 print_help() {
@@ -55,12 +55,15 @@ EOF
     cat <<EOF
 
 Options:
-  -h         --help           Show this help message and exit.
-  -a API     --api API        The OpenAPI interface to generate the bindings
-			      from (e.g. TS26512_M1_ContentHostingProvisioning).
-			      [default: $default_apis]
-  -b BRANCH  --branch BRANCH  Use the given branch of the 5G_APIs repository.
-                              [default: $default_branch]
+  -h         --help                Show this help message and exit.
+  -a API     --api API             The OpenAPI interface to generate the
+                                   bindings from (e.g.
+                                   TS26512_M1_ContentHostingProvisioning).
+			           [default: $default_apis]
+  -b BRANCH  --branch BRANCH       Use the given branch of the 5G_APIs
+                                   repository. [default: $default_branch]
+  -M DEPFILE --model-deps DEPFILE  File to store the list of generated model
+                                   source files.
 EOF
 }
 
@@ -69,6 +72,7 @@ unset ARGS
 
 APIS="$default_apis"
 BRANCH="$default_branch"
+MODEL_DEPS=""
 
 while true; do
     case "$1" in
@@ -85,6 +89,11 @@ while true; do
     -h|--help)
 	print_help
 	exit 0
+	;;
+    -M|--model-deps)
+	MODEL_DEPS="$2"
+	shift 2
+	continue
 	;;
     --)
 	shift
@@ -106,15 +115,25 @@ fi
 
 # Get the absolute path to the destination directory
 destdir=`realpath -m "$scriptdir/openapi"`
-openapi_gen_dir=`realpath "$scriptdir/../../subprojects/open5gs/lib/sbi/support/20210629/openapi-generator"`
+openapi_gen_dir=`realpath "$scriptdir/../../subprojects/open5gs/lib/sbi/support/r17-20230301-openapitools-6.4.0/openapi-generator"`
 
 sed "s@^templateDir:.*@templateDir: \"${openapi_gen_dir}/templates\"@" $openapi_gen_dir/config.yaml > $scriptdir/config.yaml
-cp "${scriptdir}/"*.mustache "${openapi_gen_dir}/templates/"
+cp "${scriptdir}/openapi-templates/"*.mustache "${openapi_gen_dir}/templates/"
 cat >> $scriptdir/config.yaml << EOF
+importMappings:
+  set: set
+  msaf_api_set: set
+typeMappings:
+  set: set
+  msaf_api_set: set
 files:
   api-info-head.mustache:
     templateType: API
     destinationFilename: -info.h
+  set.h.mustache:
+    templateType: SupportingFiles
+    folder: include
+    destinationFilename: set.h
 EOF
 
 # call the common generate_openapi script
@@ -122,9 +141,36 @@ if [ ! -d "$scriptdir/openapi" ]; then
     mkdir "$scriptdir/openapi"
 fi
 
-"$scriptdir/../../subprojects/rt-common-shared/5gms/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 5.2.0 -y "$scriptdir/fix_openapi_yaml.py"
+if ! "$scriptdir/../../subprojects/rt-common-shared/5gms/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 6.4.0 -y "$scriptdir/fix_openapi_yaml.py" -p "MSAF_API"; then
+    echo "Error: Failed to generate OpenAPI model" 1>&2
+    exit 1
+fi
+ 
+ln -s ../include/set.h "$scriptdir/openapi/model/msaf_api_set.h"
 
-cp "$scriptdir/set.h" "$scriptdir/openapi/model"
+# Delete any model file already in the Open5GS SBI library to avoid clashes
+for f in "$scriptdir/openapi/model"/*.[ch]; do
+    b=`basename "$f"`
+    if [ -e "$scriptdir/../../subprojects/open5gs/lib/sbi/openapi/model/$b" ]; then
+	rm "$f"
+    fi
+done
+
+if [ -n "$MODEL_DEPS" ]; then
+    (cd "$scriptdir"; echo openapi/model/*.[ch] > "$MODEL_DEPS")
+fi
+
+# Delete any model file already in the Open5GS SBI library to avoid clashes
+for f in "$scriptdir/openapi/model"/*.[ch]; do
+    b=`basename "$f"`
+    if [ -e "$scriptdir/../../subprojects/open5gs/lib/sbi/openapi/model/$b" ]; then
+	rm "$f"
+    fi
+done
+
+if [ -n "$MODEL_DEPS" ]; then
+    (cd "$scriptdir"; echo openapi/model/*.[ch] > "$MODEL_DEPS")
+fi
 
 exit 0
 

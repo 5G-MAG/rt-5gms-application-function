@@ -46,7 +46,7 @@ Syntax:
     m1-session-cli set-stream -h
     m1-session-cli set-stream -p <provisioning-session-id> <ContentHostingConfiguration-JSON>
     m1-session-cli new-certificate -h
-    m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name> | --csr]
+    m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name>...] [--csr]
     m1-session-cli show-certificate -h
     m1-session-cli show-certificate -p <provisioning-session-id> -c <certificate-id>
     m1-session-cli set-certificate -h
@@ -58,17 +58,63 @@ Syntax:
     m1-session-cli renew-certificates -h
     m1-session-cli renew-certificates -p <provisioning-session-id>
     m1-session-cli renew-certificates <ingest-URL> [<entry-point-suffix-URL>]
+    m1-session-cli set-consumption-reporting -h
+    m1-session-cli set-consumption-reporting -p <provisioning-session-id> [-i <interval>] [-s <sample-percent>] [-l] [-A]
+    m1-session-cli show-consumption-reporting -h
+    m1-session-cli show-consumption-reporting -p <provisioning-session-id>
+    m1-session-cli del-consumption-reporting -h
+    m1-session-cli del-consumption-reporting -p <provisioning-session-id>
+    m1-session-cli new-policy-template -h
+    m1-session-cli new-policy-template -p <provisioning-session-id> -e <external-policy-id> [-D <dnn>] [-S <s-nssai>]
+                                       [--qos-reference <qos-ref>] [--max-up <bitrate>] [--max-down <bitrate>]
+                                       [--max-auth-up <bitrate>] [--max-auth-down <bitrate>]
+                                       [--default-packet-loss-up <rate>] [--default-packet-loss-down <rate>]
+                                       [--chg-sponsor-id <sponsor-id>] [--chg-sponsor-enabled|--chg-sponsor-disabled]
+                                       [--gpsi <gpsi>]...
+    m1-session-cli update-policy-template -h
+    m1-session-cli update-policy-template -p <provisioning-session-id> -t <policy-template-id> [-D <dnn>] [-S <s-nssai>]
+                                       [--qos-reference <qos-ref>] [--max-up <bitrate>] [--max-down <bitrate>]
+                                       [--max-auth-up <bitrate>] [--max-auth-down <bitrate>]
+                                       [--default-packet-loss-up <rate>] [--default-packet-loss-down <rate>]
+                                       [--chg-sponsor-id <sponsor-id>]
+                                       [--chg-sponsor-enabled|--chg-sponsor-disabled|--chg-sponsor-none]
+                                       [--gpsi <gpsi> [--gpsi <gpsi>]...|--no-gpsi]
+    m1-session-cli del-policy-template -h
+    m1-session-cli del-policy-template -p <provisioning-session-id> -t <policy-template-id>
+    m1-session-cli show-policy-template -h
+    m1-session-cli show-policy-template -p <provisioning-session-id> -t <policy-template-id>
 
 Parameters:
-    -a ID   --asp-id ID                   The application service provider id.
-    -c ID   --certificate-id ID           The certificate id to operate on.
-    -d FQDN --domain-name-alias FQDN      The alternate domain name to use.
-    -e ID   --external-app-id ID          The external application id.
-    -h      --help                        Display the help message.
-    -n NAME --name NAME                   The hosting name.
-    -p ID   --provisioning-session-id ID  The provisioning session id to use.
-            --ssl-only                    Provide HTTPS only.
-            --with-ssl                    Provide both HTTPS and HTTP.
+    -a ID   --asp-id ID                      The application service provider id.
+    -A      --access-reporting               Include access reporting.
+    -c ID   --certificate-id ID              The certificate id to operate on.
+    -d FQDN --domain-name-alias FQDN         The alternate domain name to use.
+    -D DNN  --designated-network-name DNN    The designated network name to set in a policy template.
+    -e ID   --external-app-id ID             The external application id.
+    -h      --help                           Display the help message.
+    -i SEC  --interval SEC                   The reporting interval in seconds.
+    -l      --location-reporting             Include location reporting.
+    -n NAME --name NAME                      The hosting name.
+    -p ID   --provisioning-session-id ID     The provisioning session id to use.
+    -s PCT  --sample-percentage PCT          The sampling percentage.
+    -S ID   --s-nssai ID                     The 6 digit S-NSSAI for the policy template.
+    -t ID   --policy-template-id ID          The policy template id to use.
+            --ssl-only                       Provide HTTPS only.
+            --with-ssl                       Provide both HTTPS and HTTP.
+            --csr                            When reserving a cetrificate, pass back the CSR.
+            --qos-reference REF              The QoS Reference name.
+            --max-up BITRATE                 The QoS maximum uplink bitrate.
+            --max-down BITRATE               The QoS maximum downlink bitrate.
+            --max-auth-up BITRATE            The QoS maximum authorised uplink bitrate.
+            --max-auth-down BITRATE          The QoS maximum authorised downlink bitrate.
+            --default-packet-loss-up RATE    The QoS default packet loss rate for uplink traffic.
+            --default-packet-loss-down RATE  The QoS default packet loss rate for downlink traffic.
+            --chg-sponsor-id ID              The charging specification sponsor id.
+            --chg-sponsor-enabled            The charging sponsor is enabled flag.
+            --chg-sponsor-disabled           The charging sponsor is disabled flag.
+            --chg-sponsor-none               Remove the charging sponsor flag on update.
+            --gpsi GPSI                      A charging GPSI value (may be given multiple times).
+            --no-gpsi                        Remove all charging GPSI values on update.
 
 Arguments:
     certificate-PEM-file              The file path of a PEM holding a public certificate.
@@ -83,6 +129,7 @@ import aiofiles
 import argparse
 import asyncio
 import configparser
+import copy
 import datetime
 from io import StringIO
 import logging
@@ -90,7 +137,9 @@ import os
 import os.path
 import sys
 import traceback
-from typing import Tuple, List
+from typing import Tuple, List, Optional
+
+#logging.basicConfig(level=logging.DEBUG)
 
 import json
 import OpenSSL
@@ -102,146 +151,8 @@ if os.path.isdir(installed_packages_dir) and installed_packages_dir not in sys.p
 from rt_m1_client.session import M1Session
 from rt_m1_client.exceptions import M1Error
 from rt_m1_client.data_store import JSONFileDataStore
-from rt_m1_client.types import ContentHostingConfiguration
-
-class Configuration:
-    '''Application configuration container
-
-    This class handles the loading and saving of the application configuration
-    '''
-
-    DEFAULT_CONFIG='''[DEFAULT]
-    log_dir = /var/log/rt-5gms
-    state_dir = /var/cache/rt-5gms
-    run_dir = /run/rt-5gms
-
-    [m1-client]
-    log_level = info
-    data_store = %(state_dir)s/m1-client
-    m1_address = 127.0.0.23
-    m1_port = 7777
-    asp_id =
-    external_app_id = please-change-this
-    certificate_signing_class = rt_m1_client.certificates.DefaultCertificateSigner
-    ''' #: The default configuration
-
-    def __init__(self):
-        '''Constructor
-
-        Will load the previous configuration from ``/etc/rt-5gms/m1-client.conf`` if the command is run by root or
-        ``~/.rt-5gms/m1-client.conf`` if run by any other user.
-        '''
-        self.__config_filename = None
-        if os.getuid() != 0:
-            self.__config_filename = os.path.expanduser(os.path.join('~', '.rt-5gms', 'm1-client.conf'))
-        else:
-            self.__config_filename = os.path.join(os.path.sep, 'etc', 'rt-5gms', 'm1-client.conf')
-        self.__default_config = configparser.ConfigParser()
-        self.__default_config.read_string(self.DEFAULT_CONFIG)
-        self.__config = configparser.ConfigParser()
-        self.__config.read_string(self.DEFAULT_CONFIG)
-        if os.path.exists(self.__config_filename):
-            self.__config.read(self.__config_filename)
-
-    def isKey(self, key: str) -> str:
-        '''Does a configuration field key exist?
-
-        This tests *key* for being a valid configuration option field key name.
-
-        :returns: The key string if it is a valid configuration field key.
-        :raises: ValueError if the key string does not match a known configuration field key.
-        '''
-        if key in self.__default_config['m1-client']:
-            return key
-        raise ValueError('Not a valid configuration option')
-
-    def get(self, key: str, default: str = None, raw: bool = False) -> str:
-        '''Get a configuration value
-
-        Retrieves the value for configuration option *key*. If the *key* does not exist the *default* will be returned. If *raw* is
-        ``True`` and the *key* option exists then the raw configuration (without ``%()`` interpolation) value will be returned.
-
-        :returns: The configuration option *key* value or *default* if key does not exist.
-        '''
-        return self.__config.get('m1-client', key, raw=raw, fallback=default)
-
-    def set(self, key: str, value: str) -> bool:
-        '''Set a configuration value
-
-        Sets the raw *value* for configuration option *key*. If *key* is not a valid configuration option then ValueError exception
-        will be raised.
-
-        The configuration is saved once the *key* option has been set.
-        '''
-        self.isKey(key)
-        if key in self.__default_config['DEFAULT']:
-            section = 'DEFAULT'
-        else:
-            section = 'm1-client'
-        self.__config.set(section, key, value)
-        self.__saveConfig()
-        return True
-
-    def isDefault(self, key: str) -> bool:
-        '''Checks if a key contains the default configuration value
-
-        :returns: ``True`` if the configuration value for *key* is the default value, or ``False`` otherwise.
-        '''
-        return self.__config.get('m1-client', key) == self.__default_config.get('m1-client', key)
-
-    def getKeys(self) -> List[str]:
-        '''Get a list of configuration field name keys
-
-        :returns: A list of configuration key names.
-        '''
-        return list(self.__default_config['m1-client'].keys())
-
-    def resetValue(self, key: str) -> bool:
-        '''Reset a configuration field to its default value
-
-        :returns: ``True`` if the field was reset or ``False`` if the field already contained the default value.
-        '''
-        if self.isDefault(key):
-            return False
-        return self.set(key, self.__default_config.get('m1-client', key))
-
-    def __saveConfig(self):
-        '''Save the current configuration to local storage
-
-        :meta private-method:
-
-        Will save the current configuration to the relevant local file. Fields with the default value will be saved as a comment.
-        '''
-        cfgdir = os.path.dirname(self.__config_filename)
-        if not os.path.exists(cfgdir):
-            os.makedirs(cfgdir, mode=0o755)
-        with open(self.__config_filename, 'w') as cfgout:
-            for section in ['DEFAULT'] + self.__config.sections():
-                cfgout.write(f'[{section}]\n')
-                for key in self.__config[section]:
-                    cfgvalue = self.__config.get(section, key, raw=True)
-                    defvalue = self.__default_config.get(section, key, raw=True)
-                    if (section == 'DEFAULT' or key not in self.__config['DEFAULT']):
-                        if cfgvalue == defvalue:
-                            cfgout.write('#')
-                        cfgout.write(f'{key} = {cfgvalue}\n')
-                cfgout.write('\n')
-
-    def __str__(self):
-        '''String representation of the configuration
-
-        :returns: A ``str`` representing the configuration.
-        '''
-        buf = StringIO()
-        self.__config.write(buf)
-        return buf.getvalue()
-
-    def __repr__(self):
-        '''Textual represnetation of the Configuration object
-
-        :returns: A ``str`` representation of the Configuration object.
-        '''
-        return f'Configuration(config="{self}")'
+from rt_m1_client.types import ContentHostingConfiguration, ConsumptionReportingConfiguration, PolicyTemplate, BitRate, SponsoringStatus
+from rt_m1_client.configuration import Configuration
 
 async def cmd_configure_show(args: argparse.Namespace, config: Configuration) -> int:
     '''Perform ``configure show`` operation
@@ -295,7 +206,11 @@ async def __prettyPrintCertificate(cert: str, indent: int = 0) -> None:
     :param str cert: X509 certificate encoded as PEM data
     :param int indent: The indent to use in the certificate output
     '''
-    x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
+    try:
+        x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
+    except OpenSSL.crypto.Error as err:
+        print(f'{" "*indent} Certificate not understood as PEM data: {err}')
+        return
     serial = x509.get_serial_number()
     subject = x509.get_subject()
     issuer = x509.get_issuer()
@@ -357,6 +272,20 @@ async def cmd_list_verbose(args: argparse.Namespace, config: Configuration) -> i
             print('\n'.join(['    '+line for line in ContentHostingConfiguration.format(chc).split('\n')]))
         else:
             print('    Not defined')
+        crc = await session.consumptionReportingConfigurationGet(ps_id)
+        print('  ConsumptionReportingConfiguration:')
+        if crc is not None:
+            print(ConsumptionReportingConfiguration.format(crc, indent=4))
+        else:
+            print('    Not defined')
+        pol_ids = await session.policyTemplateIds(ps_id)
+        if pol_ids is not None and len(pol_ids) > 0:
+            print('  PolicyTemplates:')
+            for polid in pol_ids:
+                print(f'    {polid}:')
+                pol = await session.policyTemplateGet(ps_id, polid)
+                if pol is not None:
+                    print(PolicyTemplate.format(pol, indent=6))
     return 0
 
 async def cmd_list(args: argparse.Namespace, config: Configuration) -> int:
@@ -514,7 +443,7 @@ async def cmd_new_certificate(args: argparse.Namespace, config: Configuration) -
     '''
     session = await get_session(config)
     if args.csr:
-        result = await session.certificateNewSigningRequest(args.provisioning_session)
+        result = await session.certificateNewSigningRequest(args.provisioning_session, extra_domain_names=args.domain_name_alias)
         if result is None:
             print('Failed to reserve certificate')
             return 1
@@ -522,7 +451,7 @@ async def cmd_new_certificate(args: argparse.Namespace, config: Configuration) -
         print(f'certificate_id={cert_id}')
         print(csr)
         return 0
-    cert_id = await session.createNewCertificate(args.provisioning_session, domain_name_alias=args.domain_name_alias)
+    cert_id = await session.createNewCertificate(args.provisioning_session, extra_domain_names=args.domain_name_alias)
     if cert_id is None:
         print('Failed to create certificate')
         return 1
@@ -586,6 +515,7 @@ async def cmd_check_all_renewal(args: argparse.Namespace, config: Configuration)
         #     change id in chc and remember old cert ids
         # if any cert ids changed in chc upload replacement chc
         # delete old certs
+    sys.stderr.write('check-all-renewal not yet implemented\n')
     return 1
 
 async def cmd_renew_certs(args: argparse.Namespace, config: Configuration) -> int:
@@ -602,6 +532,281 @@ async def cmd_renew_certs(args: argparse.Namespace, config: Configuration) -> in
     #   change ids in chc for new cert id
     # upload replacement chc
     # delete old certs
+    sys.stderr.write('renew-certs not yet implemented\n')
+    return 1
+
+async def cmd_set_consumption(args: argparse.Namespace, config: Configuration) -> int:
+    '''Activate or set consumption reporting parameters on a provisioning session
+
+    '''
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    crc: ConsumptionReportingConfiguration = {}
+    if args.interval is not None:
+        crc['reportingInterval'] = args.interval
+    if args.sample_percentage is not None:
+        crc['samplePercentage'] = args.sample_percentage
+    if args.location_reporting:
+        crc['locationReporting'] = True
+    if args.access_reporting:
+        crc['accessReporting'] = True
+    result: bool = await session.setOrUpdateConsumptionReporting(ps_id, crc)
+    if result:
+        print('Consumption reporting parameters set')
+        return 0
+    print('Failed to set consumption reporting parameters')
+    return 1
+
+async def cmd_show_consumption(args: argparse.Namespace, config: Configuration) -> int:
+    '''Display current consumption reporting parameters for a provisioning session
+
+    '''
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    crc: Optional[ConsumptionReportingConfiguration] = await session.consumptionReportingConfigurationGet(ps_id)
+    if crc is None:
+        print('No consumption reporting configured')
+    else:
+        print('Consumption Reporting:')
+        print(ConsumptionReportingConfiguration.format(crc, indent=2))
+    return 0
+
+async def cmd_del_consumption(args: argparse.Namespace, config: Configuration) -> int:
+    '''Remove the consumption reporting parameters for a provisioning session
+
+    '''
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    result: bool = await session.consumptionReportingConfigurationDelete(ps_id)
+    if result:
+        print('Consumption reporting removed')
+        return 0
+    print('No consumption reporting to remove')
+    return 1
+
+async def _make_policy_template_from_args(args: argparse.Namespace, extra_flags: bool = False,
+                                          base_policy: Optional[PolicyTemplate] = None) -> Optional[PolicyTemplate]:
+    if base_policy is None:
+        pt = dict()
+    else:
+        pt = copy.deepcopy(base_policy)
+    if not extra_flags:
+        if args.external_policy_id:
+            pt['externalReference'] = args.external_policy_id
+    else:
+        for v,a in [('dnn', 'dnn'), ('qos_reference', 'qos-reference'), ('max_auth_up', 'max-auth-up'), ('max_auth_down', 'max-auth-down'), ('default_packet_loss_up', 'default-packet-loss-up'), ('default_packet_loss_down', 'default-packet-loss-down'), ('gpsi', 'gpsi')]:
+            if getattr(args, 'no_'+v, False) and getattr(args, v, None) is not None:
+                print(f'Cannot specify both --no-{a} and --{a} arguments')
+                return None
+        if getattr(args, 'chg_sponsor_none', False) and (getattr(args, 'chg_sponsor_status', None) is not None or getattr(args, 'chg_sponsor_id', None) is not None):
+            print('Cannot specify both --chg-sponsor-none and other --chg-sponsor-... arguments')
+            return None
+
+    # [--s-nssai <SST[:SD]>]
+    v = getattr(args, 's_nssai', None)
+    if v is not None:
+        (sst,sd) = (v.split(':') + [None])[:2]
+        if 'applicationSessionContext' not in pt:
+            pt['applicationSessionContext'] = {}
+        pt['applicationSessionContext']['sliceInfo'] = {'sst': int(sst)}
+        if sd is not None:
+            pt['applicationSessionContext']['sliceInfo']['sd'] = sd
+
+    # [--no-s-nssai]
+    v = getattr(args, 'no_s_nssai', False)
+    if v:
+        if 'applicationSessionContext' in pt and 'sliceInfo' in pt['applicationSessionContext']:
+            del pt['applicationSessionContext']['sliceInfo']
+            if len(pt['applicationSessionContext'].keys()) == 0:
+                del pt['applicationSessionContext']
+
+    # [--dnn <DNN>]
+    v = getattr(args, 'dnn', None)
+    if v is not None:
+        if 'applicationSessionContext' not in pt:
+            pt['applicationSessionContext'] = {}
+        pt['applicationSessionContext']['dnn'] = v
+
+    # [--no-dnn]
+    v = getattr(args, 'no_dnn', False)
+    if v:
+        if 'applicationSessionContext' in pt and 'dnn' in pt['applicationSessionContext']:
+            del pt['applicationSessionContext']['dnn']
+            if len(pt['applicationSessionContext'].keys()) == 0:
+                del pt['applicationSessionContext']
+
+    # [--qos-reference <qos-ref>]
+    v = getattr(args, 'qos_reference', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['qosReference'] = v
+
+    # [--no-qos-reference]
+    v = getattr(args, 'no_qos_reference', False)
+    if v:
+        if 'qoSSpecification' in pt and 'qosReference' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['qosReference']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--max-auth-up <bitrate>]
+    v = getattr(args, 'max_auth_up', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['maxAuthBtrUl'] = BitRate(v)
+
+    # [--no-max-auth-up]
+    v = getattr(args, 'no_max_auth_up', False)
+    if v:
+        if 'qoSSpecification' in pt and 'maxAuthBtrUl' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['maxAuthBtrUl']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--max-auth-down <bitrate>]
+    v = getattr(args, 'max_auth_down', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['maxAuthBtrDl'] = BitRate(v)
+
+    # [--no-max-auth-down]
+    v = getattr(args, 'no_max_auth_down', False)
+    if v:
+        if 'qoSSpecification' in pt and 'maxAuthBtrDl' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['maxAuthBtrDl']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--default-packet-loss-up <rate>]
+    v = getattr(args, 'default_packet_loss_up', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['defPacketLossRateUl'] = int(v)
+
+    # [--no-default-packet-loss-up]
+    v = getattr(args, 'no_default_packet_loss_up', False)
+    if v:
+        if 'qoSSpecification' in pt and 'defPacketLossRateUl' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['defPacketLossRateUl']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--default-packet-loss-down <rate>]
+    v = getattr(args, 'default_packet_loss_down', None)
+    if v is not None:
+        if 'qoSSpecification' not in pt:
+            pt['qoSSpecification'] = {}
+        pt['qoSSpecification']['defPacketLossRateDl'] = int(v)
+
+    # [--no-default-packet-loss-down]
+    v = getattr(args, 'no_default_packet_loss_down', False)
+    if v:
+        if 'qoSSpecification' in pt and 'defPacketLossRateDl' in pt['qoSSpecification']:
+            del pt['qoSSpecification']['defPacketLossRateDl']
+            if len(pt['qoSSpecification'].keys()) == 0:
+                del pt['qoSSpecification']
+
+    # [--chg-sponsor-id <sponsor-id>]
+    v = getattr(args, 'chg_sponsor_id', None)
+    if v is not None:
+        if 'chargingSpecification' not in pt:
+            pt['chargingSpecification'] = {}
+        pt['chargingSpecification']['sponId'] = v
+        if 'sponStatus' not in pt['chargingSpecification']:
+            pt['chargingSpecification']['sponStatus'] = SponsoringStatus.SPONSOR_DISABLED
+
+    # [--chg-sponsor-enabled]
+    # [--chg-sponsor-disabled]
+    v = getattr(args, 'chg_sponsor_status', None)
+    if v is not None:
+        if 'chargingSpecification' not in pt:
+            pt['chargingSpecification'] = {}
+        if v:
+            pt['chargingSpecification']['sponStatus'] = SponsoringStatus.SPONSOR_ENABLED
+        else:
+            pt['chargingSpecification']['sponStatus'] = SponsoringStatus.SPONSOR_DISABLED
+
+    # [--chg-sponsor-none]
+    v = getattr(args, 'chg_sponsor_none', False)
+    if v:
+        if 'chargingSpecification' in pt:
+            if 'sponId' in pt['chargingSpecification']:
+                del pt['chargingSpecification']['sponId']
+            if 'sponStatus' in pt['chargingSpecification']:
+                del pt['chargingSpecification']['sponStatus']
+            if len(pt['chargingSpecification'].keys()) == 0:
+                del pt['chargingSpecification']
+
+    # [--gpsi <gpsi>...]
+    v = getattr(args, 'gpsi', None)
+    if v is not None:
+        if not isinstance(v, list):
+            v = [v]
+        if 'chargingSpecification' not in pt:
+            pt['chargingSpecification'] = {}
+        pt['chargingSpecification']['gpsi'] = v
+
+    # --no-gpsi
+    v = getattr(args, 'no_gpsi', False)
+    if v:
+        if 'chargingSpecification' in pt and 'gpsi' in pt['chargingSpecification']:
+            del pt['chargingSpecification']['gpsi']
+            if len(pt['chargingSpecification'].keys()) == 0:
+                del pt['chargingSpecification']
+
+    return PolicyTemplate(pt)
+
+async def cmd_new_policy_template(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    pol = await _make_policy_template_from_args(args, extra_flags=False)
+    result: Optional[ResourceId] = await session.policyTemplateCreate(ps_id, pol)
+    if result is not None:
+        print(f'Added PolicyTemplate {result} to provisioning session')
+        return 0
+    print(f'Addition of PolicyTemplate to provisioning session failed!')
+    return 1
+
+async def cmd_update_policy_template(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    pol_id = args.policy_template_id
+    pol: Optional[PolicyTemplate] = await session.policyTemplateGet(ps_id, pol_id)
+    if pol is None:
+        print('Attempt to update a PolicyTemplate that does not exist')
+        return 1
+    pol = await _make_policy_template_from_args(args, extra_flags=True, base_policy=pol)
+    result: Optional[PolicyTemplate] = await session.policyTemplateUpdate(ps_id, pol_id, pol)
+    if result is not None:
+        print(f'Updated PolicyTemplate for the provisioning session')
+        return 0
+    print(f'Update of PolicyTemplate {pol_id} for the provisioning session {ps_id} failed!')
+    return 1
+
+async def cmd_del_policy_template(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    pol_id = args.policy_template_id
+    result: bool = await session.policyTemplateDelete(ps_id, pol_id)
+    if result:
+        print(f'Policy template {pol_id} removed from provisioning session {ps_id}')
+        return 0
+    print(f'Failed to delete policy template {pol_id} removed from provisioning session {ps_id}')
+    return 1
+
+async def cmd_show_policy_template(args: argparse.Namespace, config: Configuration) -> int:
+    session = await get_session(config)
+    ps_id = args.provisioning_session
+    pol_id = args.policy_template_id
+    result: Optional[PolicyTemplate] = await session.policyTemplateGet(ps_id, pol_id)
+    if result is not None:
+        print(PolicyTemplate.format(result, indent=0))
+        return 0
+    print(f'Failed to find policy template {pol_id} for provisioning session {ps_id}')
     return 1
 
 async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
@@ -635,7 +840,7 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_configure_reset = configure_subparsers.add_parser('reset', help='Reset configuration value to its default')
     parser_configure_reset.set_defaults(command=cmd_configure_reset)
     parser_configure_reset.add_argument('key', metavar='KEY', type=cfg.isKey)
-    
+
     # m1-session-cli list [-v]
     parser_list = subparsers.add_parser('list', help='List provisioning sessions')
     parser_list.set_defaults(command=cmd_list)
@@ -702,16 +907,15 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     parser_protocols.add_argument('-p', '--provisioning-session',
                                   help='Provisioning session id to list the upload and download protocols for')
 
-    # m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name> | --csr]
+    # m1-session-cli new-certificate -p <provisioning-session-id> [-d <domain-name>...] [--csr]
     parser_new_certificate = subparsers.add_parser('new-certificate', help='Create a new certificate')
     parser_new_certificate.set_defaults(command=cmd_new_certificate)
     parser_new_certificate.add_argument('-p', '--provisioning-session',
                                         help='Provisioning session id to create the new certificate for')
-    parser_new_certificate_extras = parser_new_certificate.add_mutually_exclusive_group(required=False)
-    parser_new_certificate_extras.add_argument('-d', '--domain-name-alias', dest='domain_name_alias',
+    parser_new_certificate.add_argument('-d', '--domain-name-alias', dest='domain_name_alias', nargs='*', metavar='FQDN',
                                                help='FQDN to add as an extra domain name to the certificate')
-    parser_new_certificate_extras.add_argument('--csr', action='store_true',
-                                               help='Return a CSR to be signed externally and returned using set-certificate')
+    parser_new_certificate.add_argument('--csr', action='store_true',
+                                               help='Return a CSR to be signed externally and published using set-certificate')
 
     # m1-session-cli show-certificate -p <provisioning-session-id> -c <certificate-id>
     parser_show_certificate = subparsers.add_parser('show-certificate', help='Retrieve a public certificate')
@@ -747,6 +951,130 @@ async def parse_args() -> Tuple[argparse.Namespace,Configuration]:
     #parser_renewcert_filter.add_argument('ingesturl', metavar='ingest-URL', nargs='?', help='The ingest URL prefix to use')
     # The entry-point-path should go with ingest-URL, but argparser lacks the ability to do subgroups
     #parser_renewcert.add_argument('entrypoint', metavar='entry-point-path', nargs='?', help='The media player entry point suffix.')
+
+    # m1-session-cli set-consumption-reporting -p <provisioning-session-id> [-i <interval>] [-s <sample-percent>] [-l] [-A]
+    parser_set_consumption = subparsers.add_parser('set-consumption-reporting', help='Activate/set consumption reporting')
+    parser_set_consumption.set_defaults(command=cmd_set_consumption)
+    parser_set_consumption.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to set the consumption reporting for')
+    parser_set_consumption.add_argument('-i', '--interval', type=int, help='The reporting interval to request in seconds')
+    parser_set_consumption.add_argument('-s', '--sample-percentage', dest='sample_percentage', type=float,
+                                        help='The sampling percentage to request')
+    parser_set_consumption.add_argument('-l', '--location-reporting', dest='location_reporting', action='store_true',
+                                        help='Include location reporting')
+    parser_set_consumption.add_argument('-A', '--access-reporting', dest='access_reporting', action='store_true',
+                                        help='Include access reporting')
+
+    # m1-session-cli show-consumption-reporting -p <provisioning-session-id>
+    parser_show_consumption = subparsers.add_parser('show-consumption-reporting', help='Display the consumption reporting parameters')
+    parser_show_consumption.set_defaults(command=cmd_show_consumption)
+    parser_show_consumption.add_argument('-p', '--provisioning-session', required=True,
+                                         help='Provisioning session id to get the consumption reporting for')
+
+    # m1-session-cli del-consumption-reporting -p <provisioning-session-id>
+    parser_del_consumption = subparsers.add_parser('del-consumption-reporting', help='Deactivate consumption reporting')
+    parser_del_consumption.set_defaults(command=cmd_del_consumption)
+    parser_del_consumption.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to remove the consumption reporting for')
+
+    # m1-session-cli new-policy-template -p <provisioning-session-id> -e <external-policy-id> [-D <dnn>] [-S <s-nssai>]
+    #                                    [--qos-reference <qos-ref>] [--max-auth-up <bitrate>] [--max-auth-down <bitrate>]
+    #                                    [--default-packet-loss-up <rate>] [--default-packet-loss-down <rate>]
+    #                                    [--chg-sponsor-id <sponsor-id>] [--chg-sponsor-enabled|--chg-sponsor-disabled]
+    #                                    [--gpsi <gpsi>]...
+    parser_new_policy_template = subparsers.add_parser('new-policy-template', help='Add a new policy template')
+    parser_new_policy_template.set_defaults(command=cmd_new_policy_template)
+    parser_new_policy_template.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to create the policy template for')
+    parser_new_policy_template.add_argument('-e', '--external-policy-id', required=True,
+                                        help='The external identifier for this policy template')
+    parser_new_policy_template.add_argument('-D', '--dnn', help='The designated network name for the app session context')
+    parser_new_policy_template.add_argument('-S', '--s-nssai', metavar='SST[:SD]',
+                                        help='The Single NSSAI which will be used in the app session context')
+    parser_new_policy_template.add_argument('--qos-reference', help='The QoS reference for the QoS Specification')
+    parser_new_policy_template.add_argument('--max-auth-up', type=BitRate,
+                                        help='The maximum authorised uplink bitrate for the QoS Specification')
+    parser_new_policy_template.add_argument('--max-auth-down', type=BitRate,
+                                        help='The maximum authorised downlink bitrate for the QoS Specification')
+    parser_new_policy_template.add_argument('--default-packet-loss-up', type=int,
+                                        help='The number of packets that can be lost for an uplink in the QoS Specification')
+    parser_new_policy_template.add_argument('--default-packet-loss-down', type=int,
+                                        help='The number of packets that can be lost for an downlink in the QoS Specification')
+    parser_new_policy_template.add_argument('--chg-sponsor-id', metavar='sponsor-id',
+                                        help='The Sponsor id for the charging specification')
+    parser_new_policy_template.add_argument('--chg-sponsor-enabled', action='store_true', dest='chg_sponsor_status', default=None,
+                                        help='The Sponsor is enabled for charging')
+    parser_new_policy_template.add_argument('--chg-sponsor-disabled', action='store_false', dest='chg_sponsor_status', default=None,
+                                        help='The Sponsor is disabled for charging')
+    parser_new_policy_template.add_argument('--gpsi', action='append', help='The GPSI(s) to use for charging')
+
+    # m1-session-cli update-policy-template -p <provisioning-session-id> -t <policy-template-id> [-D <dnn>] [-S <s-nssai>]
+    #                                    [--qos-reference <qos-ref>] [--max-auth-up <bitrate>|--no-max-auth-up]
+    #                                    [--max-auth-down <bitrate>|--no-max-auth-down]
+    #                                    [--default-packet-loss-up <rate>|--no-default-packet-loss-up]
+    #                                    [--default-packet-loss-down <rate>|--no-default-packet-loss-down]
+    #                                    [--chg-sponsor-id <sponsor-id> [--chg-sponsor-enabled|--chg-sponsor-disabled]
+    #                                     |--chg-sponsor-none]
+    #                                    [--gpsi <gpsi> [--gpsi <gpsi>]...|--no-gpsi]
+    parser_update_policy_template = subparsers.add_parser('update-policy-template', help='Modify a policy template')
+    parser_update_policy_template.set_defaults(command=cmd_update_policy_template)
+    parser_update_policy_template.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to update the policy template for')
+    parser_update_policy_template.add_argument('-t', '--policy-template-id', required=True,
+                                        help='The policy template id of the policy template to update')
+    parser_update_policy_template.add_argument('-D', '--dnn', help='The designated network name for the app session context')
+    parser_update_policy_template.add_argument('--no-dnn', action='store_true',
+                                        help='Remove the designated network name for the app session context')
+    parser_update_policy_template.add_argument('-S', '--s-nssai', metavar='SST[:SD]',
+                                        help='The Single NSSAI which will be used in the app session context')
+    parser_update_policy_template.add_argument('--no-s-nssai', action='store_true',
+                                        help='Remove the Single NSSAI used in the app session context')
+    parser_update_policy_template.add_argument('--qos-reference', help='The QoS reference for the QoS Specification')
+    parser_update_policy_template.add_argument('--no-qos-reference', action='store_true',
+                                        help='Remove the QoS reference from the QoS Specification')
+    parser_update_policy_template.add_argument('--max-auth-up', type=BitRate,
+                                        help='The maximum authorised uplink bitrate for the QoS Specification')
+    parser_update_policy_template.add_argument('--no-max-auth-up', action='store_true',
+                                        help='Remove maximum authorised uplink bitrate for the QoS Specification')
+    parser_update_policy_template.add_argument('--max-auth-down', type=BitRate,
+                                        help='The maximum authorised downlink bitrate for the QoS Specification')
+    parser_update_policy_template.add_argument('--no-max-auth-down', action='store_true',
+                                        help='Remove maximum authorised downlink bitrate for the QoS Specification')
+    parser_update_policy_template.add_argument('--default-packet-loss-up', type=int,
+                                        help='The number of packets that can be lost for an uplink in the QoS Specification')
+    parser_update_policy_template.add_argument('--no-default-packet-loss-up', action='store_true',
+                                        help='Remove number of packets that can be lost for an uplink in the QoS Specification')
+    parser_update_policy_template.add_argument('--default-packet-loss-down', type=int,
+                                        help='The number of packets that can be lost for an downlink in the QoS Specification')
+    parser_update_policy_template.add_argument('--no-default-packet-loss-down', action='store_true',
+                                        help='Remove number of packets that can be lost for an downlink in the QoS Specification')
+    parser_update_policy_template.add_argument('--chg-sponsor-id', metavar='sponsor-id',
+                                        help='The Sponsor id for the charging specification')
+    parser_update_policy_template.add_argument('--chg-sponsor-enabled', action='store_true', dest='chg_sponsor_status', default=None,
+                                        help='The Sponsor is enabled for charging')
+    parser_update_policy_template.add_argument('--chg-sponsor-disabled', action='store_false', dest='chg_sponsor_status', default=None,
+                                        help='The Sponsor is disabled for charging')
+    parser_update_policy_template.add_argument('--chg-sponsor-none', action='store_true', dest='chg_sponsor_none',
+                                        help='The Sponsor status and id should be removed for charging')
+    parser_update_policy_template.add_argument('--gpsi', action='append',
+                                        help='The set the GPSI(s) to use for charging (use --no-gpsi to remove gpsis)')
+    parser_update_policy_template.add_argument('--no-gpsi', action='store_true', help='Remove all GPSI values for charging')
+
+    # m1-session-cli del-policy-template -p <provisioning-session-id> -t <policy-template-id>
+    parser_del_policy_template = subparsers.add_parser('del-policy-template', help='Delete a policy template')
+    parser_del_policy_template.set_defaults(command=cmd_del_policy_template)
+    parser_del_policy_template.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to remove the policy template for')
+    parser_del_policy_template.add_argument('-t', '--policy-template-id', required=True,
+                                        help='The policy template id of the policy template to delete')
+
+    # m1-session-cli show-policy-template -p <provisioning-session-id> -t <policy-template-id>
+    parser_show_policy_template = subparsers.add_parser('show-policy-template', help='Display a policy template')
+    parser_show_policy_template.set_defaults(command=cmd_show_policy_template)
+    parser_show_policy_template.add_argument('-p', '--provisioning-session', required=True,
+                                        help='Provisioning session id to display the policy template for')
+    parser_show_policy_template.add_argument('-t', '--policy-template-id', required=True,
+                                        help='The policy template id of the policy template to display')
 
     args = parser.parse_args()
 
@@ -795,6 +1123,12 @@ async def main():
             log_lvl = logging.INFO
         logging.basicConfig(level=log_lvl)
         log = logging.getLogger()
+        for lgr in log.manager.loggerDict.values():
+            if isinstance(lgr, logging.Logger):
+                if not args.debug and lgr.name == 'httpx':
+                    lgr.setLevel(logging.WARN)
+                else:
+                    lgr.setLevel(log_lvl)
         if hasattr(args, 'command'):
             return await args.command(args, config)
         else:

@@ -110,7 +110,11 @@ class JSONFileDataStore(DataStore):
         :raise RuntimeError: if the data store path already exists but is not a directory.
         '''
         if not await aiofiles.os.path.exists(self.__dir):
-            await aiofiles.os.makedirs(self.__dir)
+            old_umask = os.umask(0)
+            try:
+                await aiofiles.os.makedirs(self.__dir, mode=0o700)
+            finally:
+                os.umask(old_umask)
         if not await aiofiles.os.path.isdir(self.__dir):
             raise RuntimeError(f'{self.__dir} is not a directory')
         return self

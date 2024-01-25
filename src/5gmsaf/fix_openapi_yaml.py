@@ -5,7 +5,7 @@
 #
 # License: 5G-MAG Public License (v1.0)
 # Author: David Waring
-# Copyright: (C) 2022 British Broadcasting Corporation
+# Copyright: (C) 2022-2023 British Broadcasting Corporation
 #
 # For full license terms please see the LICENSE file distributed with this
 # program. If this file is missing then the license can be retrieved from
@@ -79,12 +79,69 @@ def strip_enum_future_proof(node):
                 changed = True
     return changed
 
+def collapse_n_of_objs(anyof_value):
+    ret = None
+    if isinstance(anyof_value, list):
+        for obj in anyof_value:
+            if not isinstance(obj, dict) or 'type' not in obj or obj['type'] != 'object':
+                ret = None
+                break;
+            if ret is None:
+                ret = obj
+                if 'required' in obj:
+                    ret['required'] = set(obj['required'])
+            else:
+                if 'properties' in obj:
+                    if 'properties' not in ret:
+                        ret['properties'] = obj['properties']
+                    else:
+                        ret['properties'].update(obj['properties'])
+                if 'required' in obj:
+                    if 'required' in ret:
+                        ret['required'].intersection_update(set(obj['required']))
+    if ret is not None and 'required' in ret:
+        if len(ret['required']) == 0:
+            del ret['required']
+        else:
+            ret['required'] = list(ret['required'])
+    if ret is None:
+        ret = anyof_value
+    return ret
+
+def strip_oneof_objects(node):
+    changed = False
+    if isinstance(node, dict):
+        for key,value in node.items():
+            if key in ['anyOf', 'oneOf']:
+                value = collapse_n_of_objs(value)
+                if isinstance(value, dict):
+                    del node[key]
+                    node.update(value)
+                    changed = True
+                    break
+            else:
+                if strip_oneof_objects(value):
+                    changed = True
+    elif isinstance(node, list):
+        for value in node:
+            if strip_oneof_objects(value):
+                changed = True
+    return changed
+
+def apply_fixes(api):
+    ret = False
+
+    ret = strip_enum_future_proof(api) or ret
+    ret = strip_oneof_objects(api) or ret
+
+    return ret
+
 def fix_openapi_file(filename):
     changed = False
     with open(filename, 'r') as infile:
         try:
             api = yaml.load(infile, Loader=yaml.SafeLoader)
-            if strip_enum_future_proof(api):
+            if apply_fixes(api):
                 log.info("Changing %s...", filename)
                 changed = True
                 with open(filename+'.tmp', 'w') as outfile:

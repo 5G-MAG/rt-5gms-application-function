@@ -1,0 +1,243 @@
+{{#models}}{{#model}}/**************************************************************************
+ * {{classname}}.h : {{classname}} object model prototypes
+ *    generated from openapi-generator C language Mustache template 
+ *    for object model implementation
+ **************************************************************************
+ * {{description}}
+ **************************************************************************
+ * Template file
+ * =============
+ * License: 5G-MAG Public License (v1.0)
+ * Author: David Waring
+ * Copyright: (C)2023 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
+
+#ifndef _{{classname}}_H_
+#define _{{classname}}_H_
+
+#include <string.h>
+#include <stdbool.h>
+#include "../external/cJSON.h"
+#include "../include/list.h"
+#include "../include/keyValuePair.h"
+#include "../include/binary.h"
+{{#imports}}
+#include "{{{.}}}.h"
+{{/imports}}
+
+#define {{classname}}_info_title "{{appName}}"
+#define {{classname}}_info_version "{{appVersion}}"
+#define {{classname}}_info_description "{{appDescription}}"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+{{#isEnum}}
+    {{#allowableValues}}
+typedef enum { {{classname}}_NULL = 0{{#enumVars}}, {{classname}}_{{{value}}}{{/enumVars}} } {{classname}}_e;
+    {{/allowableValues}}
+
+const char* {{classname}}_ToString(const {{classname}}_e {{classname}});
+
+{{classname}}_e {{classname}}_FromString(const char* {{classname}});
+{{/isEnum}}
+{{^isEnum}}
+typedef struct {{classname}}_s {{classname}}_t;
+{{#vars}}
+    {{^isContainer}}
+        {{#isPrimitiveType}}
+            {{#isEnum}}
+                {{#allowableValues}}
+typedef enum { {{classname}}_{{#lambda.uppercase}}{{name}}{{/lambda.uppercase}}_NULL = 0{{#enumVars}}, {{classname}}_{{#lambda.uppercase}}{{baseName}}{{/lambda.uppercase}}_{{{value}}}{{/enumVars}} } {{classname}}_{{name}}_e;
+                {{/allowableValues}}
+
+const char* {{classname}}_{{name}}_ToString(const {{classname}}_{{name}}_e {{name}});
+
+{{classname}}_{{name}}_e {{classname}}_{{name}}_FromString(const char* {{name}});
+            {{/isEnum}}
+        {{/isPrimitiveType}}
+    {{/isContainer}}
+{{/vars}}
+typedef struct {{classname}}_s {
+{{^hasVars}}
+  {{#isString}}
+    char *value;
+  {{/isString}}
+{{/hasVars}}
+{{#vars}}
+    {{^isContainer}}
+        {{^isPrimitiveType}}
+            {{#isEnum}}
+    {{datatype}}_e {{name}};
+            {{/isEnum}}
+            {{^isEnum}}
+                {{#isModel}}
+    struct {{datatype}}_s *{{name}};
+                {{/isModel}}
+                {{^isModel}}
+                    {{#isUuid}}
+    {{datatype}} *{{name}};
+                    {{/isUuid}}
+                    {{#isEmail}}
+    {{datatype}} *{{name}};
+                    {{/isEmail}}
+                    {{#isFreeFormObject}}
+    {{datatype}}_t *{{name}};
+                    {{/isFreeFormObject}}
+                    {{#isAnyType}}
+    {{datatype}}_t *{{name}};
+                    {{/isAnyType}}
+                {{/isModel}}
+            {{/isEnum}}
+        {{/isPrimitiveType}}
+        {{#isPrimitiveType}}
+            {{#isEnum}}
+    {{classname}}_{{name}}_e {{name}};
+            {{/isEnum}}
+            {{^isEnum}}
+                {{#isNumeric}}
+                    {{^required}}
+    bool is_{{name}};
+                    {{/required}}
+    {{datatype}} {{name}};
+                {{/isNumeric}}
+                {{#isBoolean}}
+                    {{^required}}
+    bool is_{{name}};
+                    {{/required}}
+    {{datatype}} {{name}};
+                {{/isBoolean}}
+                {{#isString}}
+    {{datatype}} *{{name}};
+                {{/isString}}
+		{{#isModel}}
+    {{datatype}} *{{name}};
+		{{/isModel}}
+            {{/isEnum}}
+            {{#isByteArray}}
+    {{datatype}} *{{name}};
+            {{/isByteArray}}
+            {{#isBinary}}
+    OpenAPI_{{datatype}} {{name}};
+            {{/isBinary}}
+            {{#isDate}}
+    {{datatype}} *{{name}};
+            {{/isDate}}
+            {{#isDateTime}}
+    {{datatype}} *{{name}};
+            {{/isDateTime}}
+        {{/isPrimitiveType}}
+    {{/isContainer}}
+    {{#isContainer}}
+        {{#isArray}}
+    OpenAPI_{{datatype}}_t *{{name}};
+        {{/isArray}}
+        {{#isMap}}
+    OpenAPI_{{datatype}} {{name}};
+        {{/isMap}}
+    {{/isContainer}}
+{{/vars}}
+} {{classname}}_t;
+
+{{classname}}_t *{{classname}}_create(
+{{^hasVars}}
+  {{#isString}}
+    char *value
+  {{/isString}}
+{{/hasVars}}
+{{#vars}}
+    {{^isContainer}}
+        {{^isPrimitiveType}}
+            {{#isEnum}}
+    {{datatype}}_e {{name}}{{^-last}},{{/-last}}
+            {{/isEnum}}
+            {{^isEnum}}
+                {{#isModel}}
+    {{datatype}}_t *{{name}}{{^-last}},{{/-last}}
+                {{/isModel}}
+                {{^isModel}}
+                    {{#isUuid}}
+    {{datatype}} *{{name}}{{^-last}},{{/-last}}
+                    {{/isUuid}}
+                    {{#isEmail}}
+    {{datatype}} *{{name}}{{^-last}},{{/-last}}
+                    {{/isEmail}}
+                    {{#isFreeFormObject}}
+    {{datatype}}_t *{{name}}{{^-last}},{{/-last}}
+                    {{/isFreeFormObject}}
+                    {{#isAnyType}}
+    {{datatype}}_t *{{name}}{{^-last}},{{/-last}}
+                    {{/isAnyType}}
+                {{/isModel}}
+            {{/isEnum}}
+        {{/isPrimitiveType}}
+        {{#isPrimitiveType}}
+            {{#isEnum}}
+    {{classname}}_{{name}}_e {{name}}{{^-last}},{{/-last}}
+            {{/isEnum}}
+            {{^isEnum}}
+                {{#isNumeric}}
+                    {{^required}}
+    bool is_{{name}},
+                    {{/required}}
+    {{datatype}} {{name}}{{^-last}},{{/-last}}
+                {{/isNumeric}}
+                {{#isBoolean}}
+                    {{^required}}
+    bool is_{{name}},
+                    {{/required}}
+    {{datatype}} {{name}}{{^-last}},{{/-last}}
+                {{/isBoolean}}
+                {{#isString}}
+    {{datatype}} *{{name}}{{^-last}},{{/-last}}
+                {{/isString}}
+		{{#isModel}}
+    {{datatype}} *{{name}}{{^-last}},{{/-last}}
+                {{/isModel}}
+            {{/isEnum}}
+            {{#isByteArray}}
+    {{datatype}} *{{name}}{{^-last}},{{/-last}}
+            {{/isByteArray}}
+            {{#isBinary}}
+    OpenAPI_{{datatype}} {{name}}{{^-last}},{{/-last}}
+            {{/isBinary}}
+            {{#isDate}}
+    {{datatype}} *{{name}}{{^-last}},{{/-last}}
+            {{/isDate}}
+            {{#isDateTime}}
+    {{datatype}} *{{name}}{{^-last}},{{/-last}}
+            {{/isDateTime}}
+        {{/isPrimitiveType}}
+    {{/isContainer}}
+    {{#isContainer}}
+        {{#isArray}}
+    OpenAPI_{{datatype}}_t *{{name}}{{^-last}},{{/-last}}
+        {{/isArray}}
+        {{#isMap}}
+    OpenAPI_{{datatype}} {{name}}{{^-last}},{{/-last}}
+        {{/isMap}}
+    {{/isContainer}}
+{{/vars}});
+void {{classname}}_free({{classname}}_t *{{classname}});
+{{classname}}_t *{{classname}}_parseFromJSON(cJSON *{{classname}}JSON, bool {{classname}}_as_request, const char **{{classname}}_parse_err);
+{{classname}}_t *{{classname}}_parseRequestFromJSON(cJSON *{{classname}}JSON, const char **{{classname}}_parse_err);
+{{classname}}_t *{{classname}}_parseResponseFromJSON(cJSON *{{classname}}JSON, const char **{{classname}}_parse_err);
+cJSON *{{classname}}_convertToJSON(const {{classname}}_t *{{classname}}, bool {{classname}}_as_request);
+cJSON *{{classname}}_convertRequestToJSON(const {{classname}}_t *{{classname}});
+cJSON *{{classname}}_convertResponseToJSON(const {{classname}}_t *{{classname}});
+{{classname}}_t *{{classname}}_copy({{classname}}_t *dst, const {{classname}}_t *src, bool {{classname}}_as_request);
+{{classname}}_t *{{classname}}_copyRequest({{classname}}_t *dst, const {{classname}}_t *src);
+{{classname}}_t *{{classname}}_copyResponse({{classname}}_t *dst, const {{classname}}_t *src);
+{{/isEnum}}
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _{{classname}}_H_ */
+{{/model}}{{/models}}

@@ -1,7 +1,7 @@
 /*
  * License: 5G-MAG Public License (v1.0)
  * Author: Dev Audsin
- * Copyright: (C) 2022 British Broadcasting Corporation
+ * Copyright: (C) 2022-2023 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
  * program. If this file is missing then the license can be retrieved from
@@ -10,10 +10,15 @@
 
 
 #include "ogs-sbi.h"
+
+#include "bsf-service-consumer.h"
+#include "pcf-service-consumer.h"
+
 #include "sbi-path.h"
 #include "context.h"
 #include "certmgr.h"
 #include "server.h"
+#include "local.h"
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
@@ -52,11 +57,12 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
     msaf_sm_debug(e);
 
+    if (bsf_process_event(&e->h)) return;
+    if (pcf_session_process_event(&e->h)) return;
+    if (local_process_event(e)) return;
+
     message = ogs_calloc(1, sizeof(*message));
-    msaf_context_server_name_set();
-    char *nf_name = ogs_msprintf("5GMSdAF-%s", msaf_self()->server_name);
-    const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
-    const nf_server_app_metadata_t *app_meta = &app_metadata;
+    const nf_server_app_metadata_t *app_meta = msaf_app_metadata();
 
     ogs_assert(s);
 
@@ -132,7 +138,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 break;
 
             CASE("3gpp-m1")
-                if(check_event_addresses(e, msaf_self()->config.m1_server_sockaddr, msaf_self()->config.m1_server_sockaddr_v6)){
+                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M1].ipv4, msaf_self()->config.servers[MSAF_SVR_M1].ipv6)){
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
@@ -145,13 +151,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 break;
             
             CASE("5gmag-rt-management")
-                if(!msaf_self()->config.maf_mgmt_server_sockaddr && !msaf_self()->config.maf_mgmt_server_sockaddr_v6) {
-                    if(check_event_addresses(e, msaf_self()->config.m1_server_sockaddr, msaf_self()->config.m1_server_sockaddr_v6)){
-                        e->message = message;
-                        message = NULL;
-                        ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
-                    }
-                } else if(check_event_addresses(e, msaf_self()->config.maf_mgmt_server_sockaddr, msaf_self()->config.maf_mgmt_server_sockaddr_v6)){
+                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv4, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv6)){
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_maf_mgmt_sm, e);
@@ -165,11 +165,10 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 break;   
 
             CASE("3gpp-m5")
-                if(check_event_addresses(e, msaf_self()->config.m5_server_sockaddr, msaf_self()->config.m5_server_sockaddr_v6)){
+                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M5].ipv4, msaf_self()->config.servers[MSAF_SVR_M5].ipv6)){
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
-
                 } else {
                     char *error;
                     error = ogs_msprintf("Resource [%s] not found.", request->h.uri);
@@ -211,13 +210,30 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                 SWITCH(message->h.resource.component[0])
                 CASE(OGS_SBI_RESOURCE_NAME_NF_INSTANCES)
+		    cJSON *nf_profile;
+                    OpenAPI_nf_profile_t *nfprofile;
+
                     nf_instance = e->h.sbi.data;
                     ogs_assert(nf_instance);
+
+		    if (response->http.content_length && response->http.content){
+                       ogs_debug( "response: %s", response->http.content);
+                       nf_profile = cJSON_Parse(response->http.content);
+                       nfprofile = OpenAPI_nf_profile_parseFromJSON(nf_profile);
+                       message->NFProfile = nfprofile;
+
+                       if (!message->NFProfile) {
+                           ogs_error("No nf_profile");
+                       }
+                       cJSON_Delete(nf_profile);
+                    }
+
                     ogs_assert(OGS_FSM_STATE(&nf_instance->sm));
 
                     e->h.sbi.message = message;
-                    message = NULL;
+                    //message = NULL;
                     ogs_fsm_dispatch(&nf_instance->sm, e);
+		    ogs_sbi_response_free(response);
                     break;
 
                 CASE(OGS_SBI_RESOURCE_NAME_SUBSCRIPTIONS)
@@ -264,7 +280,14 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             if (message) ogs_sbi_message_free(message);
             break;
 
-        case OGS_EVENT_SBI_TIMER:
+        case MSAF_EVENT_DELIVERY_BOOST_TIMER:
+	    ogs_assert(e);
+            //e->message = message;
+            //message = NULL;
+            ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
+	    break;
+
+	case OGS_EVENT_SBI_TIMER:
             ogs_assert(e);
 
             switch(e->h.timer_id) {
@@ -286,7 +309,12 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     ogs_assert(subscription_data);
 
                     ogs_assert(true ==
-                            ogs_nnrf_nfm_send_nf_status_subscribe(subscription_data));
+                            ogs_nnrf_nfm_send_nf_status_subscribe(
+                            ogs_sbi_self()->nf_instance->nf_type,
+                            subscription_data->req_nf_instance_id,
+                            subscription_data->subscr_cond.nf_type,
+                            subscription_data->subscr_cond.service_name));
+
 
                     ogs_debug("Subscription validity expired [%s]",
                             subscription_data->id);
@@ -321,7 +349,26 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             break;
     }
     if (message) ogs_free(message);
-    ogs_free(nf_name);
+}
+
+static char *nf_name = NULL;
+static nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, NULL };
+
+const nf_server_app_metadata_t *msaf_app_metadata()
+{
+    if (!nf_name) {
+        if (!msaf_self()->server_name[0]) msaf_context_server_name_set();
+        nf_name = ogs_msprintf("5GMSAF-%s", msaf_self()->server_name);
+        ogs_assert(nf_name);
+        app_metadata.server_name = nf_name;
+    }
+
+    return &app_metadata;
+}
+
+void msaf_free_agent_name()
+{
+    if (nf_name) ogs_free(nf_name);
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

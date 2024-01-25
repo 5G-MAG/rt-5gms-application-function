@@ -1,6 +1,7 @@
 /*
  * License: 5G-MAG Public License (v1.0)
- * Copyright: (C) 2022 British Broadcasting Corporation
+ * Author: Dev Audsin
+ * Copyright: (C) 2023 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
  * program. If this file is missing then the license can be retrieved from
@@ -17,7 +18,9 @@
 #include "msaf-sm.h"
 #include "openapi/api/Maf_ManagementAPI-info.h"
   
-const nf_server_interface_metadata_t
+#include "msaf-mgmt-sm.h"
+
+static const nf_server_interface_metadata_t
 maf_mgmt_api_metadata = {
     MAF_MANAGEMENT_API_NAME,
     MAF_MANAGEMENT_API_VERSION
@@ -45,13 +48,10 @@ void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     ogs_sbi_request_t *request = NULL;
     ogs_sbi_message_t *message = NULL;
 
-    msaf_sm_debug(e);
+    static const nf_server_interface_metadata_t *maf_management_api = &maf_mgmt_api_metadata;
+    const nf_server_app_metadata_t *app_meta = msaf_app_metadata();
 
-    if (!msaf_self()->server_name[0]) msaf_context_server_name_set();
-    char *nf_name = ogs_msprintf("5GMSdAF-%s", msaf_self()->server_name);
-    const nf_server_app_metadata_t app_metadata = { MSAF_NAME, MSAF_VERSION, nf_name};
-    const nf_server_interface_metadata_t *maf_management_api = &maf_mgmt_api_metadata;
-    const nf_server_app_metadata_t *app_meta = &app_metadata;
+    msaf_sm_debug(e);
 
     ogs_assert(s);
 
@@ -90,7 +90,6 @@ void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
         ogs_sbi_message_free(message);
         ogs_free(message);
     }
-    ogs_free(nf_name);
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

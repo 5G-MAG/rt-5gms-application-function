@@ -1,6 +1,6 @@
 # License: 5G-MAG Public License (v1.0)
 # Author: Dev Audsin
-# Copyright: (C) 2022 British Broadcasting Corporation
+# Copyright: (C) 2022-2023 British Broadcasting Corporation
 #
 # For full license terms please see the LICENSE file distributed with this
 # program. If this file is missing then the license can be retrieved from
@@ -9,7 +9,7 @@
 #===========================================================================
 #
 logger:
- level: debug
+  level: info
 #
 #  o Set OGS_LOG_INFO to all domain level
 #   - If `level` is omitted, the default level is OGS_LOG_INFO)
@@ -31,6 +31,43 @@ logger:
 logger:
 #    file: /home/ubuntu/af/open5gs/build/log/msaf.log
 #
+
+# sbi:
+#   Global SBI parameters
+#
+# o No Server TLS - Client connection can use TLS without certificates
+#   server:
+#     no_tls: true
+#   client:
+#     no_tls: true
+#
+# o Server TLS used - Client connection can use TLS without certificates
+#   server:
+#     no_tls: false
+#     cacert: /path/to/tls/trusted/ca.crt
+#     key: /path/to/tls/private/testserver.key
+#     cert: /path/to/tls/public/testserver.crt
+#   client:
+#     no_tls: true
+#
+# o Server TLS used - Client TLS certificates used
+#   server:
+#     no_tls: false
+#     cacert: /path/to/tls/trusted/ca.crt
+#     key: /path/to/tls/private/testserver.key
+#     cert: /path/to/tls/public/testserver.crt
+#   client:
+#     no_tls: false
+#     cacert: /path/to/tls/trusted/ca.crt
+#     key: /path/to/tls/private/testclient.key
+#     cert: /path/to/tls/public/testclient.crt
+#
+sbi:
+  server:
+    no_tls: true
+  client:
+    no_tls: true
+
 # udm:
 #
 #  <SBI Server>
@@ -155,8 +192,16 @@ msaf:
         m1ContentHostingConfigurations: 60
         m1ServerCertificates: 60
         m1ContentProtocols: 86400
+        m1ConsumptionReportingConfiguration: 60
         m5ServiceAccessInformation: 60
-#
+    dataCollectionDir: @data-collection-dir@
+    offerNetworkAssistance: false
+#    networkAssistance:
+#      deliveryBoost:
+#        minDlBitRate: 1 Mbps
+#        boostPeriod: 30
+
+
 # nrf:
 #
 #  <SBI Client>>
@@ -200,6 +245,12 @@ nrf:
           - 127.0.0.10
           - ::1
         port: 7777
+
+bsf:
+  notificationListener:
+    - addr:
+      - 127.0.0.99
+      port: 7779
 
 #
 # parameter:

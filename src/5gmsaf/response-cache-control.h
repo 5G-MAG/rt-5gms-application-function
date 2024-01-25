@@ -25,11 +25,12 @@ typedef struct msaf_server_response_cache_control_s {
     int m1_content_hosting_configurations_response_max_age;
     int m1_server_certificates_response_max_age;
     int m1_content_protocols_response_max_age;
+    int m1_consumption_reporting_response_max_age;
     int m5_service_access_information_response_max_age;
 }msaf_server_response_cache_control_t;
 
 extern void msaf_server_response_cache_control_set(void);
-extern void msaf_server_response_cache_control_set_from_config(int m1_provisioning_session_response_max_age, int m1_content_hosting_configurations_response_max_age, int m1_server_certificates_response_max_age, int m1_content_protocols_response_max_age, int m5_service_access_information_response_max_age);
+extern void msaf_server_response_cache_control_set_from_config(int m1_provisioning_session_response_max_age, int m1_content_hosting_configurations_response_max_age, int m1_server_certificates_response_max_age, int m1_content_protocols_response_max_age, int m1_consumption_reporting_response_max_age, int m5_service_access_information_response_max_age);
 
 
 #ifdef __cplusplus
