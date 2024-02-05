@@ -22,6 +22,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "openapi/model/msaf_api_provisioning_session.h"
 
 #include "provisioning-session.h"
+#include "metrics-reporting-configuration.h"
 
 typedef struct free_ogs_hash_provisioning_session_s {
     const char *provisioning_session;
@@ -115,6 +116,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     msaf_provisioning_session->httpMetadata.provisioningSession.received = time(NULL);
     msaf_provisioning_session->httpMetadata.provisioningSession.hash = calculate_provisioning_session_hash(provisioning_session);
 
+    msaf_provisioning_session->metrics_reporting_map = msaf_metrics_reporting_map();
     msaf_provisioning_session->certificate_map = msaf_certificate_map();
     msaf_provisioning_session->policy_templates = msaf_policy_templates_new();
     ogs_hash_set(msaf_self()->provisioningSessions_map, msaf_strdup(msaf_provisioning_session->provisioningSessionId), OGS_HASH_KEY_STRING, msaf_provisioning_session);
@@ -176,6 +178,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
     if (msaf_provisioning_session) {
         msaf_api_provisioning_session_t *provisioning_session;
         ogs_hash_index_t *cert_node;
+        ogs_hash_index_t *metrics_node;
 
         provisioning_session = ogs_calloc(1,sizeof(*provisioning_session));
         ogs_assert(provisioning_session);
@@ -189,6 +192,11 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {
             ogs_debug("msaf_provisioning_session_get_json: Add cert %s", (const char *)ogs_hash_this_key(cert_node));
             OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
+        }
+
+        provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
+        for (metrics_node=ogs_hash_first(msaf_provisioning_session->metrics_reporting_map); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
+            OpenAPI_list_add(provisioning_session->metrics_reporting_configuration_ids, (void*)ogs_hash_this_key(metrics_node));
         }
 
         if (msaf_provisioning_session->policy_templates && ogs_hash_first(msaf_provisioning_session->policy_templates) != NULL) {

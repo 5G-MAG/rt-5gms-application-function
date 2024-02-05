@@ -17,6 +17,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "openapi/model/msaf_api_provisioning_session_type.h"
 #include "openapi/model/msaf_api_policy_template.h"
+#include "openapi/model/msaf_api_metrics_reporting_configuration.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,6 +54,7 @@ typedef struct msaf_provisioning_session_s {
     ogs_hash_t *policy_templates; /* key: policy template id, value: msaf_policy_template_node_t */
     ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t*
     int marked_for_deletion;
+    ogs_hash_t *metrics_reporting_map;
 } msaf_provisioning_session_t;
 
 typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;

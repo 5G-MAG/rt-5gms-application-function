@@ -189,6 +189,7 @@ msaf:
     serverResponseCacheControl:
       - maxAge: 60
         m1ProvisioningSessions: 60
+        m1MetricsReportingConfiguration: 60
         m1ContentHostingConfigurations: 60
         m1ServerCertificates: 60
         m1ContentProtocols: 86400
