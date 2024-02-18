@@ -276,7 +276,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             CASE("consumption-reporting-configuration")
                                 api = m1_consumptionreportingprovisioning_api;
                                 break;
-                            CASE("metrics-reporting-configuration")
+                            CASE("metrics-reporting-configurations")
                                 api = m1_metricsreportingprovisioning_api;
                                 break;
                             CASE("content-hosting-configuration")
@@ -545,6 +545,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 }
                             } /* POST METRICS REPORTING CONFIGURATION */
                             else if (api == m1_metricsreportingprovisioning_api) {
+
                                 cJSON *json;
                                 msaf_api_metrics_reporting_configuration_t *metrics_config;
                                 const char *parse_err = NULL;
@@ -773,7 +774,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     CASE(OGS_SBI_HTTP_METHOD_GET)
 			    
                         if (message->h.resource.component[1] && message->h.resource.component[2] && message->h.resource.component[3] && !message->h.resource.component[4]) {
-			    msaf_provisioning_session_t *msaf_provisioning_session;
+                            msaf_provisioning_session_t *msaf_provisioning_session;
                             const nf_server_interface_metadata_t *api = NULL;
 
                             SWITCH(message->h.resource.component[2])
@@ -783,98 +784,149 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             CASE("certificates")
                                 api = m1_servercertificatesprovisioning_api;
                                 break;
+                            CASE("metrics-reporting-configurations")
+                                api = m1_metricsreportingprovisioning_api;
+                                break;
                             DEFAULT
-                            END
+                                    END
 
-			    msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                            msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
+                                    message->h.resource.component[1]);
                             if (!msaf_provisioning_session) {
                                 char *err = NULL;
-                                err = ogs_msprintf("Provisioning session [%s] is not available.", message->h.resource.component[1]);
+                                err = ogs_msprintf("Provisioning session [%s] is not available.",
+                                                   message->h.resource.component[1]);
                                 ogs_error("%s", err);
-                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Provisioning session does not exists.", err, NULL, api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message,
+                                                                        "Provisioning session does not exists.", err,
+                                                                        NULL, api, app_meta));
                                 ogs_free(err);
                             } else if (!api) {
                                 char *err = NULL;
-                                err = ogs_msprintf("Unknown sub-resource [%s] for provisioning session [%s].", message->h.resource.component[2], message->h.resource.component[1]);
+                                err = ogs_msprintf("Unknown sub-resource [%s] for provisioning session [%s].",
+                                                   message->h.resource.component[2], message->h.resource.component[1]);
                                 ogs_error("%s", err);
-                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unknown provisioning session sub-resource.", err, NULL, m1_provisioningsession_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 404, 2, message,
+                                                                        "Unknown provisioning session sub-resource.",
+                                                                        err, NULL, m1_provisioningsession_api,
+                                                                        app_meta));
                                 ogs_free(err);
                             } else if (api == m1_policytemplatesprovisioning_api) {
-				msaf_provisioning_session_t *msaf_provisioning_session;
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                                msaf_provisioning_session_t *msaf_provisioning_session;
+                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
+                                        message->h.resource.component[1]);
                                 if (msaf_provisioning_session) {
                                     msaf_policy_template_node_t *msaf_policy_template;
-                                    msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session, message->h.resource.component[3]);
-                                    if(msaf_policy_template) {
+                                    msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(
+                                            msaf_provisioning_session, message->h.resource.component[3]);
+                                    if (msaf_policy_template) {
                                         cJSON *policy_template;
                                         char *policy_template_body;
-    
-                                        policy_template = msaf_policy_template_convertToJSON(msaf_policy_template->policy_template);
+
+                                        policy_template = msaf_policy_template_convertToJSON(
+                                                msaf_policy_template->policy_template);
                                         policy_template_body = cJSON_Print(policy_template);
 
-                                        response = nf_server_new_response(NULL, "application/json", msaf_policy_template->last_modified, msaf_policy_template->hash, msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age, NULL, m1_policytemplatesprovisioning_api, app_meta);
-                                        nf_server_populate_response(response, strlen(policy_template_body), policy_template_body, 200);
+                                        response = nf_server_new_response(NULL, "application/json",
+                                                                          msaf_policy_template->last_modified,
+                                                                          msaf_policy_template->hash,
+                                                                          msaf_self()->config.server_response_cache_control->m1_provisioning_session_response_max_age,
+                                                                          NULL, m1_policytemplatesprovisioning_api,
+                                                                          app_meta);
+                                        nf_server_populate_response(response, strlen(policy_template_body),
+                                                                    policy_template_body, 200);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                         response = NULL;
-                  
+
                                         cJSON_Delete(policy_template);
 
                                     } else {
-					char *err = NULL;
-                                        err = ogs_msprintf("Provisioning session [%s] has no policy template [%s].", message->h.resource.component[1], message->h.resource.component[3]);
-				        ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Policy template does not exists.", err, NULL, m1_policytemplatesprovisioning_api, app_meta));
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Provisioning session [%s] has no policy template [%s].",
+                                                           message->h.resource.component[1],
+                                                           message->h.resource.component[3]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message,
+                                                                                "Policy template does not exists.", err,
+                                                                                NULL,
+                                                                                m1_policytemplatesprovisioning_api,
+                                                                                app_meta));
                                         ogs_free(err);
                                     }
 
-                                }    
+                                }
 
-			    } else if (api == m1_servercertificatesprovisioning_api) {
+                            } else if (api == m1_servercertificatesprovisioning_api) {
                                 msaf_provisioning_session_t *msaf_provisioning_session;
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
+                                        message->h.resource.component[1]);
                                 if (msaf_provisioning_session) {
                                     msaf_certificate_t *cert;
                                     ogs_sbi_response_t *response;
                                     const char *provisioning_session_cert;
-                                    provisioning_session_cert = ogs_hash_get(msaf_provisioning_session->certificate_map, message->h.resource.component[3], OGS_HASH_KEY_STRING);
-                                    if(!provisioning_session_cert) {
+                                    provisioning_session_cert = ogs_hash_get(msaf_provisioning_session->certificate_map,
+                                                                             message->h.resource.component[3],
+                                                                             OGS_HASH_KEY_STRING);
+                                    if (!provisioning_session_cert) {
                                         char *err = NULL;
-                                        err = ogs_msprintf("Certificate [%s] not found in provisioning session [%s]", message->h.resource.component[3], message->h.resource.component[1]);
+                                        err = ogs_msprintf("Certificate [%s] not found in provisioning session [%s]",
+                                                           message->h.resource.component[3],
+                                                           message->h.resource.component[1]);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Certificate not found.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message,
+                                                                                "Certificate not found.", err, NULL,
+                                                                                m1_servercertificatesprovisioning_api,
+                                                                                app_meta));
                                         ogs_free(err);
                                         break;
                                     }
                                     cert = server_cert_retrieve(message->h.resource.component[3]);
                                     if (!cert) {
                                         char *err = NULL;
-                                        err = ogs_msprintf("Certificate [%s] management problem", message->h.resource.component[3]);
+                                        err = ogs_msprintf("Certificate [%s] management problem",
+                                                           message->h.resource.component[3]);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, message,
+                                                                                "Certificate management problem.", err,
+                                                                                NULL,
+                                                                                m1_servercertificatesprovisioning_api,
+                                                                                app_meta));
                                         ogs_free(err);
                                         break;
                                     }
 
-                                    if(!cert->return_code) {
+                                    if (!cert->return_code) {
                                         int m1_server_certificates_response_max_age;
-                                        if(cert->cache_control_max_age){
+                                        if (cert->cache_control_max_age) {
                                             m1_server_certificates_response_max_age = cert->cache_control_max_age;
                                         } else {
                                             m1_server_certificates_response_max_age = msaf_self()->config.server_response_cache_control->m1_server_certificates_response_max_age;
                                         }
-                                        response = nf_server_new_response(NULL, "application/x-pem-file",  cert->last_modified, cert->server_certificate_hash, m1_server_certificates_response_max_age, NULL, m1_servercertificatesprovisioning_api, app_meta);
-                                        nf_server_populate_response(response, strlen(cert->certificate), msaf_strdup(cert->certificate), 200);
+                                        response = nf_server_new_response(NULL, "application/x-pem-file",
+                                                                          cert->last_modified,
+                                                                          cert->server_certificate_hash,
+                                                                          m1_server_certificates_response_max_age, NULL,
+                                                                          m1_servercertificatesprovisioning_api,
+                                                                          app_meta);
+                                        nf_server_populate_response(response, strlen(cert->certificate),
+                                                                    msaf_strdup(cert->certificate), 200);
                                         ogs_assert(response);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                    } else if(cert->return_code == 4){
+                                    } else if (cert->return_code == 4) {
                                         char *err = NULL;
                                         err = ogs_msprintf("Certificate [%s] does not exists.", cert->id);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Certificate does not exists.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message,
+                                                                                "Certificate does not exists.", err,
+                                                                                NULL,
+                                                                                m1_servercertificatesprovisioning_api,
+                                                                                app_meta));
                                         ogs_free(err);
-                                    } else if(cert->return_code == 8){
+                                    } else if (cert->return_code == 8) {
                                         ogs_sbi_response_t *response;
-                                        response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, m1_servercertificatesprovisioning_api, app_meta);
+                                        response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL,
+                                                                          m1_servercertificatesprovisioning_api,
+                                                                          app_meta);
                                         nf_server_populate_response(response, 0, NULL, 204);
                                         ogs_assert(response);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
@@ -882,17 +934,98 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         char *err = NULL;
                                         err = ogs_msprintf("Certificate [%s] management problem.", cert->id);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Certificate management problem.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, message,
+                                                                                "Certificate management problem.", err,
+                                                                                NULL,
+                                                                                m1_servercertificatesprovisioning_api,
+                                                                                app_meta));
                                         ogs_free(err);
                                     }
                                     msaf_certificate_free(cert);
 
                                 } else {
                                     char *err = NULL;
-                                    err = ogs_msprintf("Provisioning session [%s] is not available.", message->h.resource.component[1]);
+                                    err = ogs_msprintf("Provisioning session [%s] is not available.",
+                                                       message->h.resource.component[1]);
                                     ogs_error("%s", err);
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session does not exists.", err, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, message,
+                                                                            "Provisioning session does not exists.",
+                                                                            err, NULL,
+                                                                            m1_servercertificatesprovisioning_api,
+                                                                            app_meta));
                                     ogs_free(err);
+                                }
+                            }
+                            // GET METRICS
+                            else if (api == m1_metricsreportingprovisioning_api) {
+
+                                msaf_provisioning_session_t *msaf_provisioning_session;
+                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
+                                        message->h.resource.component[1]);
+
+                                if (msaf_provisioning_session) {
+                                    const char *metricsReportingConfigurationId;
+
+                                    metricsReportingConfigurationId = ogs_hash_get(
+                                            msaf_provisioning_session->metrics_reporting_map,
+                                            message->h.resource.component[3], OGS_HASH_KEY_STRING);
+
+                                    if (!metricsReportingConfigurationId) {
+                                        char *err = NULL;
+                                        err = ogs_msprintf(
+                                                "Metrics Reporting Configuration [%s] not found in provisioning session [%s]",
+                                                message->h.resource.component[3], message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message,
+                                                                                "Metrics Reporting Configuration not found.",
+                                                                                err, NULL,
+                                                                                m1_metricsreportingprovisioning_api,
+                                                                                app_meta));
+                                        ogs_free(err);
+                                        break;
+                                    }
+                                    msaf_metrics_reporting_configuration_t *metricsReportingConfiguration;
+
+                                    metricsReportingConfiguration = msaf_metrics_reporting_configuration_retrieve(
+                                            message->h.resource.component[3]);
+
+                                    if (!metricsReportingConfiguration) {
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Metrics Reporting Configuration [%s] management problem",
+                                                           message->h.resource.component[3]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, message,
+                                                                                "Metrics Reporting Configuration management problem.",
+                                                                                err, NULL,
+                                                                                m1_metricsreportingprovisioning_api,
+                                                                                app_meta));
+                                        ogs_free(err);
+                                        break;
+                                    }
+                                    ogs_sbi_response_t *response;
+                                    response = nf_server_new_response(NULL, "application/json",
+                                                                      metricsReportingConfiguration->receivedTime,
+                                                                      metricsReportingConfiguration->etag,
+                                                                      NULL,
+                                            //msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
+                                                                      NULL, m1_metricsreportingprovisioning_api,
+                                                                      app_meta);
+
+                                    cJSON *mrc_json_data = msaf_metrics_reporting_configuration_get_json(
+                                            message->h.resource.component[3]);
+                                    char *mrc_content = cJSON_Print(mrc_json_data);
+
+                                    nf_server_populate_response(response, strlen(mrc_content), msaf_strdup(mrc_content),
+                                                                200);
+
+                                    cJSON_Delete(mrc_json_data);
+                                    ogs_free(mrc_content);
+                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                } else {
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, message,
+                                                                            "Unknown error or invalid request.", NULL,
+                                                                            NULL, m1_metricsreportingprovisioning_api,
+                                                                            app_meta));
                                 }
                             }
                         } else if (message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]) {

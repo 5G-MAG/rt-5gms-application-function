@@ -19,6 +19,7 @@ typedef struct msaf_metrics_reporting_configuration_s {
     time_t receivedTime;
 } msaf_metrics_reporting_configuration_t;
 
+extern ogs_hash_t *msaf_metrics_reporting_map();
 msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t *provisioning_session,
                                                                                     char *scheme,
                                                                                     char *data_network_name,
@@ -30,23 +31,8 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
                                                                                     int sampling_period,
                                                                                     OpenAPI_list_t *metrics);
 
-extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_update(const char *metricsReportingConfigurationId,
-                                                                                           char *scheme,
-                                                                                           char *dataNetworkName,
-                                                                                           bool isReportingInterval,
-                                                                                           int reportingInterval,
-                                                                                           bool isSamplePercentage,
-                                                                                           double samplePercentage,
-                                                                                           OpenAPI_list_t *urlFilters,
-                                                                                           int samplingPeriod,
-                                                                                           OpenAPI_list_t *metrics);
 
 extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const char *metricsReportingConfigurationId);
-extern cJSON *msaf_metrics_reporting_configuration_get_json(const char *metricsReportingConfigurationId);
-extern int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId);
-extern void msaf_provisioning_session_metrics_reporting_configuration_hash_remove(const char *provisioning_session_id, const char *metricsReportingConfigurationId);
-extern int msaf_metrics_reporting_configuration_delete(const char *metricsReportingConfigurationId);
-extern ogs_hash_t *msaf_metrics_reporting_map();
-
+extern cJSON *msaf_metrics_reporting_configuration_get_json(const char *metrics_reporting_configuration_id);
 
 #endif //MSAF_METRICS_REPORTING_PROVISIONING_H
