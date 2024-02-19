@@ -960,30 +960,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             else if (api == m1_metricsreportingprovisioning_api) {
 
                                 msaf_provisioning_session_t *msaf_provisioning_session;
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(
-                                        message->h.resource.component[1]);
+                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
 
-                                if (msaf_provisioning_session) {
-                                    const char *metricsReportingConfigurationId;
+                                if(msaf_provisioning_session){
 
-                                    metricsReportingConfigurationId = ogs_hash_get(
-                                            msaf_provisioning_session->metrics_reporting_map,
-                                            message->h.resource.component[3], OGS_HASH_KEY_STRING);
-
-                                    if (!metricsReportingConfigurationId) {
-                                        char *err = NULL;
-                                        err = ogs_msprintf(
-                                                "Metrics Reporting Configuration [%s] not found in provisioning session [%s]",
-                                                message->h.resource.component[3], message->h.resource.component[1]);
-                                        ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message,
-                                                                                "Metrics Reporting Configuration not found.",
-                                                                                err, NULL,
-                                                                                m1_metricsreportingprovisioning_api,
-                                                                                app_meta));
-                                        ogs_free(err);
-                                        break;
-                                    }
                                     msaf_metrics_reporting_configuration_t *metricsReportingConfiguration;
 
                                     metricsReportingConfiguration = msaf_metrics_reporting_configuration_retrieve(
@@ -994,40 +974,35 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         err = ogs_msprintf("Metrics Reporting Configuration [%s] management problem",
                                                            message->h.resource.component[3]);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, message,
-                                                                                "Metrics Reporting Configuration management problem.",
-                                                                                err, NULL,
-                                                                                m1_metricsreportingprovisioning_api,
-                                                                                app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Metrics Reporting Configuration management problem.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
                                         ogs_free(err);
                                         break;
                                     }
                                     ogs_sbi_response_t *response;
-                                    response = nf_server_new_response(NULL, "application/json",
-                                                                      metricsReportingConfiguration->receivedTime,
-                                                                      metricsReportingConfiguration->etag,
-                                                                      NULL,
-                                            //msaf_self()->config.server_response_cache_control->m1_metrics_reporting_configuration_response_max_age,
-                                                                      NULL, m1_metricsreportingprovisioning_api,
-                                                                      app_meta);
+                                    response = nf_server_new_response(NULL, "application/json", metricsReportingConfiguration->receivedTime, metricsReportingConfiguration->etag, NULL, NULL, m1_metricsreportingprovisioning_api, app_meta);
 
-                                    cJSON *mrc_json_data = msaf_metrics_reporting_configuration_get_json(
-                                            message->h.resource.component[3]);
+                                    cJSON *mrc_json_data = msaf_api_metrics_reporting_configuration_convertToJSON(metricsReportingConfiguration, NULL);
+
                                     char *mrc_content = cJSON_Print(mrc_json_data);
 
-                                    nf_server_populate_response(response, strlen(mrc_content), msaf_strdup(mrc_content),
-                                                                200);
+                                    nf_server_populate_response(response, strlen(mrc_content), msaf_strdup(mrc_content),200);
 
                                     cJSON_Delete(mrc_json_data);
                                     ogs_free(mrc_content);
                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                } else {
-                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, message,
-                                                                            "Unknown error or invalid request.", NULL,
-                                                                            NULL, m1_metricsreportingprovisioning_api,
-                                                                            app_meta));
                                 }
+
+                                else {
+                                    char *err = NULL;
+                                    err = ogs_msprintf("Provisioning session [%s] is not available.", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session does not exists.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                    ogs_free(err);
+                                    break;
+                                }
+
                             }
+
                         } else if (message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]) {
                             msaf_provisioning_session_t *msaf_provisioning_session;
                             const nf_server_interface_metadata_t *api = NULL;

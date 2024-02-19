@@ -32,7 +32,6 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
                                                                                     OpenAPI_list_t *metrics);
 
 
-extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const char *metricsReportingConfigurationId);
-extern cJSON *msaf_metrics_reporting_configuration_get_json(const char *metrics_reporting_configuration_id);
+extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const char *metrics_configuration_id);
 
 #endif //MSAF_METRICS_REPORTING_PROVISIONING_H
