@@ -71,7 +71,7 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     );
 
     if (mrc == NULL) {
-        ogs_error("Failed to parse metrics reporting configuration: %s", parse_err);
+        ogs_error("Failed to create metrics reporting configuration: %s", parse_err);
         return NULL;
     }
 
@@ -89,9 +89,7 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     if (provisioning_session->metrics_reporting_map == NULL) {
         provisioning_session->metrics_reporting_map = msaf_metrics_reporting_map();
     }
-
     char *hashKey = msaf_strdup(msaf_metrics_reporting_configuration->config->metrics_reporting_configuration_id);
-
     ogs_hash_set(provisioning_session->metrics_reporting_map,
                  hashKey,
                  OGS_HASH_KEY_STRING,
@@ -100,12 +98,12 @@ msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_cre
     return msaf_metrics_reporting_configuration;
 }
 
-msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const char *metricsReportingConfigurationId) {
+msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const char *metrics_configuration_id) {
 
      ogs_hash_index_t *provisioning_node;
      ogs_hash_index_t *metrics_node;
 
-     if (!metricsReportingConfigurationId) {
+     if (!metrics_configuration_id) {
          return NULL;
      }
 
@@ -114,67 +112,13 @@ msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_ret
 
          for (metrics_node = ogs_hash_first(provisioning_session->metrics_reporting_map); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
              char *currentMetricsId = (char *)ogs_hash_this_key(metrics_node);
-             if (strcmp(currentMetricsId, metricsReportingConfigurationId) == 0) {
+             if (strcmp(currentMetricsId, metrics_configuration_id) == 0) {
                  return (msaf_metrics_reporting_configuration_t*)ogs_hash_this_val(metrics_node);
              }
          }
      }
-
      return NULL;
  }
-
- cJSON *msaf_metrics_reporting_configuration_get_json(const char *metrics_reporting_configuration_id) {
-
-     msaf_metrics_reporting_configuration_t *metricsConfig = msaf_metrics_reporting_configuration_retrieve(metrics_reporting_configuration_id);
-     if (!metricsConfig) {
-         ogs_error("Unable to retrieve Metrics Reporting Configuration [%s]", metrics_reporting_configuration_id);
-         return NULL;
-     }
-
-     cJSON *jsonMetricsConfig = cJSON_CreateObject();
-     if (!jsonMetricsConfig) {
-         ogs_error("Failed to create JSON object for Metrics Reporting Configuration");
-         return NULL;
-     }
-
-     cJSON_AddStringToObject(jsonMetricsConfig, "metricsReportingConfigurationId", metricsConfig->config->metrics_reporting_configuration_id);
-     if (metricsConfig->config->scheme) {
-         cJSON_AddStringToObject(jsonMetricsConfig, "scheme", metricsConfig->config->scheme);
-     }
-     if (metricsConfig->config->data_network_name) {
-         cJSON_AddStringToObject(jsonMetricsConfig, "dataNetworkName", metricsConfig->config->data_network_name);
-     }
-     cJSON_AddBoolToObject(jsonMetricsConfig, "isReportingInterval", metricsConfig->config->is_reporting_interval);
-     cJSON_AddNumberToObject(jsonMetricsConfig, "reportingInterval", metricsConfig->config->reporting_interval);
-     cJSON_AddBoolToObject(jsonMetricsConfig, "isSamplePercentage", metricsConfig->config->is_sample_percentage);
-     cJSON_AddNumberToObject(jsonMetricsConfig, "samplePercentage", metricsConfig->config->sample_percentage);
-
-     OpenAPI_lnode_t *node;
-
-     // Add urlFilters
-     cJSON *urlFiltersArr = cJSON_CreateArray();
-     node = metricsConfig->config->url_filters->first;
-     while (node) {
-         cJSON_AddItemToArray(urlFiltersArr, cJSON_CreateString((char*)node->data));
-         node = node->next;
-     }
-     cJSON_AddItemToObject(jsonMetricsConfig, "urlFilters", urlFiltersArr);
-
-     // Add metrics
-     cJSON *metricsArr = cJSON_CreateArray();
-     node = metricsConfig->config->metrics->first; // Reuse the node variable
-     while (node) {
-         cJSON_AddItemToArray(metricsArr, cJSON_CreateString((char*)node->data));
-         node = node->next;
-     }
-     cJSON_AddItemToObject(jsonMetricsConfig, "metrics", metricsArr);
-
-     cJSON_AddNumberToObject(jsonMetricsConfig, "samplingPeriod", metricsConfig->config->sampling_period);
-
-     return jsonMetricsConfig;
- }
-
-
 
 
 
