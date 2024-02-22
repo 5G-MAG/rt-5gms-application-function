@@ -66,19 +66,19 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
    if(policy_template->state == msaf_api_policy_template_STATE_NULL) {
        if(new_state == msaf_api_policy_template_STATE_NULL) return false;
 
-       if(new_state == msaf_api_policy_template_STATE_PENDING) {
-	   policy_template->state = msaf_api_policy_template_STATE_PENDING;
+       if(new_state == msaf_api_policy_template_STATE_VAL_PENDING) {
+	   policy_template->state = msaf_api_policy_template_STATE_VAL_PENDING;
            msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
            return true;
        }
 
-       if(new_state == msaf_api_policy_template_STATE_READY || new_state == msaf_api_policy_template_STATE_INVALID ||  new_state == msaf_api_policy_template_STATE_SUSPENDED) {
+       if(new_state == msaf_api_policy_template_STATE_VAL_READY || new_state == msaf_api_policy_template_STATE_VAL_INVALID ||  new_state == msaf_api_policy_template_STATE_VAL_SUSPENDED) {
 	   ogs_error("Invalid state change");	
            return false;
        }	  
    }
 
-   if(policy_template->state == msaf_api_policy_template_STATE_PENDING) {
+   if(policy_template->state == msaf_api_policy_template_STATE_VAL_PENDING) {
 
        if(new_state == msaf_api_policy_template_STATE_NULL) {
            policy_template->state = msaf_api_policy_template_STATE_NULL;
@@ -86,26 +86,26 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 	   return true;
        }
 
-       if(new_state == msaf_api_policy_template_STATE_PENDING) return false;
+       if(new_state == msaf_api_policy_template_STATE_VAL_PENDING) return false;
 
-       if(new_state == msaf_api_policy_template_STATE_READY) {
+       if(new_state == msaf_api_policy_template_STATE_VAL_READY) {
 	   if(provisioning_session->sai_cache)    
                msaf_sai_cache_clear(provisioning_session->sai_cache);
-	   policy_template->state = msaf_api_policy_template_STATE_READY;
+	   policy_template->state = msaf_api_policy_template_STATE_VAL_READY;
            msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 	   return true;
        }
        
-       if(new_state == msaf_api_policy_template_STATE_INVALID) {
+       if(new_state == msaf_api_policy_template_STATE_VAL_INVALID) {
 	   char *detail = "Policy template state transitioned from PENDING to INVALID.";
 	   char *title = "Provider decision.";
-           policy_template->state = msaf_api_policy_template_STATE_INVALID;
+           policy_template->state = msaf_api_policy_template_STATE_VAL_INVALID;
 	   msaf_policy_template_set_state_reason(policy_template, NULL, msaf_strdup(detail), NULL, NULL, NULL, msaf_strdup(title), NULL);
            return true;
        }
        
-       if(new_state ==  msaf_api_policy_template_STATE_SUSPENDED) {
+       if(new_state ==  msaf_api_policy_template_STATE_VAL_SUSPENDED) {
            ogs_error("Invalid state change");
            return false;
        }
@@ -113,7 +113,7 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 
    }
 
-   if(policy_template->state == msaf_api_policy_template_STATE_READY) {
+   if(policy_template->state == msaf_api_policy_template_STATE_VAL_READY) {
 
        if(new_state == msaf_api_policy_template_STATE_NULL) {
 	   if (provisioning_session->sai_cache)    
@@ -123,33 +123,33 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
            return true;
        }	
 
-       if(new_state == msaf_api_policy_template_STATE_PENDING) {
+       if(new_state == msaf_api_policy_template_STATE_VAL_PENDING) {
 	   if(provisioning_session->sai_cache)    
                msaf_sai_cache_clear(provisioning_session->sai_cache);
-           policy_template->state = msaf_api_policy_template_STATE_PENDING;
+           policy_template->state = msaf_api_policy_template_STATE_VAL_PENDING;
            msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
            return true;
        }
        
-       if(new_state == msaf_api_policy_template_STATE_READY) return false;
+       if(new_state == msaf_api_policy_template_STATE_VAL_READY) return false;
            
-       if(new_state == msaf_api_policy_template_STATE_INVALID) {
+       if(new_state == msaf_api_policy_template_STATE_VAL_INVALID) {
            ogs_error("Invalid state change");
            return false;
        }
        
-       if(new_state ==  msaf_api_policy_template_STATE_SUSPENDED) {
+       if(new_state ==  msaf_api_policy_template_STATE_VAL_SUSPENDED) {
 	   char *detail = "Policy template state transitioned from READY to SUSPENDED.";
 	   char *title = "Operator Decision.";
            if (provisioning_session->sai_cache)    
 	       msaf_sai_cache_clear(provisioning_session->sai_cache);
-           policy_template->state = msaf_api_policy_template_STATE_SUSPENDED;
+           policy_template->state = msaf_api_policy_template_STATE_VAL_SUSPENDED;
 	   msaf_policy_template_set_state_reason(policy_template, NULL, msaf_strdup(detail), NULL, NULL, NULL, msaf_strdup(title), NULL);
            return true;
        }
    }
 
-   if(policy_template->state == msaf_api_policy_template_STATE_INVALID) {
+   if(policy_template->state == msaf_api_policy_template_STATE_VAL_INVALID) {
    
        if(new_state == msaf_api_policy_template_STATE_NULL) {
            policy_template->state = msaf_api_policy_template_STATE_NULL;
@@ -157,21 +157,21 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 	   return true;
        }
 
-       if(new_state == msaf_api_policy_template_STATE_PENDING) {
-           policy_template->state = msaf_api_policy_template_STATE_PENDING;
+       if(new_state == msaf_api_policy_template_STATE_VAL_PENDING) {
+           policy_template->state = msaf_api_policy_template_STATE_VAL_PENDING;
            msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	   return true;
        }
 
-       if(new_state == msaf_api_policy_template_STATE_READY || new_state ==  msaf_api_policy_template_STATE_SUSPENDED) {
+       if(new_state == msaf_api_policy_template_STATE_VAL_READY || new_state ==  msaf_api_policy_template_STATE_VAL_SUSPENDED) {
            ogs_error("Invalid state change");
            return false;
        }
 
-       if(new_state == msaf_api_policy_template_STATE_INVALID) return false;
+       if(new_state == msaf_api_policy_template_STATE_VAL_INVALID) return false;
    }
 
-   if(policy_template->state == msaf_api_policy_template_STATE_SUSPENDED) {
+   if(policy_template->state == msaf_api_policy_template_STATE_VAL_SUSPENDED) {
        	   
        if(new_state == msaf_api_policy_template_STATE_NULL) {
            policy_template->state = msaf_api_policy_template_STATE_NULL;
@@ -179,18 +179,18 @@ bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template,
 	   return true;
        }
 
-       if(new_state == msaf_api_policy_template_STATE_PENDING) {
-           policy_template->state = msaf_api_policy_template_STATE_PENDING;
+       if(new_state == msaf_api_policy_template_STATE_VAL_PENDING) {
+           policy_template->state = msaf_api_policy_template_STATE_VAL_PENDING;
            msaf_policy_template_set_state_reason(policy_template, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	   return true;
        }
 
-       if(new_state == msaf_api_policy_template_STATE_READY || (new_state == msaf_api_policy_template_STATE_INVALID)) {
+       if(new_state == msaf_api_policy_template_STATE_VAL_READY || (new_state == msaf_api_policy_template_STATE_VAL_INVALID)) {
            ogs_error("Invalid state change");
            return false;
        }
 
-       if(new_state == msaf_api_policy_template_STATE_SUSPENDED) return false;
+       if(new_state == msaf_api_policy_template_STATE_VAL_SUSPENDED) return false;
    }
    return false;
 
@@ -217,7 +217,7 @@ OpenAPI_list_t *get_id_of_policy_templates_in_ready_state(ogs_hash_t *policy_tem
     for (hi = ogs_hash_first(policy_templates);
             hi; hi = ogs_hash_next(hi)) {
         policy_template_node = (msaf_policy_template_node_t *)ogs_hash_this_val(hi);
-        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_READY) {
+        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_VAL_READY) {
             OpenAPI_list_add(valid_policy_template_ids, msaf_strdup(policy_template_node->policy_template->policy_template_id));
         }
     }
@@ -235,7 +235,7 @@ OpenAPI_list_t *get_external_reference_of_policy_templates_in_ready_state(ogs_ha
     for (hi = ogs_hash_first(policy_templates);
             hi; hi = ogs_hash_next(hi)) {
         policy_template_node = (msaf_policy_template_node_t *)ogs_hash_this_val(hi);
-        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_READY) {
+        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_VAL_READY) {
             OpenAPI_list_add(external_references, msaf_strdup(policy_template_node->policy_template->external_reference));
         }
     }

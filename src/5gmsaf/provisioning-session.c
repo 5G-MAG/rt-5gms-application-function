@@ -638,7 +638,7 @@ bool msaf_provisioning_session_add_policy_template(msaf_provisioning_session_t *
 
     ogs_hash_set(provisioning_session->policy_templates, msaf_strdup(id), OGS_HASH_KEY_STRING, msaf_policy_template);
 
-    if(!msaf_provisioning_session_send_policy_template_state_change_event(provisioning_session, msaf_policy_template, msaf_api_policy_template_STATE_PENDING, NULL, NULL))
+    if(!msaf_provisioning_session_send_policy_template_state_change_event(provisioning_session, msaf_policy_template, msaf_api_policy_template_STATE_VAL_PENDING, NULL, NULL))
         return false;
 
     return true;
@@ -657,7 +657,7 @@ bool msaf_provisioning_session_update_policy_template(msaf_provisioning_session_
     msaf_policy_template_free(msaf_policy_template->policy_template);
     msaf_policy_template->policy_template = policy_template;
     msaf_policy_template->policy_template->policy_template_id = policy_template_id;
-    if(!msaf_provisioning_session_send_policy_template_state_change_event(provisioning_session, msaf_policy_template, msaf_api_policy_template_STATE_PENDING, NULL, NULL))
+    if(!msaf_provisioning_session_send_policy_template_state_change_event(provisioning_session, msaf_policy_template, msaf_api_policy_template_STATE_VAL_PENDING, NULL, NULL))
         return false;
 
     return true;

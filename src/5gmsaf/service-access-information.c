@@ -74,7 +74,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     if (provisioning_session->policy_templates) {
         OpenAPI_list_t *policy_templates_svr_list;
         OpenAPI_list_t *policy_template_bindings;
-        msaf_api_sdf_method_e sdf_method = msaf_api_sdf_method__5_TUPLE;
+        msaf_api_sdf_method_e sdf_method = msaf_api_sdf_method_VAL__5_TUPLE;
         OpenAPI_list_t *sdf_methods;
 
         policy_template_bindings = _policy_templates_hash_to_list_of_ready_bindings(provisioning_session->policy_templates);
@@ -142,7 +142,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     /* Create SAI */
     service_access_information = msaf_api_service_access_information_resource_create(
                 msaf_strdup(provisioning_session->provisioningSessionId),
-                msaf_api_provisioning_session_type_DOWNLINK,
+                msaf_api_provisioning_session_type_VAL_DOWNLINK,
                 streaming_access,
                 ccrc /* client_consumption_reporting_configuration */,
                 dpic /* dynamic_policy */,
@@ -204,7 +204,7 @@ static OpenAPI_list_t *_policy_templates_hash_to_list_of_ready_bindings(ogs_hash
     for (hi = ogs_hash_first(policy_templates);
             hi; hi = ogs_hash_next(hi)) {
         policy_template_node = (msaf_policy_template_node_t *)ogs_hash_this_val(hi);
-        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_READY) {
+        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_VAL_READY) {
             policy_template_binding = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_policy_template_bindings_inner_create(msaf_strdup(policy_template_node->policy_template->external_reference), msaf_strdup(policy_template_node->policy_template->policy_template_id));
             OpenAPI_list_add(policy_template_bindings, policy_template_binding);
         }

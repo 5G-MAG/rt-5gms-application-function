@@ -56,9 +56,9 @@ bool local_process_event(msaf_event_t *e)
 			   if(msaf_policy_template->hash) ogs_free(msaf_policy_template->hash);
                            msaf_policy_template->hash  = calculate_policy_template_hash(msaf_policy_template->policy_template);
 		           //MVP: going straight to READY state from PENDING
-			   if(msaf_policy_template->policy_template->state == msaf_api_policy_template_STATE_PENDING) {	
+			   if(msaf_policy_template->policy_template->state == msaf_api_policy_template_STATE_VAL_PENDING) {	
 			       ogs_debug("MVP: set to msaf_api_policy_template_STATE_READY");	   
-			       msaf_provisioning_session_send_policy_template_state_change_event(provisioning_sess, msaf_policy_template, msaf_api_policy_template_STATE_READY, NULL, NULL);
+			       msaf_provisioning_session_send_policy_template_state_change_event(provisioning_sess, msaf_policy_template, msaf_api_policy_template_STATE_VAL_READY, NULL, NULL);
 			   }	
 			   ogs_info("msaf_policy_template->policy_template->state: %d", msaf_policy_template->policy_template->state);
 

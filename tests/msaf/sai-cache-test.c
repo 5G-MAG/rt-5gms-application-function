@@ -65,7 +65,7 @@ static void test_sai_cache_add(abts_case *tc, void *data)
     nac = msaf_api_service_access_information_resource_network_assistance_configuration_create(nac_addresses);
     ABTS_PTR_NOTNULL(tc, nac);
 
-    sai = msaf_api_service_access_information_resource_create(ogs_strdup("Provisioning-Session-Id"), msaf_api_provisioning_session_type_DOWNLINK, streams, NULL, NULL, NULL, nac, NULL);
+    sai = msaf_api_service_access_information_resource_create(ogs_strdup("Provisioning-Session-Id"), msaf_api_provisioning_session_type_VAL_DOWNLINK, streams, NULL, NULL, NULL, nac, NULL);
     ABTS_PTR_NOTNULL(tc, sai);
 
     ABTS_TRUE(tc, msaf_sai_cache_add(cache, true, "af.example.com:443", sai));
