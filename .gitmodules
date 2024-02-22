@@ -1,6 +1,3 @@
-[submodule "subprojects/open5gs"]
-	path = subprojects/open5gs
-	url = https://github.com/open5gs/open5gs.git
 [submodule "subprojects/rt-common-shared"]
 	path = subprojects/rt-common-shared
 	url = https://github.com/5G-MAG/rt-common-shared.git
