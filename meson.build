@@ -11,7 +11,7 @@
 project('rt-5gms-application-function', 'c',
     version : '1.4.0',
     license : '5G-MAG Public',
-    meson_version : '>= 0.59.0',
+    meson_version : '>= 0.63.0',
     default_options : [
         'c_std=gnu89',
     ],
