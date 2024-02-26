@@ -29,6 +29,6 @@ jobs:
           ninja -C build
       - name: Install
         working-directory: build
-        run : sudo meson install --no-rebuild
+        run : sudo `which meson` install --no-rebuild
       - name: Run
         run: /usr/local/bin/open5gs-msafd -h
