@@ -21,14 +21,14 @@ jobs:
         run: |
           sudo apt update
           sudo apt install ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev curl wget default-jdk
-          python -m pip install build
-          python -m pip install meson
+          sudo python -m pip install build meson
+          sudo python -m pip install --upgrade build meson
       - name: Build
         run: |
           meson build
           ninja -C build
       - name: Install
         working-directory: build
-        run : sudo `which meson` install --no-rebuild
+        run : sudo meson install --no-rebuild
       - name: Run
         run: /usr/local/bin/open5gs-msafd -h
