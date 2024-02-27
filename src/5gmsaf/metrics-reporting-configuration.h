@@ -20,18 +20,8 @@ typedef struct msaf_metrics_reporting_configuration_s {
 } msaf_metrics_reporting_configuration_t;
 
 extern ogs_hash_t *msaf_metrics_reporting_map();
-msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration_create(msaf_provisioning_session_t *provisioning_session,
-                                                                                    char *scheme,
-                                                                                    char *data_network_name,
-                                                                                    bool is_reporting_interval,
-                                                                                    int reporting_interval,
-                                                                                    bool is_sample_percentage,
-                                                                                    double sample_percentage,
-                                                                                    OpenAPI_list_t *url_filters,
-                                                                                    int sampling_period,
-                                                                                    OpenAPI_list_t *metrics);
-
-
-extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const char *metrics_configuration_id);
+extern msaf_metrics_reporting_configuration_t* process_and_map_metrics_reporting_configuration(msaf_provisioning_session_t *provisioning_session, msaf_api_metrics_reporting_configuration_t *parsed_config);
+extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const msaf_provisioning_session_t *provisioning_session, const char *metrics_configuration_id);
+extern cJSON *msaf_metrics_reporting_configuration_convertToJSON(const msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration);
 
 #endif //MSAF_METRICS_REPORTING_PROVISIONING_H
