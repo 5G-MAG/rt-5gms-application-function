@@ -20,8 +20,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev meson curl wget default-jdk
-          python -m pip install build
+          sudo apt install ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev curl wget default-jdk
+          sudo python -m pip install build meson
+          sudo python -m pip install --upgrade build meson
       - name: Build
         run: |
           meson build
