@@ -79,37 +79,13 @@ static char *calculate_metrics_reporting_configuration_hash(msaf_api_metrics_rep
      return (msaf_metrics_reporting_configuration_t*)ogs_hash_get(provisioning_session->metrics_reporting_map, metrics_configuration_id, OGS_HASH_KEY_STRING);
  }
 
- cJSON *msaf_metrics_reporting_configuration_convertToJSON(const msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration) {
 
-     if (msaf_metrics_reporting_configuration == NULL || msaf_metrics_reporting_configuration->config == NULL) {
-         ogs_error("msaf_metrics_reporting_configuration_convertToJSON() failed [NULL pointer]");
-         return NULL;
-     }
 
-     cJSON *item = cJSON_CreateObject();
 
-     cJSON *configJSON = msaf_api_metrics_reporting_configuration_convertToJSON(msaf_metrics_reporting_configuration->config, false);
-     if (configJSON == NULL) {
-         ogs_error("msaf_metrics_reporting_configuration_convertToJSON() failed [config conversion]");
-         cJSON_Delete(item);
-         return NULL;
-     }
-     cJSON_AddItemToObject(item, "config", configJSON);
 
-     if (msaf_metrics_reporting_configuration->etag) {
-         if (cJSON_AddStringToObject(item, "etag", msaf_metrics_reporting_configuration->etag) == NULL) {
-             ogs_error("msaf_metrics_reporting_configuration_convertToJSON() failed [etag]");
-             cJSON_Delete(item);
-             return NULL;
-         }
-     }
 
-     if (cJSON_AddNumberToObject(item, "receivedTime", (double)msaf_metrics_reporting_configuration->receivedTime) == NULL) {
-         ogs_error("msaf_metrics_reporting_configuration_convertToJSON() failed [receivedTime]");
-         cJSON_Delete(item);
-         return NULL;
-     }
 
-     return item;
- }
+
+
+
 
