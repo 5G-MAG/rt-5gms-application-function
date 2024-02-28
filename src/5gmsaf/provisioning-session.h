@@ -52,9 +52,9 @@ typedef struct msaf_provisioning_session_s {
     } httpMetadata;
     ogs_hash_t *certificate_map;          //Type: char* => n/a (just used as a set - external tool manages data)
     ogs_hash_t *policy_templates; /* key: policy template id, value: msaf_policy_template_node_t */
+    ogs_hash_t *metrics_reporting_map;
     ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t*
     int marked_for_deletion;
-    ogs_hash_t *metrics_reporting_map;
 } msaf_provisioning_session_t;
 
 typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;
