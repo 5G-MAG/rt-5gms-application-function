@@ -982,29 +982,26 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         if (mrc_json_data) {
                                             char *metrics_response_body = cJSON_Print(mrc_json_data);
 
-                                            //if(metrics_response_body) {
-                                            ogs_sbi_response_t *response;
-                                            response = nf_server_new_response(NULL, "application/json",
-                                                                              metricsReportingConfiguration->receivedTime,
-                                                                              NULL,
-                                                                              msaf_self()->config.server_response_cache_control->m1_metrics_reporting_response_max_age,
-                                                                              NULL, m1_metricsreportingprovisioning_api, app_meta);
-                                            //ogs_assert(response);
-                                            nf_server_populate_response(response, strlen(metrics_response_body), metrics_response_body, 200);
-                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                            response= NULL;
+                                            if(metrics_response_body) {
+                                                ogs_sbi_response_t *response;
+                                                response = nf_server_new_response(NULL, "application/json",
+                                                                                  metricsReportingConfiguration->receivedTime,
+                                                                                  NULL,
+                                                                                  msaf_self()->config.server_response_cache_control->m1_metrics_reporting_response_max_age,
+                                                                                  NULL, m1_metricsreportingprovisioning_api, app_meta);
 
-                                            //ogs_free(metrics_response_body);
-                                            cJSON_Delete(mrc_json_data);
+                                                nf_server_populate_response(response, strlen(metrics_response_body), metrics_response_body, 200);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                response= NULL;
+                                                cJSON_Delete(mrc_json_data);
 
-                                            //}
-
-                                            /*else {
+                                            }
+                                            else {
                                                 char *err = ogs_msprintf("Failed to generate JSON string for Metrics Reporting Configuration");
                                                 ogs_error("%s", err);
                                                 ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Internal Server Error", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
                                                 ogs_free(err);
-                                            }*/
+                                            }
                                         } else {
                                             char *err = ogs_msprintf("Failed to convert Metrics Reporting Configuration to JSON");
                                             ogs_error("%s", err);
