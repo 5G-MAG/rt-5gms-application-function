@@ -125,7 +125,9 @@ components:
         - samplingPeriod
       properties:
         metricsReportingConfigurationId:
-          $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+          readOnly: true
+          allOf:
+            - $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
         scheme:
           $ref: 'TS29571_CommonData.yaml#/components/schemas/Uri'
         dataNetworkName:
