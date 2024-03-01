@@ -1140,6 +1140,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             CASE("consumption-reporting-configuration")
                                 api = m1_consumptionreportingprovisioning_api;
                                 break;
+                            CASE("metrics-reporting-configurations")
+                                api = m1_metricsreportingprovisioning_api;
+                                break;
                             CASE("content-hosting-configuration")
                                 api = m1_contenthostingprovisioning_api;
                                 break;
@@ -1229,6 +1232,48 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                             err, NULL, m1_contenthostingprovisioning_api, app_meta)
                                             );
                                     ogs_free(err);
+                                }
+                            } else if (api == m1_metricsreportingprovisioning_api){
+                                if (message->h.resource.component[3] && !message->h.resource.component[4]) {
+
+                                    msaf_provisioning_session_t *provisioning_session;
+                                    provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+                                    cJSON *json;
+                                    const char *parse_err = NULL;
+                                    char *metrics_reporting_configuration_id = message->h.resource.component[3];
+
+                                    ogs_debug("UPDATE metrics-reporting-configuration");
+
+                                    json = cJSON_Parse(request->http.content);
+                                    if (!json) {
+                                        char *err = ogs_msprintf("Bad request body for updating Metrics Reporting Configuration [%s]", metrics_reporting_configuration_id);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                        ogs_free(err);
+                                    }
+                                    else{
+                                        msaf_api_metrics_reporting_configuration_t *updated_config = msaf_api_metrics_reporting_configuration_parseFromJSON(json, false, &parse_err);
+                                        cJSON_Delete(json);
+
+                                        if (!updated_config) {
+                                            char *err = ogs_msprintf("Unable to parse updated Metrics Reporting Configuration: %s", parse_err);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                            ogs_free(err);
+                                    } else{
+                                            int result = update_metrics_configuration(msaf_provisioning_session, metrics_reporting_configuration_id, updated_config);
+                                            if (result == 0) {
+                                                ogs_sbi_response_t *response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, api, app_meta);
+                                                ogs_assert(response);
+                                                nf_server_populate_response(response, 0, NULL, 200);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                            } else {
+                                                char *err = ogs_msprintf("Failed to update Metrics Reporting Configuration [%s]", metrics_reporting_configuration_id);
+                                                ogs_error("%s", err);
+                                                ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Internal Server Error.", err, NULL, api, app_meta));
+                                                ogs_free(err); }
+                                        }
+                                    }
                                 }
                             } else if (api == m1_servercertificatesprovisioning_api) {
                                 if (message->h.resource.component[3] && !message->h.resource.component[4]) {

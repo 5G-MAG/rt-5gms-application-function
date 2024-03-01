@@ -24,5 +24,6 @@ extern msaf_metrics_reporting_configuration_t* process_and_map_metrics_reporting
 extern msaf_metrics_reporting_configuration_t* msaf_metrics_reporting_configuration_retrieve(const msaf_provisioning_session_t *provisioning_session, const char *metrics_configuration_id);
 extern cJSON *msaf_metrics_reporting_configuration_convertToJSON(const msaf_metrics_reporting_configuration_t *msaf_metrics_reporting_configuration);
 extern int msaf_delete_metrics_configuration(msaf_provisioning_session_t *provisioning_session, const char *metrics_configuration_id);
+extern int update_metrics_configuration(msaf_provisioning_session_t *provisioning_session, const char *metrics_reporting_configuration_id, msaf_api_metrics_reporting_configuration_t *updated_config);
 
 #endif //MSAF_METRICS_REPORTING_PROVISIONING_H
