@@ -79,6 +79,33 @@ static char *calculate_metrics_reporting_configuration_hash(msaf_api_metrics_rep
      return (msaf_metrics_reporting_configuration_t*)ogs_hash_get(provisioning_session->metrics_reporting_map, metrics_configuration_id, OGS_HASH_KEY_STRING);
  }
 
+ int msaf_delete_metrics_configuration(msaf_provisioning_session_t *provisioning_session, const char *metrics_configuration_id) {
+
+     if (!provisioning_session || !metrics_configuration_id) {
+         return NULL;
+     }
+
+     msaf_metrics_reporting_configuration_t *metrics_config = (msaf_metrics_reporting_configuration_t *)ogs_hash_get(provisioning_session->metrics_reporting_map, metrics_configuration_id, OGS_HASH_KEY_STRING);
+
+     if (metrics_config) {
+
+         ogs_hash_set(provisioning_session->metrics_reporting_map, metrics_configuration_id, OGS_HASH_KEY_STRING, NULL);
+
+         if (metrics_config->config) {
+             msaf_api_metrics_reporting_configuration_free(metrics_config->config);
+             metrics_config->config = NULL;
+         }
+
+         if (metrics_config->etag) ogs_free(metrics_config->etag);
+         ogs_free(metrics_config);
+         return 0; } else {
+         ogs_error("Metrics Reporting Configuration with ID %s not found", metrics_configuration_id);
+         return -1;
+     }
+ }
+
+
+
 
 
 

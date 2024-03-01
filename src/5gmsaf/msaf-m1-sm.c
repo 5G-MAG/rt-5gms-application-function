@@ -1458,6 +1458,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             CASE("consumption-reporting-configuration")
                                 api = m1_consumptionreportingprovisioning_api;
                                 break;
+                            CASE("metrics-reporting-configurations")
+                                api = m1_metricsreportingprovisioning_api;
+                                break;
                             CASE("content-hosting-configuration")
                                 api = m1_contenthostingprovisioning_api;
                                 break;
@@ -1571,17 +1574,46 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                             } else {
                                             char *err = NULL;
-                                            err = ogs_msprintf("Provisioning session [%s]: Policy template [%s] does not exist.", 
+                                            err = ogs_msprintf("Provisioning session [%s]: Policy template [%s] does not exist.",
 							    message->h.resource.component[1], message->h.resource.component[3]);
                                             ogs_error("%s", err);
                                             ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Policy template does not exist.", err, NULL, m1_policytemplatesprovisioning_api, app_meta));
                                             ogs_free(err);
 
                                             }
-                                        } 	    
-				    }	    
+                                        }
+				    }
 				}
-			    } else if (api == m1_consumptionreportingprovisioning_api) {
+			    } else if(api == m1_metricsreportingprovisioning_api) {
+                                if (message->h.resource.component[3] && !message->h.resource.component[4]) {
+
+                                    msaf_provisioning_session_t *provisioning_session = NULL;
+                                    provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+
+                                    if (provisioning_session) {
+
+                                        if (msaf_delete_metrics_configuration(provisioning_session, message->h.resource.component[3]) == 0) {
+                                            ogs_sbi_response_t *response;
+                                            response = nf_server_new_response(NULL, "application/json", 0, NULL, 0, NULL, m1_metricsreportingprovisioning_api, app_meta);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        } else {
+                                            char *err = NULL;
+                                            err = ogs_msprintf("Provisioning session [%s]: Metrics Reporting Configuration [%s] does not exist.", message->h.resource.component[1], message->h.resource.component[3]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Metrics Reporting Configuration does not exist.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                            ogs_free(err);
+                                        }
+                                    } else {
+                                        char *err = NULL;
+                                        err = ogs_msprintf("Provisioning session [%s] not found.", message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session not found.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                        ogs_free(err);
+                                    }
+                                }
+                            } else if (api == m1_consumptionreportingprovisioning_api) {
                                 if (!message->h.resource.component[3]) {
                                     /* Delete consumption reporting configuration */
                                     if (msaf_consumption_report_configuration_deregister(provisioning_session)) {
