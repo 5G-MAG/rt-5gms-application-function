@@ -143,7 +143,7 @@ fi
 
 rt_common_shared="$scriptdir/../../subprojects/rt-common-shared"
 
-if ! "$rt_common_shared/open5gs-tools/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -o "$scriptdir/openapi-extra-yaml:$rt_common_shared/5gms/5G_APIs-overrides:$rt_common_shared/open5gs-tools/5G_APIs-overrides" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 6.4.0 -y "$scriptdir/fix_openapi_yaml.py" -p "MSAF_API"; then
+if ! "$rt_common_shared/open5gs-tools/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -o "$scriptdir/openapi-extra-yaml:$scriptdir/5G_APIs-overrides:$rt_common_shared/5gms/5G_APIs-overrides" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 6.4.0 -y "$scriptdir/fix_openapi_yaml.py" -p "MSAF_API"; then
     echo "Error: Failed to generate OpenAPI model" 1>&2
     exit 1
 fi
