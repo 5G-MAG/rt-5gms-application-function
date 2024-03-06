@@ -8,8 +8,8 @@ program. If this file is missing then the license can be retrieved from
 https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 */
 
-#ifndef MSAF_METRICS_REPORTING_PROVISIONING_H
-#define MSAF_METRICS_REPORTING_PROVISIONING_H
+#ifndef MSAF_METRICS_REPORTING_CONFIGURATION_H
+#define MSAF_METRICS_REPORTING_CONFIGURATION_H
 #include "openapi/model/msaf_api_metrics_reporting_configuration.h"
 
 
@@ -26,4 +26,4 @@ extern cJSON *msaf_metrics_reporting_configuration_convertToJSON(const msaf_metr
 extern int msaf_delete_metrics_configuration(msaf_provisioning_session_t *provisioning_session, const char *metrics_configuration_id);
 extern int update_metrics_configuration(msaf_provisioning_session_t *provisioning_session, const char *metrics_reporting_configuration_id, msaf_api_metrics_reporting_configuration_t *updated_config);
 
-#endif //MSAF_METRICS_REPORTING_PROVISIONING_H
+#endif //MSAF_METRICS_REPORTING_CONFIGURATION_H
