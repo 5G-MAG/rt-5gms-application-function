@@ -119,24 +119,23 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
      }
  }
 
- int update_metrics_configuration(msaf_provisioning_session_t *provisioning_session, const char *metrics_reporting_configuration_id, msaf_api_metrics_reporting_configuration_t *updated_config) {
+ int update_metrics_configuration(msaf_metrics_reporting_configuration_t *existing_metrics_config, msaf_api_metrics_reporting_configuration_t *updated_config) {
 
-     ogs_assert(provisioning_session);
-     ogs_assert(metrics_reporting_configuration_id);
-     ogs_assert(updated_config);
-
-     msaf_metrics_reporting_configuration_t *existing_metrics_config = msaf_metrics_reporting_configuration_retrieve(provisioning_session, metrics_reporting_configuration_id);
-
-     if (!existing_metrics_config) {
-         ogs_error("Metrics Reporting Configuration with ID %s not found", metrics_reporting_configuration_id);
+     if (!existing_metrics_config || !updated_config) {
+         ogs_error("Null pointers passed");
          return -1;
      }
 
      msaf_api_metrics_reporting_configuration_free(existing_metrics_config->config);
 
      existing_metrics_config->config = updated_config;
+     if (existing_metrics_config->etag) {
+         ogs_free(existing_metrics_config->etag);
+     }
      existing_metrics_config->etag = calculate_metrics_reporting_configuration_hash(updated_config);
      existing_metrics_config->receivedTime = time(NULL);
 
      return 0;
  }
+
+
