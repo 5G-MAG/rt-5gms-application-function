@@ -15,26 +15,39 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "metrics-reporting-configuration.h"
 
 
-static char *calculate_metrics_reporting_configuration_hash(msaf_api_metrics_reporting_configuration_t *metricsReportingConfiguration);
+ ogs_hash_t * msaf_metrics_reporting_map(void){
+     ogs_hash_t *metrics_reporting_map = ogs_hash_make();
+     return metrics_reporting_map;
+ }
 
-ogs_hash_t * msaf_metrics_reporting_map(void)
-{
-    ogs_hash_t *metrics_reporting_map = ogs_hash_make();
-    return metrics_reporting_map;
-}
+ static char *calculate_metrics_reporting_configuration_hash(msaf_api_metrics_reporting_configuration_t *metrics_reporting_configuration)
+ {
+     if (!metrics_reporting_configuration) {
+         ogs_error("Metrics object not found.");
+         return NULL;
+     }
 
-static char *calculate_metrics_reporting_configuration_hash(msaf_api_metrics_reporting_configuration_t *metricsReportingConfiguration)
-{
-    cJSON *metrics_reporting_config = NULL;
-    char *metricsReportingConfiguration_to_hash;
-    char *metricsReportingConfiguration_hashed = NULL;
-    metrics_reporting_config = msaf_api_metrics_reporting_configuration_convertToJSON(metricsReportingConfiguration, false);
-    metricsReportingConfiguration_to_hash = cJSON_Print(metrics_reporting_config);
-    cJSON_Delete(metrics_reporting_config);
-    metricsReportingConfiguration_hashed = calculate_hash(metricsReportingConfiguration_to_hash);
-    cJSON_free(metricsReportingConfiguration_to_hash);
-    return metricsReportingConfiguration_hashed;
-}
+     cJSON *metrics_configuration_json = msaf_api_metrics_reporting_configuration_convertResponseToJSON(metrics_reporting_configuration);
+
+     if (!metrics_configuration_json) {
+         ogs_error("Conversion to JSON failed.");
+         return NULL;
+     }
+
+     char *metrics_configuration_to_hash = cJSON_PrintUnformatted(metrics_configuration_json);
+
+     if (!metrics_configuration_to_hash) {
+         cJSON_Delete(metrics_configuration_json);
+         return NULL;
+     }
+
+     char *metrics_configuration_hashed = calculate_hash(metrics_configuration_to_hash);
+
+     cJSON_free(metrics_configuration_to_hash);
+     cJSON_Delete(metrics_configuration_json);
+
+     return metrics_configuration_hashed;
+ }
 
  msaf_metrics_reporting_configuration_t* process_and_map_metrics_reporting_configuration(msaf_provisioning_session_t *provisioning_session, msaf_api_metrics_reporting_configuration_t *parsed_config) {
 
@@ -82,7 +95,7 @@ static char *calculate_metrics_reporting_configuration_hash(msaf_api_metrics_rep
  int msaf_delete_metrics_configuration(msaf_provisioning_session_t *provisioning_session, const char *metrics_configuration_id) {
 
      if (!provisioning_session || !metrics_configuration_id) {
-         return NULL;
+         return -1;
      }
 
      msaf_metrics_reporting_configuration_t *metrics_config = (msaf_metrics_reporting_configuration_t *)ogs_hash_get(provisioning_session->metrics_reporting_map, metrics_configuration_id, OGS_HASH_KEY_STRING);
@@ -98,7 +111,9 @@ static char *calculate_metrics_reporting_configuration_hash(msaf_api_metrics_rep
 
          if (metrics_config->etag) ogs_free(metrics_config->etag);
          ogs_free(metrics_config);
-         return 0; } else {
+         return 0;
+     }
+     else {
          ogs_error("Metrics Reporting Configuration with ID %s not found", metrics_configuration_id);
          return -1;
      }
@@ -125,18 +140,3 @@ static char *calculate_metrics_reporting_configuration_hash(msaf_api_metrics_rep
 
      return 0;
  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
