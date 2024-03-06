@@ -1,6 +1,6 @@
 /*
  * License: 5G-MAG Public License (v1.0)
- * Author: David Waring
+ * Author: David Waring <david.waring2@bbc.co.uk>
  * Copyright: (C) 2023 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
@@ -122,7 +122,7 @@ static int _hash_do_callback(void *rec, const void *key, int key_len, const void
 int nf_headers_do(nf_headers_t *headers, nf_headers_do_callback_fn_t *fn, void *user_data)
 {
     hdrs_hash_do_data_t data = {fn, headers, user_data};
-    
+
     return ogs_hash_do(_hash_do_callback, &data, headers->hdrs);
 }
 

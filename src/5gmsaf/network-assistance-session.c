@@ -1,12 +1,13 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2023-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include "utilities.h"
 #include "network-assistance-session.h"
@@ -59,7 +60,7 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
     OpenAPI_list_t *media_component = NULL;
 
     nas =  msaf_api_network_assistance_session_parseRequestFromJSON(network_assistance_sess, NULL);
-    if(!nas) return 0;
+    if (!nas) return 0;
 
     na_sess = msaf_network_assistance_session_init();
     ogs_assert(na_sess);
@@ -75,26 +76,26 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
 
             service_data_flow_description = (msaf_api_service_data_flow_description_t *)node->data;
 
-	    if(service_data_flow_description->domain_name) {
-	        ogs_debug("Service Data Flow Descriptions specified using a domain name are not yet supported by this implementation");
-                msaf_network_assistance_session_remove(na_sess);
-                return 0;		
-	    }	
-		    
-
-	    if(service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
-	        ogs_error("Validation of service data flow description failed: Only one of flowDescription or domainName may be present");
+            if (service_data_flow_description->domain_name) {
+                ogs_debug("Service Data Flow Descriptions specified using a domain name are not yet supported by this implementation");
                 msaf_network_assistance_session_remove(na_sess);
                 return 0;
-	    }
+            }
 
-            if(!service_data_flow_description->flow_description && !service_data_flow_description->domain_name) {
+
+            if (service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
+                ogs_error("Validation of service data flow description failed: Only one of flowDescription or domainName may be present");
+                msaf_network_assistance_session_remove(na_sess);
+                return 0;
+            }
+
+            if (!service_data_flow_description->flow_description && !service_data_flow_description->domain_name) {
                 ogs_error("Validation of service data flow description failed: flowDescription or domainName must be present");
                 msaf_network_assistance_session_remove(na_sess);
                 return 0;
             }
 
-	    if(service_data_flow_description->flow_description){
+            if (service_data_flow_description->flow_description) {
 
                 if (!service_data_flow_description->flow_description->direction) {
                     ogs_error("Validation of service data flow description failed: no flowDescription.direction present");
@@ -148,7 +149,7 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
                 }
                 ue_connection_details_free(ue_connection);
             }
-	}
+        }
     }
     return 1;
 
@@ -164,7 +165,7 @@ int msaf_nw_assistance_session_update(msaf_network_assistance_session_t *msaf_ne
     ogs_assert(network_assistance_session);
 
     if (!msaf_network_assistance_session->pcf_app_session) {
-	    ogs_error("The Network Assistance Session has no associated App Session");
+            ogs_error("The Network Assistance Session has no associated App Session");
         return 0;
     }
 
@@ -173,18 +174,18 @@ int msaf_nw_assistance_session_update(msaf_network_assistance_session_t *msaf_ne
 
             service_data_flow_description = (msaf_api_service_data_flow_description_t *)node->data;
 
-            if(service_data_flow_description->domain_name) {
+            if (service_data_flow_description->domain_name) {
                 ogs_debug("Service Data Flow Descriptions specified using a domain name are not yet supported by this implementation");
                 return 0;
             }
 
 
-            if(service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
+            if (service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
                 ogs_error("Validation of service data flow description failed: Exactly one of flowDescription or domainName must be present");
                 return 0;
             }
 
-            if(service_data_flow_description->flow_description){
+            if (service_data_flow_description->flow_description) {
 
                 if (!service_data_flow_description->flow_description->direction) {
                     ogs_error("The Network Assistance Session has direction in flow description");
@@ -193,18 +194,18 @@ int msaf_nw_assistance_session_update(msaf_network_assistance_session_t *msaf_ne
 
                 media_component = populate_media_component(network_assistance_session->policy_template_id, service_data_flow_description->flow_description, network_assistance_session->requested_qo_s, network_assistance_session->media_type?network_assistance_session->media_type: OpenAPI_media_type_VIDEO);
 
-                if(!pcf_session_update_app_session(msaf_network_assistance_session->pcf_app_session, media_component)) {
+                if (!pcf_session_update_app_session(msaf_network_assistance_session->pcf_app_session, media_component)) {
                     ogs_error("Unable to send update request to the PCF");
                     return 0;
                 }
-	    }
-	}
+            }
+        }
     }
     update_msaf_network_assistance_session_context(msaf_network_assistance_session, network_assistance_session);
     return 1;
 }
 
-void msaf_nw_assistance_session_delivery_boost_update(msaf_network_assistance_session_t *na_sess, msaf_event_t *e){
+void msaf_nw_assistance_session_delivery_boost_update(msaf_network_assistance_session_t *na_sess, msaf_event_t *e) {
 
     OpenAPI_list_t *media_comps;
     char *mir_bw_dl_bit_rate = NULL;
@@ -221,7 +222,7 @@ void msaf_nw_assistance_session_delivery_boost_update(msaf_network_assistance_se
 
         add_delivery_boost_event_metadata_to_na_sess_context(na_sess, e);
 
-        if(!pcf_session_update_app_session(na_sess->pcf_app_session, media_comps)) {
+        if (!pcf_session_update_app_session(na_sess->pcf_app_session, media_comps)) {
             ogs_error("Unable to send update request to the PCF");
             ogs_assert(true == nf_server_send_error(e->h.sbi.data, 401, 0, e->message, "Creation of delivery boost failed.", "Unable to send update request to the PCF" , NULL, e->nf_server_interface_metadata, e->app_meta));
         }
@@ -235,7 +236,7 @@ void msaf_nw_assistance_session_delivery_boost_update(msaf_network_assistance_se
 
 }
 
-void msaf_nw_assistance_session_update_pcf_on_timeout(msaf_network_assistance_session_t *na_sess){
+void msaf_nw_assistance_session_update_pcf_on_timeout(msaf_network_assistance_session_t *na_sess) {
 
     OpenAPI_list_t *media_comps;
     char *mir_bw_dl_bit_rate;
@@ -252,7 +253,7 @@ void msaf_nw_assistance_session_update_pcf_on_timeout(msaf_network_assistance_se
 
         rv = pcf_session_update_app_session(na_sess->pcf_app_session, media_comps);
 
-        if(!rv){
+        if (!rv) {
             ogs_error("Unable to send update request to the PCF");
         } else {
             na_sess->active_delivery_boost = false;
@@ -273,10 +274,10 @@ msaf_network_assistance_session_t *msaf_network_assistance_session_retrieve(cons
     msaf_network_assistance_session_t *na_sess = NULL;
     ogs_list_for_each(&msaf_self()->network_assistance_sessions, na_sess)
     {
-        if(!strcmp(na_sess->naSessionId, na_session_id))
+        if (!strcmp(na_sess->naSessionId, na_session_id))
             break;
     }
-    if(na_sess)
+    if (na_sess)
         return na_sess;
 
     return NULL;
@@ -288,10 +289,10 @@ cJSON *msaf_network_assistance_session_get_json(const char *na_session_id)
     msaf_network_assistance_session_t *na_sess = NULL;
     ogs_list_for_each(&msaf_self()->network_assistance_sessions, na_sess)
     {
-        if(!strcmp(na_sess->naSessionId, na_session_id))
+        if (!strcmp(na_sess->naSessionId, na_session_id))
             break;
     }
-    if(na_sess)
+    if (na_sess)
         return msaf_api_network_assistance_session_convertResponseToJSON(na_sess->NetworkAssistanceSession);
 
     return NULL;
@@ -335,7 +336,7 @@ ue_network_identifier_t *populate_ue_connection_details(msaf_api_service_data_fl
 void msaf_network_assistance_session_remove_all_pcf_app_session(void)
 {
     msaf_pcf_app_session_t *msaf_pcf_app_session = NULL, *next = NULL;
-    ogs_list_for_each_safe(&msaf_self()->delete_pcf_app_sessions, next, msaf_pcf_app_session){
+    ogs_list_for_each_safe(&msaf_self()->delete_pcf_app_sessions, next, msaf_pcf_app_session) {
         ogs_list_remove(&msaf_self()->delete_pcf_app_sessions, msaf_pcf_app_session);
         ogs_free(msaf_pcf_app_session);
     }
@@ -372,7 +373,7 @@ void msaf_network_assistance_session_remove_all()
 {
     msaf_network_assistance_session_t *msaf_network_assistance_session = NULL, *next = NULL;
 
-    ogs_list_for_each_safe(&msaf_self()->network_assistance_sessions, next, msaf_network_assistance_session){
+    ogs_list_for_each_safe(&msaf_self()->network_assistance_sessions, next, msaf_network_assistance_session) {
         ogs_list_remove(&msaf_self()->network_assistance_sessions, msaf_network_assistance_session);
         msaf_network_assistance_session_remove(msaf_network_assistance_session);
     }
@@ -382,8 +383,8 @@ void msaf_network_assistance_session_delete_by_session_id(const char *na_sess_id
 {
     msaf_network_assistance_session_t *msaf_network_assistance_session = NULL, *next = NULL;
 
-    ogs_list_for_each_safe(&msaf_self()->network_assistance_sessions, next, msaf_network_assistance_session){
-        if(!strcmp(msaf_network_assistance_session->naSessionId, na_sess_id)) {
+    ogs_list_for_each_safe(&msaf_self()->network_assistance_sessions, next, msaf_network_assistance_session) {
+        if (!strcmp(msaf_network_assistance_session->naSessionId, na_sess_id)) {
             ogs_list_remove(&msaf_self()->network_assistance_sessions, msaf_network_assistance_session);
             msaf_network_assistance_session_add_to_delete_list(msaf_network_assistance_session->pcf_app_session);
             msaf_network_assistance_session_remove(msaf_network_assistance_session);
@@ -394,7 +395,7 @@ void msaf_network_assistance_session_delete_by_session_id(const char *na_sess_id
 
 /*Private functions */
 
-static msaf_network_assistance_session_t *msaf_network_assistance_session_init(void){
+static msaf_network_assistance_session_t *msaf_network_assistance_session_init(void) {
 
     msaf_network_assistance_session_t *na_sess;
     na_sess = ogs_calloc(1, sizeof(msaf_network_assistance_session_t));
@@ -427,7 +428,7 @@ static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_a
         char *remote_addr;
         char *remote_port;
 
-        if(!strcmp(flow_description->direction, "UPLINK")){
+        if (!strcmp(flow_description->direction, "UPLINK")) {
             remote_addr = flow_description->dst_ip?flow_description->dst_ip:"any";
             remote_port = flow_description_port(flow_description->dst_port);
 
@@ -436,7 +437,7 @@ static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_a
 
         }
 
-        if(!strcmp(flow_description->direction, "DOWNLINK")){
+        if (!strcmp(flow_description->direction, "DOWNLINK")) {
 
             remote_addr = flow_description->src_ip?flow_description->src_ip:"any";
             remote_port = flow_description_port(flow_description->src_port);
@@ -512,8 +513,8 @@ static void msaf_network_assistance_session_add_to_delete_list(pcf_app_session_t
 static void msaf_network_assistance_session_remove_from_delete_list(void)
 {
     msaf_pcf_app_session_t *msaf_pcf_app_session = NULL, *next = NULL;
-    ogs_list_for_each_safe(&msaf_self()->delete_pcf_app_sessions, next, msaf_pcf_app_session){
-        if(!msaf_pcf_app_session->pcf_app_session){
+    ogs_list_for_each_safe(&msaf_self()->delete_pcf_app_sessions, next, msaf_pcf_app_session) {
+        if (!msaf_pcf_app_session->pcf_app_session) {
             ogs_list_remove(&msaf_self()->delete_pcf_app_sessions, msaf_pcf_app_session);
             ogs_free(msaf_pcf_app_session);
         }
@@ -524,8 +525,8 @@ static void msaf_network_assistance_session_remove_from_delete_list(void)
 static void msaf_pcf_app_session_free(void)
 {
         msaf_pcf_app_session_t *msaf_pcf_app_session;
-        ogs_list_for_each(&msaf_self()->delete_pcf_app_sessions, msaf_pcf_app_session){
-            if(msaf_pcf_app_session->pcf_app_session)
+        ogs_list_for_each(&msaf_self()->delete_pcf_app_sessions, msaf_pcf_app_session) {
+            if (msaf_pcf_app_session->pcf_app_session)
             {
                 pcf_app_session_free(msaf_pcf_app_session->pcf_app_session);
                 msaf_pcf_app_session->pcf_app_session = NULL;
@@ -572,10 +573,10 @@ static ue_network_identifier_t *copy_ue_network_connection_identifier(const ue_n
     ue_net_connection_copy = ogs_calloc(1, sizeof(ue_network_identifier_t));
     if (ue_net_connection_copy) {
         if (ue_net_connection->address) ogs_copyaddrinfo(&ue_net_connection_copy->address, ue_net_connection->address);
-        if (ue_net_connection->supi) ue_net_connection_copy->supi = ogs_strdup(ue_net_connection->supi);
-        if (ue_net_connection->gpsi) ue_net_connection_copy->gpsi = ogs_strdup(ue_net_connection->gpsi);
-        if (ue_net_connection->dnn) ue_net_connection_copy->dnn = ogs_strdup(ue_net_connection->dnn);
-        if (ue_net_connection->ip_domain) ue_net_connection_copy->ip_domain = ogs_strdup(ue_net_connection->ip_domain);
+        ue_net_connection_copy->supi = msaf_strdup(ue_net_connection->supi);
+        ue_net_connection_copy->gpsi = msaf_strdup(ue_net_connection->gpsi);
+        ue_net_connection_copy->dnn = msaf_strdup(ue_net_connection->dnn);
+        ue_net_connection_copy->ip_domain = msaf_strdup(ue_net_connection->ip_domain);
     }
     return  ue_net_connection_copy;
 }
@@ -591,21 +592,21 @@ static void free_ue_network_connection_identifier(ue_network_identifier_t *ue_ne
     ogs_free(ue_net_connection);
 }
 
-static void msaf_network_assistance_session_remove(msaf_network_assistance_session_t *msaf_network_assistance_session){
+static void msaf_network_assistance_session_remove(msaf_network_assistance_session_t *msaf_network_assistance_session) {
     ogs_assert(msaf_network_assistance_session);
 
-    if(msaf_network_assistance_session->naSessionId) {
+    if (msaf_network_assistance_session->naSessionId) {
         ogs_free(msaf_network_assistance_session->naSessionId);
         msaf_network_assistance_session->naSessionId = NULL;
     }
 
-    if(msaf_network_assistance_session->NetworkAssistanceSession) msaf_api_network_assistance_session_free(msaf_network_assistance_session->NetworkAssistanceSession);
-    if(msaf_network_assistance_session->metadata){
-        if(msaf_network_assistance_session->metadata->create_event) msaf_event_free(msaf_network_assistance_session->metadata->create_event);
-        if(msaf_network_assistance_session->metadata->delivery_boost) msaf_event_free(msaf_network_assistance_session->metadata->delivery_boost);
+    if (msaf_network_assistance_session->NetworkAssistanceSession) msaf_api_network_assistance_session_free(msaf_network_assistance_session->NetworkAssistanceSession);
+    if (msaf_network_assistance_session->metadata) {
+        if (msaf_network_assistance_session->metadata->create_event) msaf_event_free(msaf_network_assistance_session->metadata->create_event);
+        if (msaf_network_assistance_session->metadata->delivery_boost) msaf_event_free(msaf_network_assistance_session->metadata->delivery_boost);
         ogs_free(msaf_network_assistance_session->metadata);
     }
-    if(msaf_network_assistance_session->delivery_boost_timer)
+    if (msaf_network_assistance_session->delivery_boost_timer)
         ogs_timer_delete(msaf_network_assistance_session->delivery_boost_timer);
 
     ogs_free(msaf_network_assistance_session);
@@ -613,22 +614,22 @@ static void msaf_network_assistance_session_remove(msaf_network_assistance_sessi
 }
 
 static void ue_connection_details_free(ue_network_identifier_t *ue_connection) {
-    if(ue_connection->address) ogs_freeaddrinfo(ue_connection->address);
-    if(ue_connection->ip_domain) ogs_free(ue_connection->ip_domain);
+    if (ue_connection->address) ogs_freeaddrinfo(ue_connection->address);
+    if (ue_connection->ip_domain) ogs_free(ue_connection->ip_domain);
     ogs_free(ue_connection);
 
 }
 
-static bool app_session_change_callback(pcf_app_session_t *app_session, void *data){
+static bool app_session_change_callback(pcf_app_session_t *app_session, void *data) {
 
     msaf_network_assistance_session_t *na_sess;
     ogs_debug("change callback(app_session=%p, data=%p)", app_session, data);
 
     na_sess = (msaf_network_assistance_session_t *)data;
 
-    if(!app_session){
+    if (!app_session) {
 
-        if(na_sess->metadata->create_event)
+        if (na_sess->metadata->create_event)
         {
             /*
             ogs_assert(true == nf_server_send_error(na_sess->create_event->h.sbi.data, 401, 0, na_sess->create_event->message, "Creation of the Network Assistance Session failed.", "PCF App Session creation failed" , NULL, na_sess->create_event->local.nf_server_interface_metadata, na_sess->create_event->local.app_meta));
@@ -638,7 +639,7 @@ static bool app_session_change_callback(pcf_app_session_t *app_session, void *da
 
         }
 
-        if(na_sess->metadata->delivery_boost){
+        if (na_sess->metadata->delivery_boost) {
             delivery_boost_send_response(na_sess);
             return false;
         }
@@ -648,13 +649,13 @@ static bool app_session_change_callback(pcf_app_session_t *app_session, void *da
         return false;
     }
 
-    if(app_session && na_sess->metadata->create_event){
+    if (app_session && na_sess->metadata->create_event) {
         na_sess->pcf_app_session = app_session;
         create_msaf_na_sess_and_send_response(na_sess);
         return true;
     }
 
-    if(app_session && na_sess->metadata->delivery_boost) {
+    if (app_session && na_sess->metadata->delivery_boost) {
         ogs_info("Callback from PCF Update");
         activate_delivery_boost_and_send_response(na_sess);
         return true;
@@ -683,15 +684,15 @@ static void activate_delivery_boost_and_send_response(msaf_network_assistance_se
 
     response = nf_server_new_response(NULL, "application/json", 0, NULL, cache_control_max_age, NULL, na_sess->metadata->delivery_boost->nf_server_interface_metadata, na_sess->metadata->delivery_boost->app_meta);
     ogs_assert(response);
-    nf_server_populate_response(response, strlen(success_response), ogs_strdup(success_response), response_code);
+    nf_server_populate_response(response, strlen(success_response), msaf_strdup(success_response), response_code);
     ogs_assert(true == ogs_sbi_server_send_response(na_sess->metadata->delivery_boost->h.sbi.data, response));
 
-    if(!na_sess->delivery_boost_timer) na_sess->delivery_boost_timer = ogs_timer_add(ogs_app()->timer_mgr, msaf_timer_delivery_boost, na_sess);
+    if (!na_sess->delivery_boost_timer) na_sess->delivery_boost_timer = ogs_timer_add(ogs_app()->timer_mgr, msaf_timer_delivery_boost, na_sess);
 
     if (na_sess->delivery_boost_timer) {
             ogs_timer_start(na_sess->delivery_boost_timer, ogs_time_from_sec(msaf_self()->config.network_assistance_delivery_boost->delivery_boost_period));
     }
-    if(na_sess->metadata->delivery_boost)
+    if (na_sess->metadata->delivery_boost)
     {
         msaf_event_free(na_sess->metadata->delivery_boost);
         na_sess->metadata->delivery_boost =  NULL;
@@ -724,7 +725,7 @@ static void delivery_boost_send_response(msaf_network_assistance_session_t *na_s
 
     response = nf_server_new_response(NULL, "application/json", 0, NULL, 0, NULL, na_sess->metadata->delivery_boost->nf_server_interface_metadata, na_sess->metadata->delivery_boost->app_meta);
     ogs_assert(response);
-    nf_server_populate_response(response, strlen(success_response), ogs_strdup(success_response), response_code);
+    nf_server_populate_response(response, strlen(success_response), msaf_strdup(success_response), response_code);
     ogs_assert(true == ogs_sbi_server_send_response(na_sess->metadata->delivery_boost->h.sbi.data, response));
 
     cJSON_Delete(op_success_response);
@@ -734,7 +735,7 @@ static void delivery_boost_send_response(msaf_network_assistance_session_t *na_s
 }
 
 
-static bool create_msaf_na_sess_and_send_response(msaf_network_assistance_session_t *na_sess){
+static bool create_msaf_na_sess_and_send_response(msaf_network_assistance_session_t *na_sess) {
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
     ogs_sbi_response_t *response;
@@ -763,7 +764,7 @@ static bool create_msaf_na_sess_and_send_response(msaf_network_assistance_sessio
     nf_server_populate_response(response, response_body?strlen(response_body):0, msaf_strdup(response_body), response_code);
     ogs_assert(true == ogs_sbi_server_send_response(na_sess->metadata->create_event->h.sbi.data, response));
 
-    if(na_sess->metadata->create_event)
+    if (na_sess->metadata->create_event)
     {
         msaf_event_free(na_sess->metadata->create_event);
         na_sess->metadata->create_event =  NULL;
@@ -802,7 +803,7 @@ static bool app_session_notification_callback(pcf_app_session_t *app_session, co
     return true;
 }
 
-static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding, void *data){
+static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding, void *data) {
     int rv;
     int valid_time = 50;
     ogs_time_t expires;
@@ -816,20 +817,20 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
 
     ogs_assert(ue_address);
 
-    if(pcf_binding){
+    if (pcf_binding) {
         const ogs_sockaddr_t *pcf_address;
         expires = ogs_time_now() + ogs_time_from_sec(valid_time);
         rv =  msaf_pcf_cache_add(msaf_self()->pcf_cache, ue_address, (const OpenAPI_pcf_binding_t *)pcf_binding, expires);
         OpenAPI_pcf_binding_free(pcf_binding);
 
 
-        if (rv != true){
+        if (rv != true) {
             ogs_error("Adding PCF Binding to the cache failed");
             retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
             return false;
         }
         pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, retrieve_pcf_binding_cb_data->ue_connection->address);
-        if(pcf_address){
+        if (pcf_address) {
             create_pcf_app_session(pcf_address, retrieve_pcf_binding_cb_data->ue_connection, retrieve_pcf_binding_cb_data->media_component, retrieve_pcf_binding_cb_data->na_sess);
             retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
             return true;
@@ -878,12 +879,12 @@ static void retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data_t *cb
 
 static void add_create_event_metadata_to_na_sess_context(msaf_network_assistance_session_t *na_sess, msaf_event_t *e)
 {
-  //if(na_sess->metadata->create_event) msaf_event_free(na_sess->metadata->create_event);
+  //if (na_sess->metadata->create_event) msaf_event_free(na_sess->metadata->create_event);
   na_sess->metadata = ogs_calloc(1, sizeof(msaf_network_assistance_session_internal_metadata_t));
   na_sess->metadata->create_event =  e;
 }
 
-static void add_delivery_boost_event_metadata_to_na_sess_context(msaf_network_assistance_session_t *na_sess, msaf_event_t *e){
+static void add_delivery_boost_event_metadata_to_na_sess_context(msaf_network_assistance_session_t *na_sess, msaf_event_t *e) {
     na_sess->metadata->delivery_boost = e;
 }
 
@@ -909,7 +910,7 @@ static char *flow_description_protocol_to_string(int protocol)
 
 static char *flow_description_port(int port)
 {
-    if (port == 0) return ogs_strdup("");
+    if (port == 0) return msaf_strdup("");
     return ogs_msprintf(" %d", port);
 }
 

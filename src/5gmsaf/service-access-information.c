@@ -1,12 +1,13 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2022-2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2022-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include <libgen.h>
 #include <stdio.h>
@@ -56,12 +57,12 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                     OpenAPI_lnode_t *prof_node;
                     m5_profiles = OpenAPI_list_create();
                     OpenAPI_list_for_each(dist_conf->entry_point->profiles, prof_node) {
-                        OpenAPI_list_add(m5_profiles, ogs_strdup(prof_node->data));
+                        OpenAPI_list_add(m5_profiles, msaf_strdup(prof_node->data));
                     }
                 }
 
                 url = ogs_msprintf("%s%s", dist_conf->base_url, dist_conf->entry_point->relative_path);
-                m5_entry = msaf_api_m5_media_entry_point_create(url, ogs_strdup(dist_conf->entry_point->content_type), m5_profiles);
+                m5_entry = msaf_api_m5_media_entry_point_create(url, msaf_strdup(dist_conf->entry_point->content_type), m5_profiles);
                 ogs_assert(m5_entry);
                 if (!entry_points) entry_points = OpenAPI_list_create();
                 OpenAPI_list_add(entry_points, m5_entry);
@@ -91,7 +92,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 sdf_methods = OpenAPI_list_create();
                 ogs_assert(sdf_methods);
                 OpenAPI_list_add(sdf_methods, (void *)sdf_method);
-        
+
                 dpic = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_create(
                             policy_templates_svr_list, policy_template_bindings, sdf_methods);
             } else {
@@ -161,8 +162,8 @@ const msaf_sai_cache_entry_t *msaf_context_retrieve_service_access_information(c
     const msaf_sai_cache_entry_t *sai_entry = NULL;
 
     provisioning_session_context = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
-    if (provisioning_session_context == NULL){
-        ogs_error("Couldn't find the Provisioning Session ID [%s]", provisioning_session_id);    
+    if (provisioning_session_context == NULL) {
+        ogs_error("Couldn't find the Provisioning Session ID [%s]", provisioning_session_id);
         return NULL;
     }
 
@@ -185,7 +186,7 @@ const msaf_sai_cache_entry_t *msaf_context_retrieve_service_access_information(c
         ogs_debug("Found existing SAI cache entry");
     }
 
-    if (sai_entry == NULL){
+    if (sai_entry == NULL) {
        ogs_error("The provisioning Session [%s] does not have an associated Service Access Information", provisioning_session_id);
     }
 

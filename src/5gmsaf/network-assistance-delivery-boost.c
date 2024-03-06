@@ -1,12 +1,13 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2023-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include "context.h"
 #include "network-assistance-delivery-boost.h"
@@ -35,12 +36,12 @@ void msaf_network_assistance_delivery_boost_free(void) {
 }
 
 int is_ue_allowed_to_request_delivery_boost(msaf_network_assistance_session_t *na_sess) {
-    
-    if(na_sess->active_delivery_boost)
-	    return 0;
+
+    if (na_sess->active_delivery_boost)
+            return 0;
 
     //Placeholder to implement any further restrictions here
-    
+
     return 1;
 }
 

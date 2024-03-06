@@ -2,7 +2,8 @@
  * Copyright (C) 2019-2022 by Sukchan Lee <acetcom@gmail.com>
  * Copyright (C) 2023 British Broadcasting Corporation
  *
- * Authors: Sukchan Lee & Dev Audsin
+ * Authors: Sukchan Lee <acetcom@gmail.com>
+ *          Dev Audsin <dev.audsin@bbc.co.uk>
  *
  * This file is derived from Open5GS with additions by the BBC for 5G-MAG.
  *
@@ -42,7 +43,7 @@ const char *msaf_timer_get_name(int timer_id)
         return OGS_TIMER_NAME_SBI_CLIENT_WAIT;
     case MSAF_TIMER_DELIVERY_BOOST:
         return "MSAF_TIMER_DELIVERY_BOOST";
-    default: 
+    default:
        break;
     }
 

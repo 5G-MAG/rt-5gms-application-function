@@ -1,12 +1,12 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Author: Dev Audsin <dev.audsin@bbc.co.uk>
+ * Copyright: (C) 2023 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #ifndef MSAF_NETWORK_ASSISTANCE_DELIVERY_BOOST_H
 #define MSAF_NETWORK_ASSISTANCE_DELIVERY_BOOST_H
@@ -20,7 +20,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 extern "C" {
 #endif
 
-typedef struct msaf_network_assistance_session_s msaf_network_assistance_session_t;	
+typedef struct msaf_network_assistance_session_s msaf_network_assistance_session_t;
 
 typedef struct msaf_network_assistance_delivery_boost_s {
     uint64_t delivery_boost_min_dl_bit_rate;

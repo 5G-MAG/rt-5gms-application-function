@@ -1,12 +1,12 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: David Waring
-Copyright: (C) 2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Author: David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2023 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include "ogs-core.h"
 
@@ -81,7 +81,7 @@ bool msaf_consumption_report_configuration_deregister(msaf_provisioning_session_
         ogs_free(session->httpMetadata.consumptionReportingConfiguration.hash);
         session->httpMetadata.consumptionReportingConfiguration.hash = NULL;
     }
-    
+
     session->httpMetadata.consumptionReportingConfiguration.received = 0;
 
     msaf_sai_cache_clear(session->sai_cache);
@@ -126,7 +126,7 @@ char *msaf_consumption_report_configuration_body(msaf_provisioning_session_t *se
 {
     cJSON *json;
     char *body;
-    
+
     ogs_assert(session);
 
     if (!session->consumptionReportingConfiguration) return NULL;

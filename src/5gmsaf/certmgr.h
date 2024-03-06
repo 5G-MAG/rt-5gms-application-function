@@ -1,6 +1,6 @@
 /*
  * License: 5G-MAG Public License (v1.0)
- * Author: Dev Audsin
+ * Author: Dev Audsin <dev.audsin@bbc.co.uk>
  * Copyright: (C) 2022 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this

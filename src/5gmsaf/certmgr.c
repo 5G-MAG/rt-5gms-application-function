@@ -1,7 +1,8 @@
 /*
  * License: 5G-MAG Public License (v1.0)
- * Authors: Dev Audsin & David Waring
- * Copyright: (C) 2023 British Broadcasting Corporation
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2023-2024 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
  * program. If this file is missing then the license can be retrieved from
@@ -41,7 +42,7 @@ int server_cert_delete(const char *certid)
     out = ogs_proc_stdout(current);
     ogs_assert(out);
 
-    while(fgets(buf, OGS_HUGE_LEN, out)) {
+    while (fgets(buf, OGS_HUGE_LEN, out)) {
         printf("%s", buf);
     }
     ret = ogs_proc_join(current, &out_return_code);
@@ -84,9 +85,9 @@ msaf_certificate_t *server_cert_retrieve(const char *certid)
     cert = ogs_calloc(1, 4096);
     cert_reserved = 4096;
 
-    while(fgets(buf, OGS_HUGE_LEN, out)) {
+    while (fgets(buf, OGS_HUGE_LEN, out)) {
         cert_size += strlen (buf);
-        if(cert_size > cert_reserved - 1) {
+        if (cert_size > cert_reserved - 1) {
             cert_reserved +=4096;
             cert = ogs_realloc(cert,cert_reserved);
         }
@@ -98,7 +99,7 @@ msaf_certificate_t *server_cert_retrieve(const char *certid)
     ogs_assert(ret == 0);
     ogs_free(current);
 
-    if(out_return_code == 0 || out_return_code == 4 || out_return_code == 8){
+    if (out_return_code == 0 || out_return_code == 4 || out_return_code == 8) {
         msaf_certificate = msaf_certificate_populate(certid, cert, out_return_code);
         ogs_assert(msaf_certificate);
     }
@@ -136,9 +137,9 @@ msaf_certificate_t *server_cert_get_servercert(const char *certid)
     cert = ogs_calloc(1, 4096);
     cert_reserved = 4096;
 
-    while(fgets(buf, OGS_HUGE_LEN, out)) {
+    while (fgets(buf, OGS_HUGE_LEN, out)) {
         cert_size += strlen (buf);
-        if(cert_size > cert_reserved - 1) {
+        if (cert_size > cert_reserved - 1) {
             cert_reserved +=4096;
             cert = ogs_realloc(cert,cert_reserved);
         }
@@ -150,7 +151,7 @@ msaf_certificate_t *server_cert_get_servercert(const char *certid)
     ogs_assert(ret == 0);
     ogs_free(current);
 
-    if(!out_return_code){
+    if (!out_return_code) {
         msaf_certificate = msaf_certificate_populate(certid, cert, out_return_code);
         ogs_assert(msaf_certificate);
     }
@@ -244,9 +245,9 @@ msaf_certificate_t *server_cert_new(const char *operation, const char *common_na
     cert = ogs_calloc(1, 4096);
     cert_reserved = 4096;
 
-    while(fgets(buf, OGS_HUGE_LEN, out)) {
+    while (fgets(buf, OGS_HUGE_LEN, out)) {
         cert_size += strlen (buf);
-        if(cert_size > cert_reserved - 1) {
+        if (cert_size > cert_reserved - 1) {
             cert_reserved =+ 4096;
             cert = ogs_realloc(cert,cert_reserved);
         }
@@ -289,7 +290,7 @@ char *check_in_cert_list(const char *canonical_domain_name)
     out = ogs_proc_stdout(current);
     ogs_assert(out);
 
-    while(fgets(buf, OGS_HUGE_LEN, out)) {
+    while (fgets(buf, OGS_HUGE_LEN, out)) {
 
         ogs_debug("buf=\"%s\", canonical_domain_name=\"%s\"", buf, canonical_domain_name);
         if (str_match(buf, canonical_domain_name)) {
