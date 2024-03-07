@@ -1753,6 +1753,32 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                             }
 
+                                        } else if (!strcmp(message->h.resource.component[2], "metrics-reporting-configurations")) {
+                                            if (message->h.resource.component[3]) {
+                                                msaf_metrics_reporting_configuration_t *metrics_configuration = msaf_metrics_reporting_configuration_retrieve(provisioning_session, message->h.resource.component[3]);
+
+                                                if (!metrics_configuration) {
+                                                    char *err = ogs_msprintf("Metrics Reporting Configuration [%s] does not exist", message->h.resource.component[3]);
+                                                    ogs_error("%s", err);
+                                                    ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Metrics Reporting Configuration does not exist.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
+                                                    ogs_free(err);
+                                                } else {
+                                                    char *methods = ogs_msprintf("%s, %s, %s, %s", OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                                    ogs_sbi_response_t *response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, methods, m1_metricsreportingprovisioning_api, app_meta);
+                                                    nf_server_populate_response(response, 0, NULL, 204);
+                                                    ogs_assert(response);
+                                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                    ogs_free(methods);
+                                                    msaf_api_metrics_reporting_configuration_free(metrics_configuration->config);
+                                                }
+                                            } else {
+                                                char *methods = ogs_msprintf("%s", OGS_SBI_HTTP_METHOD_POST);
+                                                ogs_sbi_response_t *response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, methods, m1_metricsreportingprovisioning_api, app_meta);
+                                                nf_server_populate_response(response, 0, NULL, 204);
+                                                ogs_assert(response);
+                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                                ogs_free(methods);
+                                            }
                                         } else if (!strcmp(message->h.resource.component[2],"content-hosting-configuration")) {
                                             methods = ogs_msprintf("%s, %s, %s, %s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
                                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_contenthostingprovisioning_api, app_meta);
@@ -1766,12 +1792,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                    OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
                                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods,
                                                                               m1_consumptionreportingprovisioning_api, app_meta);
-                                            nf_server_populate_response(response, 0, NULL, 204);
-                                            ogs_assert(response);
-                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                        } else if (!strcmp(message->h.resource.component[2], "metrics-reporting-configurations")){
-                                            methods = ogs_msprintf("%s, %s, %s, %s, %s", OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
-                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_metricsreportingprovisioning_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
