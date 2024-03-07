@@ -24,8 +24,8 @@ static bool nf_build_content(ogs_sbi_http_message_t *http, ogs_sbi_message_t *me
 
 static char *nf_build_json(ogs_sbi_message_t *message);
 
-ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, time_t last_modified, char *etag,
-        int cache_control, char *allow_methods, const nf_server_interface_metadata_t *interface,
+ogs_sbi_response_t *nf_server_new_response(const char *location, const char *content_type, time_t last_modified, const char *etag,
+        int cache_control, const char *allow_methods, const nf_server_interface_metadata_t *interface,
         const nf_server_app_metadata_t *app)
 {
     ogs_sbi_response_t *response = NULL;
