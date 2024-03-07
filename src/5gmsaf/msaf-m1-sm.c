@@ -943,9 +943,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                 ogs_debug("GET metrics-reporting-configuration");
 
-                                msaf_provisioning_session_t *msaf_provisioning_session;
-                                msaf_provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-
                                 msaf_metrics_reporting_configuration_t *metricsReportingConfiguration;
                                 metricsReportingConfiguration = msaf_metrics_reporting_configuration_retrieve(msaf_provisioning_session, message->h.resource.component[3]);
 
@@ -958,7 +955,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 else {
                                     cJSON *mrc_json_data = msaf_api_metrics_reporting_configuration_convertResponseToJSON(metricsReportingConfiguration->config);
                                     if (mrc_json_data) {
-
                                         char *metrics_response_body = cJSON_Print(mrc_json_data);
                                         if(metrics_response_body) {
                                             ogs_debug("Retrieved Metrics Reporting Configuration:\n%s", metrics_response_body);
@@ -971,7 +967,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             nf_server_populate_response(response, strlen(metrics_response_body), metrics_response_body, 200);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                             response= NULL;
-                                            cJSON_free(metrics_response_body);
                                             cJSON_Delete(mrc_json_data);
                                         }
                                         else {
@@ -1613,9 +1608,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 			    } else if(api == m1_metricsreportingprovisioning_api) {
                                 if (message->h.resource.component[3] && !message->h.resource.component[4]) {
 
-                                    msaf_provisioning_session_t *provisioning_session = NULL;
-                                    provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
-
                                     if (msaf_delete_metrics_configuration(provisioning_session, message->h.resource.component[3]) == 0) {
                                         ogs_sbi_response_t *response;
                                         response = nf_server_new_response(NULL, "application/json", 0, NULL, 0, NULL, m1_metricsreportingprovisioning_api, app_meta);
@@ -1774,6 +1766,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                    OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
                                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods,
                                                                               m1_consumptionreportingprovisioning_api, app_meta);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        } else if (!strcmp(message->h.resource.component[2], "metrics-reporting-configurations")){
+                                            methods = ogs_msprintf("%s, %s, %s, %s, %s", OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_metricsreportingprovisioning_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));

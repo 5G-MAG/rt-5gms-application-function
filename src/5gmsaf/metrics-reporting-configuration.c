@@ -125,10 +125,16 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
          ogs_error("Null pointers passed");
          return -1;
      }
+     if (existing_metrics_config->config->metrics_reporting_configuration_id) {
+         if (updated_config->metrics_reporting_configuration_id) {
+             ogs_free(updated_config->metrics_reporting_configuration_id);
+         }
+         updated_config->metrics_reporting_configuration_id = msaf_strdup(existing_metrics_config->config->metrics_reporting_configuration_id);
+     }
 
      msaf_api_metrics_reporting_configuration_free(existing_metrics_config->config);
-
      existing_metrics_config->config = updated_config;
+
      if (existing_metrics_config->etag) {
          ogs_free(existing_metrics_config->etag);
      }
