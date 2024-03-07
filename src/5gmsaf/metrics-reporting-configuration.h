@@ -1,12 +1,12 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Vuk Stojkovic
-Copyright: (C) 2023-2024 Fraunhofer Fokus
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Author: Vuk Stojkovic
+ * Copyright: (C) 2023-2024 Fraunhofer Fokus
+ * 
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #ifndef MSAF_METRICS_REPORTING_CONFIGURATION_H
 #define MSAF_METRICS_REPORTING_CONFIGURATION_H
