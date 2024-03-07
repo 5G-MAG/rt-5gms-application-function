@@ -1625,7 +1625,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                         if (!strcmp(message->h.resource.component[0],"provisioning-sessions")) {
                             ogs_sbi_response_t *response;
-                            char *methods = NULL;
 
                             if (message->h.resource.component[1]) {
                                 msaf_provisioning_session_t *provisioning_session = NULL;
@@ -1638,12 +1637,14 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 msaf_policy_template_node_t *msaf_policy_template;
                                                 msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(provisioning_session, message->h.resource.component[3]);
                                                 if (msaf_policy_template) {
-                                                    methods = ogs_msprintf("%s, %s, %s, %s",OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                                    static const char methods[] = OGS_SBI_HTTP_METHOD_GET ", "
+                                                                                  OGS_SBI_HTTP_METHOD_PUT ", "
+                                                                                  OGS_SBI_HTTP_METHOD_DELETE ", "
+                                                                                  OGS_SBI_HTTP_METHOD_OPTIONS;
                                                     response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_policytemplatesprovisioning_api, app_meta);
                                                     nf_server_populate_response(response, 0, NULL, 204);
                                                     ogs_assert(response);
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-
                                                 } else {
                                                     char *err;
                                                     err = ogs_msprintf("Policy template [%s] does not exists", message->h.resource.component[3]);
@@ -1654,7 +1655,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 }
 
                                             } else {
-                                                methods = ogs_msprintf("%s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                                static const char methods[] = OGS_SBI_HTTP_METHOD_POST ", "
+                                                                              OGS_SBI_HTTP_METHOD_OPTIONS;
                                                 response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_policytemplatesprovisioning_api, app_meta);
                                                 nf_server_populate_response(response, 0, NULL, 204);
                                                 ogs_assert(response);
@@ -1666,7 +1668,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 msaf_certificate_t *cert;
                                                 cert = server_cert_retrieve(message->h.resource.component[3]);
                                                 if (cert) {
-                                                    methods = ogs_msprintf("%s, %s, %s, %s",OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                                    static const char methods[] = OGS_SBI_HTTP_METHOD_GET ", "
+                                                                                  OGS_SBI_HTTP_METHOD_PUT ", "
+                                                                                  OGS_SBI_HTTP_METHOD_DELETE ", "
+                                                                                  OGS_SBI_HTTP_METHOD_OPTIONS;
                                                     response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_servercertificatesprovisioning_api, app_meta);
                                                     nf_server_populate_response(response, 0, NULL, 204);
                                                     ogs_assert(response);
@@ -1681,7 +1686,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     break;
                                                 }
                                             } else {
-                                                methods = ogs_msprintf("%s",OGS_SBI_HTTP_METHOD_POST);
+                                                static const char methods[] = OGS_SBI_HTTP_METHOD_POST;
                                                 response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_servercertificatesprovisioning_api, app_meta);
                                                 nf_server_populate_response(response, 0, NULL, 204);
                                                 ogs_assert(response);
@@ -1698,42 +1703,51 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                     ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Metrics Reporting Configuration does not exist.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
                                                     ogs_free(err);
                                                 } else {
-                                                    static const char methods[] = OGS_SBI_HTTP_METHOD_GET ", " OGS_SBI_HTTP_METHOD_PUT ", " OGS_SBI_HTTP_METHOD_DELETE ", " OGS_SBI_HTTP_METHOD_OPTIONS;
+                                                    static const char methods[] = OGS_SBI_HTTP_METHOD_GET ", "
+                                                                                  OGS_SBI_HTTP_METHOD_PUT ", "
+                                                                                  OGS_SBI_HTTP_METHOD_DELETE ", "
+                                                                                  OGS_SBI_HTTP_METHOD_OPTIONS;
                                                     ogs_sbi_response_t *response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, methods, m1_metricsreportingprovisioning_api, app_meta);
                                                     ogs_assert(response);
                                                     nf_server_populate_response(response, 0, NULL, 204);
                                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                                 }
                                             } else {
-                                                static const char methods[] = OGS_SBI_HTTP_METHOD_POST ", " OGS_SBI_HTTP_METHOD_OPTIONS;
+                                                static const char methods[] = OGS_SBI_HTTP_METHOD_POST ", "
+                                                                              OGS_SBI_HTTP_METHOD_OPTIONS;
                                                 ogs_sbi_response_t *response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, methods, m1_metricsreportingprovisioning_api, app_meta);
                                                 ogs_assert(response);
                                                 nf_server_populate_response(response, 0, NULL, 204);
                                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                             }
                                         } else if (!strcmp(message->h.resource.component[2],"content-hosting-configuration")) {
-                                            methods = ogs_msprintf("%s, %s, %s, %s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                            static const char methods[] = OGS_SBI_HTTP_METHOD_POST ", "
+                                                                          OGS_SBI_HTTP_METHOD_GET ", "
+                                                                          OGS_SBI_HTTP_METHOD_PUT ", "
+                                                                          OGS_SBI_HTTP_METHOD_DELETE ", "
+                                                                          OGS_SBI_HTTP_METHOD_OPTIONS;
                                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_contenthostingprovisioning_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 
                                         } else if (!strcmp(message->h.resource.component[2],"consumption-reporting-configuration")) {
-                                            methods = ogs_msprintf("%s, %s, %s, %s, %s", OGS_SBI_HTTP_METHOD_POST,
-                                                                   OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT,
-                                                                   OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                            static const char methods[] = OGS_SBI_HTTP_METHOD_POST ", "
+                                                                          OGS_SBI_HTTP_METHOD_GET ", "
+                                                                          OGS_SBI_HTTP_METHOD_PUT ", "
+                                                                          OGS_SBI_HTTP_METHOD_DELETE ", "
+                                                                          OGS_SBI_HTTP_METHOD_OPTIONS;
                                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods,
                                                                               m1_consumptionreportingprovisioning_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                         } else if (!strcmp(message->h.resource.component[2],"protocols")) {
-                                            methods = ogs_msprintf("%s, %s", OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                            static const char methods[] = OGS_SBI_HTTP_METHOD_GET ", " OGS_SBI_HTTP_METHOD_OPTIONS;
                                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_contentprotocolsdiscovery_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-
                                         } else {
                                             char *err;
                                             err = ogs_msprintf("Method [%s]: Target [%s] not yet supported.", message->h.method, message->h.resource.component[2]);
@@ -1742,20 +1756,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             ogs_free(err);
                                         }
                                     } else {
-                                        methods = ogs_msprintf("%s, %s, %s", OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                        static const char methods[] = OGS_SBI_HTTP_METHOD_GET ", " OGS_SBI_HTTP_METHOD_DELETE ", " OGS_SBI_HTTP_METHOD_OPTIONS;
                                         response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_provisioningsession_api, app_meta);
                                         nf_server_populate_response(response, 0, NULL, 204);
                                         ogs_assert(response);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-
                                     }
-                                    /*
-                                       nf_server_populate_response(response, 0, NULL, 204);
-                                       ogs_assert(response);
-                                       ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-
-                                       if (methods) ogs_free(methods);
-                                       */
                                 } else {
                                     char *err;
                                     int number_of_components = 0;
@@ -1779,7 +1785,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 number_of_components = 1;
                                             }
                                             interface = m1_provisioningsession_api;
-
                                         }
                                     }
                                     err = ogs_msprintf("Method [%s]: [%s] - Provisioning Session [%s] does not exist.", message->h.method, message->h.resource.component[2], message->h.resource.component[1]);
@@ -1789,14 +1794,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 }
 
                             } else {
-                                methods = ogs_msprintf("%s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_OPTIONS);
+                                static const char methods[] = OGS_SBI_HTTP_METHOD_POST ", " OGS_SBI_HTTP_METHOD_OPTIONS;
                                 response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_provisioningsession_api, app_meta);
                                 nf_server_populate_response(response, 0, NULL, 204);
                                 ogs_assert(response);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-
                             }
-                            if (methods) ogs_free(methods);
                         } else {
                             char *err;
                             err = ogs_msprintf("Method [%s]: Target [%s] not yet supported.", message->h.method, message->h.resource.component[0]);
