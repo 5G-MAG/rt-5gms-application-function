@@ -2,6 +2,7 @@
  * License: 5G-MAG Public License (v1.0)
  * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
  *          David Waring <david.waring2@bbc.co.uk>
+ *          VUk Stojkovic <vuk.stojkovic@fokus.fraunhofer.de>
  * Copyright: (C) 2022-2024 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
@@ -20,7 +21,7 @@
 #include "provisioning-session.h"
 #include "sai-cache.h"
 #include "utilities.h"
-
+#include "openapi/model/msaf_api_metrics_reporting_configuration.h"
 #include "openapi/model/msaf_api_consumption_reporting_configuration.h"
 #include "openapi/model/msaf_api_content_hosting_configuration.h"
 #include "openapi/model/msaf_api_m5_media_entry_point.h"
@@ -39,6 +40,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     msaf_configuration_t *config = &msaf_self()->config;
     msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_t *dpic = NULL;
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
+    msaf_api_service_access_information_resource_client_metrics_reporting_configuration_t *cmrc = NULL;
     msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points = NULL;
 
@@ -127,6 +129,22 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                         100.0
                     );
         ogs_assert(ccrc);
+    }
+
+    /* Metrics Reporting API */
+    if (provisioning_session->metricsReportingConfiguration) {
+        OpenAPI_list_t *cmrc_svr_list;
+
+        ogs_debug("Adding clientMetricsReporting to ServiceAccessInformation [%s]",
+                  provisioning_session->provisioningSessionId);
+
+        cmrc_svr_list = OpenAPI_list_create();
+        ogs_assert(cmrc_svr_list);
+        OpenAPI_list_add(cmrc_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
+
+
+        cmrc = msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_create();
+        ogs_assert(cmrc);
     }
 
     /* Network Assistance Configuration */

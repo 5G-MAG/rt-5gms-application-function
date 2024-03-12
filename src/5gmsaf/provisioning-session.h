@@ -42,6 +42,7 @@ typedef struct msaf_provisioning_session_s {
     msaf_api_provisioning_session_type_e provisioningSessionType;
     char *aspId;
     char *appId;
+    msaf_api_metrics_reporting_configuration_t *metricsReportingConfiguration;
     msaf_api_consumption_reporting_configuration_t *consumptionReportingConfiguration;
     msaf_api_content_hosting_configuration_t *contentHostingConfiguration;
     msaf_sai_cache_t *sai_cache;
