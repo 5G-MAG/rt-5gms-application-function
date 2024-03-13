@@ -43,7 +43,9 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
     msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points = NULL;
-    OpenAPI_list_t *cmrc = NULL;
+
+    OpenAPI_list_t *cmrc_list = OpenAPI_list_create();
+    ogs_assert(cmrc_list);
 
     /* streaming entry points */
     ogs_debug("Adding streams to ServiceAccessInformation [%s]", provisioning_session->provisioningSessionId);
@@ -132,16 +134,11 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
         ogs_assert(ccrc);
     }
 
-    /* Metrics Reporting API */
+    /* client metrics reporting configuration */
     if (ogs_hash_count(provisioning_session->metrics_reporting_map) > 0) {
 
         ogs_debug("Adding clientMetricsReporting to ServiceAccessInformation [%s]",
                   provisioning_session->provisioningSessionId);
-
-        OpenAPI_list_t *cmrc_svr_list = OpenAPI_list_create();
-        ogs_assert(cmrc_svr_list);
-
-        OpenAPI_list_add(cmrc_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
 
         ogs_hash_index_t *hi = NULL;
         void *val = NULL;
@@ -153,25 +150,29 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
 
             msaf_metrics_reporting_configuration_t *metrics_config = (msaf_metrics_reporting_configuration_t *)val;
 
+            char *server_url = ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname);
+            OpenAPI_list_t *cmrc_svr_list = OpenAPI_list_create();
+            ogs_assert(cmrc_svr_list);
+            OpenAPI_list_add(cmrc_svr_list, server_url);
+
             msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_t *cmrc_inner =
                     msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_create(
-
                             metrics_config->config->metrics_reporting_configuration_id,
                             cmrc_svr_list,
                             NULL,
                             metrics_config->config->scheme,
                             metrics_config->config->data_network_name,
-                            metrics_config->config->reporting_interval ? true : false,
+                            metrics_config->config->is_reporting_interval,
                             metrics_config->config->reporting_interval,
-                            metrics_config->config->is_sample_percentage ? metrics_config->config->sample_percentage : 100.0,
+                            metrics_config->config->sample_percentage,
                             metrics_config->config->url_filters,
                             metrics_config->config->sampling_period,
                             metrics_config->config->metrics);
+
             if (cmrc_inner) {
-                OpenAPI_list_add(cmrc, cmrc_inner);
+                OpenAPI_list_add(cmrc_list, cmrc_inner);
             }
         }
-        ogs_assert(cmrc);
     }
 
     /* Network Assistance Configuration */
@@ -192,7 +193,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 streaming_access,
                 ccrc /* client_consumption_reporting_configuration */,
                 dpic /* dynamic_policy */,
-                cmrc /* OpenAPI_list_t client_metrics_reporting */,
+                cmrc_list /* OpenAPI_list_t client_metrics_reporting */,
                 nac  /* network_assistance_configuration */,
                 NULL /* client_edge_resources */);
 
@@ -237,6 +238,7 @@ const msaf_sai_cache_entry_t *msaf_context_retrieve_service_access_information(c
 
     return sai_entry;
 }
+
 
 static OpenAPI_list_t *_policy_templates_hash_to_list_of_ready_bindings(ogs_hash_t *policy_templates)
 {

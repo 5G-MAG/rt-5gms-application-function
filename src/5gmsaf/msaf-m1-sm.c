@@ -581,6 +581,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_debug("  Metrics Reporting Configuration ID: %s", msaf_new_metrics_config ? msaf_new_metrics_config->config->metrics_reporting_configuration_id : "null");
 
                                         if (msaf_new_metrics_config) {
+
+                                            if (msaf_provisioning_session->sai_cache) {
+                                                msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
+                                                ogs_debug("SAI cache cleared for provisioning session [%s]", message->h.resource.component[1]);
+                                            }
+
                                             ogs_sbi_response_t *response;
                                             response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, api, app_meta);
                                             ogs_assert(response);
