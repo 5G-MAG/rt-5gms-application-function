@@ -1557,8 +1557,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 if (message->h.resource.component[3] && !message->h.resource.component[4]) {
                                     if (msaf_delete_metrics_configuration(provisioning_session, message->h.resource.component[3]) == 0) {
 
-                                        if (msaf_provisioning_session->sai_cache) {
-                                            msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
+                                        if (provisioning_session->sai_cache) {
+                                            msaf_sai_cache_clear(provisioning_session->sai_cache);
                                             ogs_debug("SAI cache cleared for provisioning session [%s]", message->h.resource.component[1]);
                                         }
 
