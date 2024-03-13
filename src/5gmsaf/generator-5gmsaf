@@ -29,7 +29,7 @@ scriptdir=`cd "$scriptdir"; pwd`
 
 # Command line option defaults
 default_branch='REL-17'
-default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery TS26512_M1_ConsumptionReportingProvisioning TS26512_M1_PolicyTemplatesProvisioning TS26512_M1_MetricsReportingProvisioning M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation TS26512_M5_ConsumptionReporting TS26512_M5_NetworkAssistance TS26512_M5_DynamicPolicies Maf_Management"
+default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery TS26512_M1_ConsumptionReportingProvisioning TS26512_M1_PolicyTemplatesProvisioning TS26512_M1_MetricsReportingProvisioning M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation TS26512_M5_ConsumptionReporting TS26512_M5_NetworkAssistance TS26512_M5_DynamicPolicies Maf_Management TS26512_M5_MetricsReporting"
 
 # Parse command line arguments
 ARGS=`getopt -n "$scriptname" -o 'a:b:hM:' -l 'api:,branch:,help,model-deps:' -s sh -- "$@"`

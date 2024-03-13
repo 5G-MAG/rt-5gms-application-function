@@ -21,12 +21,13 @@
 #include "provisioning-session.h"
 #include "sai-cache.h"
 #include "utilities.h"
-#include "openapi/model/msaf_api_metrics_reporting_configuration.h"
 #include "openapi/model/msaf_api_consumption_reporting_configuration.h"
 #include "openapi/model/msaf_api_content_hosting_configuration.h"
 #include "openapi/model/msaf_api_m5_media_entry_point.h"
 #include "openapi/model/msaf_api_provisioning_session.h"
 #include "openapi/model/msaf_api_service_access_information_resource.h"
+#include "metrics-reporting-configuration.h"
+
 
 #include "service-access-information.h"
 
@@ -40,9 +41,9 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     msaf_configuration_t *config = &msaf_self()->config;
     msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_t *dpic = NULL;
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
-    msaf_api_service_access_information_resource_client_metrics_reporting_configuration_t *cmrc = NULL;
     msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points = NULL;
+    OpenAPI_list_t *cmrc = NULL;
 
     /* streaming entry points */
     ogs_debug("Adding streams to ServiceAccessInformation [%s]", provisioning_session->provisioningSessionId);
@@ -132,18 +133,44 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     }
 
     /* Metrics Reporting API */
-    if (provisioning_session->metricsReportingConfiguration) {
-        OpenAPI_list_t *cmrc_svr_list;
+    if (ogs_hash_count(provisioning_session->metrics_reporting_map) > 0) {
 
         ogs_debug("Adding clientMetricsReporting to ServiceAccessInformation [%s]",
                   provisioning_session->provisioningSessionId);
 
-        cmrc_svr_list = OpenAPI_list_create();
+        OpenAPI_list_t *cmrc_svr_list = OpenAPI_list_create();
         ogs_assert(cmrc_svr_list);
+
         OpenAPI_list_add(cmrc_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
 
+        ogs_hash_index_t *hi = NULL;
+        void *val = NULL;
+        const void *key = NULL;
 
-        cmrc = msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_create();
+        for (hi = ogs_hash_first(provisioning_session->metrics_reporting_map); hi; hi = ogs_hash_next(hi)) {
+
+            ogs_hash_this(hi, &key, NULL, &val);
+
+            msaf_metrics_reporting_configuration_t *metrics_config = (msaf_metrics_reporting_configuration_t *)val;
+
+            msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_t *cmrc_inner =
+                    msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_create(
+
+                            metrics_config->config->metrics_reporting_configuration_id,
+                            cmrc_svr_list,
+                            NULL,
+                            metrics_config->config->scheme,
+                            metrics_config->config->data_network_name,
+                            metrics_config->config->reporting_interval ? true : false,
+                            metrics_config->config->reporting_interval,
+                            metrics_config->config->is_sample_percentage ? metrics_config->config->sample_percentage : 100.0,
+                            metrics_config->config->url_filters,
+                            metrics_config->config->sampling_period,
+                            metrics_config->config->metrics);
+            if (cmrc_inner) {
+                OpenAPI_list_add(cmrc, cmrc_inner);
+            }
+        }
         ogs_assert(cmrc);
     }
 
@@ -165,7 +192,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 streaming_access,
                 ccrc /* client_consumption_reporting_configuration */,
                 dpic /* dynamic_policy */,
-                NULL /* client_metrics_reporting */,
+                cmrc /* OpenAPI_list_t client_metrics_reporting */,
                 nac  /* network_assistance_configuration */,
                 NULL /* client_edge_resources */);
 

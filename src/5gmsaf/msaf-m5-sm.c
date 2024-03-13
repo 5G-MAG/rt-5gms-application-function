@@ -26,6 +26,7 @@
 #include "hash.h"
 #include "timer.h"
 #include "openapi/api/TS26512_M5_ServiceAccessInformationAPI-info.h"
+#include "openapi/api/TS26512_M5_MetricsReportingAPI-info.h"
 #include "openapi/api/TS26512_M5_ConsumptionReportingAPI-info.h"
 #include "openapi/api/TS26512_M5_NetworkAssistanceAPI-info.h"
 #include "openapi/model/msaf_api_consumption_report.h"
@@ -44,6 +45,12 @@ static const nf_server_interface_metadata_t
 m5_consumptionreporting_api_metadata = {
     M5_CONSUMPTIONREPORTING_API_NAME,
     M5_CONSUMPTIONREPORTING_API_VERSION
+};
+
+static const nf_server_interface_metadata_t
+m5_metricsreporting_api_metadata = {
+    M5_METRICSREPORTING_API_NAME,
+    M5_METRICSREPORTING_API_VERSION
 };
 
 static const nf_server_interface_metadata_t
@@ -91,6 +98,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     msaf_sm_debug(e);
 
     static const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
+    static const nf_server_interface_metadata_t *m5_metricsreporting_api = &m5_metricsreporting_api_metadata;
     static const nf_server_interface_metadata_t *m5_consumptionreporting_api = &m5_consumptionreporting_api_metadata;
     static const nf_server_interface_metadata_t *m5_networkassistance_api = &m5_networkassistance_api_metadata;
     static const nf_server_interface_metadata_t *m5_dynamicpolicy_api = &m5_dynamicpolicy_api_metadata;
@@ -740,6 +748,113 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, message, "Invalid HTTP method.", message->h.method, NULL, NULL, app_meta));
                     END
                     break;
+
+                CASE("metrics-reporting")
+                    SWITCH(message->h.method)
+                    CASE(OGS_SBI_HTTP_METHOD_POST)
+                        if(message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]){
+
+                            msaf_provisioning_session_t *provisioning_session;
+                            provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+
+                            if(provisioning_session){
+                                if (ogs_hash_count(provisioning_session->metrics_reporting_map) == 0) {
+                                    char *err;
+                                    err = ogs_msprintf("No MetricsReportingConfiguration for Provisioning Session [%s]", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true==nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, message, "Not found", err, NULL, m5_metricsreporting_api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    const char *content_type = "application/xml";
+                                    ogs_hash_index_t *hi;
+                                    for (hi = ogs_hash_first(request->http.headers); hi; hi = ogs_hash_next(hi)) {
+                                        if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_CONTENT_TYPE)) {
+                                            content_type = ogs_hash_this_val(hi);
+                                            break;
+                                        }
+                                    }
+
+                                    SWITCH(content_type)
+                                    CASE("application/xml")
+
+                                    char *parseXmlField(const char *xmlString, const char *fieldName) {
+                                        char *startTag = malloc(strlen(fieldName) + 3);
+                                        char *endTag = "\"";
+                                        sprintf(startTag, "%s=\"", fieldName);
+                                        char *startPosition = strstr(xmlString,
+                                                                     startTag), *endPosition, *fieldValue = NULL;
+                                        if (startPosition &&
+                                            (endPosition = strstr(startPosition += strlen(startTag), endTag))) {
+                                            fieldValue = strndup(startPosition, endPosition - startPosition);
+                                        }
+                                        free(startTag);
+                                        return fieldValue;
+                                    }
+                                    if (request->http.content) {
+                                        char *reportTime = parseXmlField(request->http.content, "reportTime");
+                                        char *recordingSessionId = parseXmlField(request->http.content,
+                                                                                 "recordingSessionId");
+                                        char *clientId = parseXmlField(request->http.content, "clientId");
+
+                                        if (msaf_data_collection_store(message->h.resource.component[1],
+                                                                       "metrics_reports", clientId, recordingSessionId,
+                                                                       reportTime, "xml", request->http.content)) {
+                                            ogs_sbi_response_t *response;
+                                            response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, NULL,
+                                                                              m5_metricsreporting_api, app_meta);
+                                            ogs_assert(response);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        } else {
+                                            char *err;
+                                            err = ogs_msprintf(
+                                                    "Failed to store Metrics Report for provisioning session [%s]",
+                                                    message->h.resource.component[1]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream,
+                                                                                    OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
+                                                                                    1, message, "Data storage error",
+                                                                                    err, NULL, m5_metricsreporting_api,
+                                                                                    app_meta));
+                                            ogs_free(err);
+                                        }
+                                        break;
+                                        DEFAULT
+                                        char *err;
+                                        err = ogs_msprintf(
+                                                "Unrecognised content type for Metrics Report for Provisioning Session [%s]",
+                                                message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream,
+                                                                                OGS_SBI_HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE,
+                                                                                1, message, "Unsupported Media Type",
+                                                                                err, NULL, m5_metricsreporting_api,
+                                                                                app_meta));
+                                        ogs_free(err);
+                                        END
+                                    }
+                                } // zagrada za else za proveru M1 metrika
+                            } else{
+                                char *err;
+                                err = ogs_msprintf("Provisioning session [%s] not found for Metrics Report", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, message, "Not Found", err, NULL, m5_metricsreporting_api, app_meta));
+                                ogs_free(err);
+                            }
+                        } else {
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, message, "Not Found", NULL, NULL, m5_metricsreporting_api, app_meta));
+                        }
+                        break;
+                        DEFAULT
+                        char *err;
+                        err = ogs_msprintf("Method [%s] not implemented for M5 Metrics Reporting API", message->h.method);
+                        ogs_error("%s", err);
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_MEHTOD_NOT_ALLOWED, 1, message, "Method Not Allowed", err, NULL, m5_metricsreporting_api, app_meta));
+                        ogs_free(err);
+                        END
+                        break;
+                DEFAULT
+
                 CASE("consumption-reporting")
                     SWITCH(message->h.method)
                     CASE(OGS_SBI_HTTP_METHOD_POST)
