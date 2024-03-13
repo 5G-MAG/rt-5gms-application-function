@@ -1199,6 +1199,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             } else {
                                                 int result = update_metrics_configuration(metrics_configuration, updated_config);
                                                 if (result == 0) {
+
+                                                    if (msaf_provisioning_session->sai_cache) {
+                                                        msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
+                                                        ogs_debug("SAI cache cleared for provisioning session [%s]", message->h.resource.component[1]);
+                                                    }
+
                                                     ogs_sbi_response_t *response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, api, app_meta);
                                                     ogs_assert(response);
                                                     nf_server_populate_response(response, 0, NULL, 200);
@@ -1550,6 +1556,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             } else if(api == m1_metricsreportingprovisioning_api) {
                                 if (message->h.resource.component[3] && !message->h.resource.component[4]) {
                                     if (msaf_delete_metrics_configuration(provisioning_session, message->h.resource.component[3]) == 0) {
+
+                                        if (msaf_provisioning_session->sai_cache) {
+                                            msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
+                                            ogs_debug("SAI cache cleared for provisioning session [%s]", message->h.resource.component[1]);
+                                        }
+
                                         ogs_sbi_response_t *response;
                                         response = nf_server_new_response(NULL, "application/json", 0, NULL, 0, NULL, m1_metricsreportingprovisioning_api, app_meta);
                                         nf_server_populate_response(response, 0, NULL, 204);
