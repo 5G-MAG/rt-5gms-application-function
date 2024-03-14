@@ -2,7 +2,7 @@
  * License: 5G-MAG Public License (v1.0)
  * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
  *          David Waring <david.waring2@bbc.co.uk>
- *          VUk Stojkovic <vuk.stojkovic@fokus.fraunhofer.de>
+ *          Vuk Stojkovic <vuk.stojkovic@fokus.fraunhofer.de>
  * Copyright: (C) 2022-2024 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this

@@ -2,6 +2,7 @@
  * License: 5G-MAG Public License (v1.0)
  * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
  *          David Waring <david.waring2@bbc.co.uk>
+ *          Vuk Stojkovic <vuk.stojkovic@fokus.fraunhofer.de>
  * Copyright: (C) 2023-2024 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
@@ -777,14 +778,13 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     SWITCH(content_type)
                                     CASE("application/xml")
 
+                                    /* This will parse relevant information from incoming XML */
                                     char *parseXmlField(const char *xmlString, const char *fieldName) {
                                         char *startTag = malloc(strlen(fieldName) + 3);
                                         char *endTag = "\"";
                                         sprintf(startTag, "%s=\"", fieldName);
-                                        char *startPosition = strstr(xmlString,
-                                                                     startTag), *endPosition, *fieldValue = NULL;
-                                        if (startPosition &&
-                                            (endPosition = strstr(startPosition += strlen(startTag), endTag))) {
+                                        char *startPosition = strstr(xmlString, startTag), *endPosition, *fieldValue = NULL;
+                                        if (startPosition && (endPosition = strstr(startPosition += strlen(startTag), endTag))) {
                                             fieldValue = strndup(startPosition, endPosition - startPosition);
                                         }
                                         free(startTag);
@@ -792,48 +792,32 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     }
                                     if (request->http.content) {
                                         char *reportTime = parseXmlField(request->http.content, "reportTime");
-                                        char *recordingSessionId = parseXmlField(request->http.content,
-                                                                                 "recordingSessionId");
+                                        char *recordingSessionId = parseXmlField(request->http.content, "recordingSessionId");
                                         char *clientId = parseXmlField(request->http.content, "clientId");
 
-                                        if (msaf_data_collection_store(message->h.resource.component[1],
-                                                                       "metrics_reports", clientId, recordingSessionId,
-                                                                       reportTime, "xml", request->http.content)) {
+                                        if (msaf_data_collection_store(message->h.resource.component[1], "metrics_reports", clientId, recordingSessionId, reportTime, "xml", request->http.content)) {
                                             ogs_sbi_response_t *response;
-                                            response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, NULL,
-                                                                              m5_metricsreporting_api, app_meta);
+                                            response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, NULL,m5_metricsreporting_api, app_meta);
                                             ogs_assert(response);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                         } else {
                                             char *err;
-                                            err = ogs_msprintf(
-                                                    "Failed to store Metrics Report for provisioning session [%s]",
-                                                    message->h.resource.component[1]);
+                                            err = ogs_msprintf( "Failed to store Metrics Report for provisioning session [%s]", message->h.resource.component[1]);
                                             ogs_error("%s", err);
-                                            ogs_assert(true == nf_server_send_error(stream,
-                                                                                    OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-                                                                                    1, message, "Data storage error",
-                                                                                    err, NULL, m5_metricsreporting_api,
-                                                                                    app_meta));
+                                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1, message, "Data storage error", err, NULL, m5_metricsreporting_api, app_meta));
                                             ogs_free(err);
                                         }
                                         break;
                                         DEFAULT
                                         char *err;
-                                        err = ogs_msprintf(
-                                                "Unrecognised content type for Metrics Report for Provisioning Session [%s]",
-                                                message->h.resource.component[1]);
+                                        err = ogs_msprintf( "Unrecognised content type for Metrics Report for Provisioning Session [%s]", message->h.resource.component[1]);
                                         ogs_error("%s", err);
-                                        ogs_assert(true == nf_server_send_error(stream,
-                                                                                OGS_SBI_HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE,
-                                                                                1, message, "Unsupported Media Type",
-                                                                                err, NULL, m5_metricsreporting_api,
-                                                                                app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE, 1, message, "Unsupported Media Type",err, NULL, m5_metricsreporting_api, app_meta));
                                         ogs_free(err);
                                         END
                                     }
-                                } // zagrada za else za proveru M1 metrika
+                                }
                             } else{
                                 char *err;
                                 err = ogs_msprintf("Provisioning session [%s] not found for Metrics Report", message->h.resource.component[1]);
