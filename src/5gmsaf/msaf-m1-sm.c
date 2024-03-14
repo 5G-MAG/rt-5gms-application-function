@@ -589,6 +589,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             ogs_assert(response);
                                             nf_server_populate_response(response, 0, NULL, 201);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                            ogs_free(location);
                                         } else {
                                             char *err;
                                             err = ogs_msprintf("Failed to create MetricsReportingConfiguration for provisioning session [%s]", message->h.resource.component[1]);
