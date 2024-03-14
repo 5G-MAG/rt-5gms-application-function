@@ -588,10 +588,14 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             }
 
                                             ogs_sbi_response_t *response;
-                                            response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, api, app_meta);
+
+                                            char *location = ogs_msprintf("%s/%s", request->h.uri, msaf_new_metrics_config->config->metrics_reporting_configuration_id);
+
+                                            response = nf_server_new_response(location, NULL, 0, NULL, 0, NULL, api, app_meta);
                                             ogs_assert(response);
                                             nf_server_populate_response(response, 0, NULL, 201);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                            ogs_free(location);
                                         } else {
                                             char *err;
                                             err = ogs_msprintf("Failed to create MetricsReportingConfiguration for provisioning session [%s]", message->h.resource.component[1]);
