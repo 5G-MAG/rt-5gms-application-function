@@ -43,9 +43,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
     msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points = NULL;
-
-    OpenAPI_list_t *cmrc_list = OpenAPI_list_create();
-    ogs_assert(cmrc_list);
+    OpenAPI_list_t *cmrc_list = NULL;
 
     /* streaming entry points */
     ogs_debug("Adding streams to ServiceAccessInformation [%s]", provisioning_session->provisioningSessionId);
@@ -139,6 +137,9 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
 
         ogs_debug("Adding clientMetricsReporting to ServiceAccessInformation [%s]",
                   provisioning_session->provisioningSessionId);
+
+        cmrc_list = OpenAPI_list_create();
+        ogs_assert(cmrc_list);
 
         ogs_hash_index_t *hi = NULL;
         void *val = NULL;
