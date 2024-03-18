@@ -826,17 +826,27 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_free(err);
                             }
                         } else {
-                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, message, "Not Found", NULL, NULL, m5_metricsreporting_api, app_meta));
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, message, "No Metrics ID Found", NULL, NULL, m5_metricsreporting_api, app_meta));
                         }
                         break;
-                        DEFAULT
+                    CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
+                        if (message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]) {
+                            ogs_sbi_response_t *response;
+                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, OGS_SBI_HTTP_METHOD_POST ", " OGS_SBI_HTTP_METHOD_OPTIONS, m5_metricsreporting_api, app_meta);
+                            ogs_assert(response);
+                            nf_server_populate_response(response, 0, NULL, 204);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                        } else {
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 2, message, "No Metrics ID Found", message->h.method, NULL, m5_metricsreporting_api, app_meta));
+                        }
+                    DEFAULT
                         char *err;
                         err = ogs_msprintf("Method [%s] not implemented for M5 Metrics Reporting API", message->h.method);
                         ogs_error("%s", err);
                         ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_MEHTOD_NOT_ALLOWED, 1, message, "Method Not Allowed", err, NULL, m5_metricsreporting_api, app_meta));
                         ogs_free(err);
-                        END
-                        break;
+                    END
+                    break;
                 DEFAULT
 
                 CASE("consumption-reporting")
@@ -943,6 +953,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         }
                         break;
                     CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
+
                         if (message->h.resource.component[1] && !message->h.resource.component[2]) {
                             ogs_sbi_response_t *response;
                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0,
