@@ -575,6 +575,23 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api,app_meta));
                                         ogs_free(err);
                                     } else {
+
+                                        if (metrics_config->reporting_interval <= 0) {
+                                            char *err;
+                                            err = ogs_msprintf("Invalid Reporting Interval value %d. Positive value is required.", metrics_config->reporting_interval);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 422, 1, message, "Unprocessable Entity.", err, NULL, api, app_meta));
+                                            ogs_free(err);
+                                            return;
+                                        }
+                                        if (metrics_config->sampling_period < 0) {
+                                            char *err;
+                                            err = ogs_msprintf("Invalid Sampling Period value %d. Positive or zero values are required.", metrics_config->sampling_period);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 422, 1, message, "Unprocessable Entity.", err, NULL, api, app_meta));
+                                            ogs_free(err);
+                                            return;
+                                        }
                                         msaf_metrics_reporting_configuration_t *msaf_new_metrics_config;
                                         msaf_new_metrics_config = process_and_map_metrics_reporting_configuration(msaf_provisioning_session,metrics_config);
 
@@ -1195,6 +1212,21 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
                                                 ogs_free(err);
                                             } else {
+
+                                                if (updated_config->reporting_interval <= 0) {
+                                                    char *err = ogs_msprintf("Invalid Reporting Interval value %d. Positive value is required.", updated_config->reporting_interval);
+                                                    ogs_error("%s", err);
+                                                    ogs_assert(true == nf_server_send_error(stream, 422, 1, message, "Unprocessable Entity.", err, NULL, api, app_meta));
+                                                    ogs_free(err);
+                                                    return;
+                                                }
+                                                if (updated_config->sampling_period < 0) {
+                                                    char *err = ogs_msprintf("Invalid Sampling Period value %d. Positive or zero values are required.", updated_config->sampling_period);
+                                                    ogs_error("%s", err);
+                                                    ogs_assert(true == nf_server_send_error(stream, 422, 1, message, "Unprocessable Entity.", err, NULL, api, app_meta));
+                                                    ogs_free(err);
+                                                    return;
+                                                }
                                                 int result = update_metrics_configuration(metrics_configuration, updated_config);
                                                 if (result == 0) {
                                                     ogs_sbi_response_t *response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, api, app_meta);
