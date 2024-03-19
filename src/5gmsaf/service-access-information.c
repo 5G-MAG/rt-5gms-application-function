@@ -163,11 +163,11 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                             NULL,
                             metrics_config->config->scheme,
                             metrics_config->config->data_network_name,
-                            metrics_config->config->is_reporting_interval,
-                            metrics_config->config->reporting_interval,
+                            !!metrics_config->config->reporting_interval,
+                            metrics_config->config->reporting_interval?*metrics_config->config->reporting_interval:0,
                             metrics_config->config->sample_percentage,
                             metrics_config->config->url_filters,
-                            metrics_config->config->sampling_period,
+                            metrics_config->config->sampling_period?*metrics_config->config->sampling_period:0,
                             metrics_config->config->metrics);
 
             if (cmrc_inner) {
