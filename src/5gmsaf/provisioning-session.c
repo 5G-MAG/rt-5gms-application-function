@@ -16,6 +16,7 @@
 #include "context.h"
 #include "utilities.h"
 #include "hash.h"
+#include "metrics-reporting-configuration.h"
 #include "sai-cache.h"
 
 #include "openapi/model/msaf_api_consumption_reporting_configuration.h"
@@ -23,7 +24,6 @@
 #include "openapi/model/msaf_api_provisioning_session.h"
 
 #include "provisioning-session.h"
-#include "metrics-reporting-configuration.h"
 
 typedef struct free_ogs_hash_provisioning_session_s {
     const char *provisioning_session;
@@ -164,6 +164,16 @@ void msaf_provisioning_session_free(msaf_provisioning_session_t *provisioning_se
         ogs_free(as_state_ref);
     }
 
+    if (provisioning_session->metrics_reporting_map) {
+        free_ogs_hash_context_t fohc = {
+            (void(*)(void*))msaf_metrics_reporting_configuration_free,
+            provisioning_session->metrics_reporting_map
+        };
+        ogs_hash_do(free_ogs_hash_entry, &fohc, provisioning_session->metrics_reporting_map);
+        ogs_hash_destroy(provisioning_session->metrics_reporting_map);
+        provisioning_session->metrics_reporting_map = NULL;
+    }
+
     ogs_free(provisioning_session);
 }
 
@@ -178,8 +188,6 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 
     if (msaf_provisioning_session) {
         msaf_api_provisioning_session_t *provisioning_session;
-        ogs_hash_index_t *cert_node;
-        ogs_hash_index_t *metrics_node;
 
         provisioning_session = ogs_calloc(1,sizeof(*provisioning_session));
         ogs_assert(provisioning_session);
@@ -189,15 +197,21 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->app_id = msaf_provisioning_session->appId;
 
-        provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
-        for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {
-            ogs_debug("msaf_provisioning_session_get_json: Add cert %s", (const char *)ogs_hash_this_key(cert_node));
-            OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
+        if (msaf_provisioning_session->certificate_map && ogs_hash_first(msaf_provisioning_session->certificate_map) != NULL) {
+            ogs_hash_index_t *cert_node;
+            provisioning_session->server_certificate_ids = (OpenAPI_set_t*)OpenAPI_list_create();
+            for (cert_node=ogs_hash_first(msaf_provisioning_session->certificate_map); cert_node; cert_node=ogs_hash_next(cert_node)) {
+                ogs_debug("msaf_provisioning_session_get_json: Add cert %s", (const char *)ogs_hash_this_key(cert_node));
+                OpenAPI_list_add(provisioning_session->server_certificate_ids, (void*)ogs_hash_this_key(cert_node));
+            }
         }
 
-        provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
-        for (metrics_node=ogs_hash_first(msaf_provisioning_session->metrics_reporting_map); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
-            OpenAPI_list_add(provisioning_session->metrics_reporting_configuration_ids, (void*)ogs_hash_this_key(metrics_node));
+        if (msaf_provisioning_session->metrics_reporting_map && ogs_hash_first(msaf_provisioning_session->metrics_reporting_map) != NULL) {
+            ogs_hash_index_t *metrics_node;
+            provisioning_session->metrics_reporting_configuration_ids = (OpenAPI_set_t*)OpenAPI_list_create();
+            for (metrics_node=ogs_hash_first(msaf_provisioning_session->metrics_reporting_map); metrics_node; metrics_node = ogs_hash_next(metrics_node)) {
+                OpenAPI_list_add(provisioning_session->metrics_reporting_configuration_ids, (void*)ogs_hash_this_key(metrics_node));
+            }
         }
 
         if (msaf_provisioning_session->policy_templates && ogs_hash_first(msaf_provisioning_session->policy_templates) != NULL) {
@@ -213,6 +227,7 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
 
         OpenAPI_list_free(provisioning_session->server_certificate_ids);
         OpenAPI_list_free(provisioning_session->policy_template_ids);
+        OpenAPI_list_free(provisioning_session->metrics_reporting_configuration_ids);
         ogs_free(provisioning_session);
     } else {
         ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
@@ -907,8 +922,8 @@ static int
 free_ogs_hash_entry(void *rec, const void *key, int klen, const void *value)
 {
     free_ogs_hash_context_t *fohc = (free_ogs_hash_context_t*)rec;
-    fohc->value_free_fn((void*)value);
     ogs_hash_set(fohc->hash, key, klen, NULL);
+    fohc->value_free_fn((void*)value);
     ogs_free((void*)key);
     return 1;
 }

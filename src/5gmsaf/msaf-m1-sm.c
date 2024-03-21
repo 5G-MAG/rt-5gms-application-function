@@ -267,6 +267,12 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_free(err);
                                 }
 
+                            } else {
+                                char *err;
+                                err = ogs_msprintf("POST for sub-resource [%s] with a sub-resource identifier for Provisioning Session [%s] does not exist.", message->h.resource.component[2], message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Provisioning session does not exist.", err, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                ogs_free(err);
                             }
 
                         } else if (message->h.resource.component[1] && message->h.resource.component[2] &&
@@ -1166,7 +1172,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             );
                                     ogs_free(err);
                                 }
-                            } else if (api == m1_metricsreportingprovisioning_api){
+                            } else if (api == m1_metricsreportingprovisioning_api) {
                                 if (message->h.resource.component[3] && !message->h.resource.component[4]) {
 
                                     cJSON *json;
@@ -1189,7 +1195,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         if (!json) {
                                             char *err = ogs_msprintf("Bad request body for updating Metrics Reporting Configuration [%s]", metrics_reporting_configuration_id);
                                             ogs_error("%s", err);
-                                            ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                            ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Bad request.", err, NULL, api, app_meta));
                                             ogs_free(err);
                                         }
                                         else {
@@ -1199,7 +1205,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             if (!updated_config) {
                                                 char *err = ogs_msprintf("Unable to parse updated Metrics Reporting Configuration: %s", parse_err);
                                                 ogs_error("%s", err);
-                                                ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                                ogs_assert(true == nf_server_send_error(stream, 400, 3, message, "Bad request.", err, NULL, api, app_meta));
                                                 ogs_free(err);
                                             } else {
                                                 int result = update_metrics_configuration(metrics_configuration, updated_config);
@@ -1217,11 +1223,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 } else {
                                                     char *err = ogs_msprintf("Failed to update Metrics Reporting Configuration [%s]", metrics_reporting_configuration_id);
                                                     ogs_error("%s", err);
-                                                    ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Internal Server Error.", err, NULL, api, app_meta));
-                                                    ogs_free(err); }
+                                                    ogs_assert(true == nf_server_send_error(stream, 500, 3, message, "Internal Server Error.", err, NULL, api, app_meta));
+                                                    ogs_free(err);
+                                                }
                                             }
                                         }
                                     }
+                                } else {
+                                    char *err = ogs_msprintf("Unrecognised Metrics Reporting Configurations operation for provisioning session [%s]", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, api, app_meta));
+                                    ogs_free(err);
                                 }
                             } else if (api == m1_servercertificatesprovisioning_api) {
                                 if (message->h.resource.component[3] && !message->h.resource.component[4]) {
@@ -1556,7 +1568,27 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                                     api, app_meta));
                                             ogs_free(err);
                                         }
+                                    } else {
+                                        char *err;
+                                        err = ogs_msprintf("Provisioning session [%s]: Policy template [%s]: Request for deletion "
+                                                           "of sub-resource [%s] not recognised.",
+                                                           message->h.resource.component[1], message->h.resource.component[3],
+                                                           message->h.resource.component[4]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 4, message,
+                                                                                "Policy template does not exist.", err, NULL,
+                                                                                api, app_meta));
+                                        ogs_free(err);
                                     }
+                                } else {
+                                    char *err;
+                                    err = ogs_msprintf("Provisioning session [%s]: Cannot perform delete on Policy templates "
+                                                       "without a template id.", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message,
+                                                                            "Policy template does not exist.", err, NULL,
+                                                                            api, app_meta));
+                                    ogs_free(err);
                                 }
                             } else if(api == m1_metricsreportingprovisioning_api) {
                                 if (message->h.resource.component[3] && !message->h.resource.component[4]) {
@@ -1579,6 +1611,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 404, 3, message, "Metrics Reporting Configuration does not exist.", err, NULL, m1_metricsreportingprovisioning_api, app_meta));
                                         ogs_free(err);
                                     }
+                                } else {
+                                    char *err;
+                                    err = ogs_msprintf("Provisioning session [%s]: Policy template operation not recognised.",
+                                                       message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message,
+                                                                       "Metrics Reporting Configuration operation does not exist.",
+                                                                       err, NULL, api, app_meta));
+                                    ogs_free(err);
                                 }
                             } else if (api == m1_consumptionreportingprovisioning_api) {
                                 if (!message->h.resource.component[3]) {
