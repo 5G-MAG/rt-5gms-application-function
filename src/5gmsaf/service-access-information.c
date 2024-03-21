@@ -149,26 +149,46 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
 
             ogs_hash_this(hi, &key, NULL, &val);
 
-            msaf_metrics_reporting_configuration_t *metrics_config = (msaf_metrics_reporting_configuration_t *)val;
+            const msaf_metrics_reporting_configuration_t *metrics_config = (msaf_metrics_reporting_configuration_t *)val;
 
             char *server_url = ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname);
             OpenAPI_list_t *cmrc_svr_list = OpenAPI_list_create();
             ogs_assert(cmrc_svr_list);
             OpenAPI_list_add(cmrc_svr_list, server_url);
 
+            OpenAPI_list_t *url_filters = NULL;
+            if (metrics_config->config->url_filters) {
+                url_filters = OpenAPI_list_create();
+                ogs_assert(url_filters);
+                OpenAPI_lnode_t *url_filt_node;
+                OpenAPI_list_for_each(metrics_config->config->url_filters, url_filt_node) {
+                    OpenAPI_list_add(url_filters, msaf_strdup((const char*)url_filt_node->data));
+                }
+            }
+
+            OpenAPI_list_t *metrics = NULL;
+            if (metrics_config->config->metrics) {
+                metrics = OpenAPI_list_create();
+                ogs_assert(metrics);
+                OpenAPI_lnode_t *metrics_node;
+                OpenAPI_list_for_each(metrics_config->config->metrics, metrics_node) {
+                    OpenAPI_list_add(metrics, msaf_strdup((const char*)metrics_node->data));
+                }
+            }
+
             msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_t *cmrc_inner =
                     msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_create(
-                            metrics_config->config->metrics_reporting_configuration_id,
+                            msaf_strdup(metrics_config->config->metrics_reporting_configuration_id),
                             cmrc_svr_list,
                             NULL,
-                            metrics_config->config->scheme,
-                            metrics_config->config->data_network_name,
+                            msaf_strdup(metrics_config->config->scheme),
+                            msaf_strdup(metrics_config->config->data_network_name),
                             !!metrics_config->config->reporting_interval,
                             metrics_config->config->reporting_interval?*metrics_config->config->reporting_interval:0,
                             metrics_config->config->sample_percentage,
-                            metrics_config->config->url_filters,
+                            url_filters,
                             metrics_config->config->sampling_period?*metrics_config->config->sampling_period:0,
-                            metrics_config->config->metrics);
+                            metrics);
 
             if (cmrc_inner) {
                 OpenAPI_list_add(cmrc_list, cmrc_inner);
