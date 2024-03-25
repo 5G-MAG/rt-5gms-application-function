@@ -176,12 +176,18 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 }
             }
 
+            char *scheme = msaf_strdup(metrics_config->config->scheme);
+            if (!scheme || strlen(scheme) == 0) {
+                free(scheme);
+                scheme = msaf_strdup("urn:3GPP:ns:PSS:DASH:QM10");
+            }
+
             msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_t *cmrc_inner =
                     msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_create(
                             msaf_strdup(metrics_config->config->metrics_reporting_configuration_id),
                             cmrc_svr_list,
                             NULL,
-                            msaf_strdup(metrics_config->config->scheme),
+                            scheme,
                             msaf_strdup(metrics_config->config->data_network_name),
                             !!metrics_config->config->reporting_interval,
                             metrics_config->config->reporting_interval?*metrics_config->config->reporting_interval:0,
