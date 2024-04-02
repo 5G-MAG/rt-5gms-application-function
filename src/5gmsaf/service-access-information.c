@@ -178,7 +178,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
 
             char *scheme = msaf_strdup(metrics_config->config->scheme);
             if (!scheme || strlen(scheme) == 0) {
-                free(scheme);
+                if (scheme) ogs_free(scheme);
                 scheme = msaf_strdup("urn:3GPP:ns:PSS:DASH:QM10");
             }
 
