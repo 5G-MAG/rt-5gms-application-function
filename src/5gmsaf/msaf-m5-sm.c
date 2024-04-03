@@ -793,7 +793,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     if (request->http.content) {
                                         char *reportTime = parseXmlField(request->http.content, "reportTime");
                                         char *recordingSessionId = parseXmlField(request->http.content, "recordingSessionId");
-                                        char *clientId = parseXmlField(request->http.content, "clientId");
+                                        char *clientId = parseXmlField(request->http.content, "clientID");
 
                                         if (msaf_data_collection_store(message->h.resource.component[1], "metrics_reports", clientId, recordingSessionId, reportTime, "xml", request->http.content)) {
                                             ogs_sbi_response_t *response;
