@@ -18,7 +18,7 @@ A 5GMSd Application Function (AF), which can be deployed in the 5G Core Network 
 
 This AF uses the [Open5GS](https://open5gs.org/) framework to implement the network function.
 
-A list of currently supported features is available [here](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Feature-Matrix).
+A list of currently supported features is available [here](docs/features.md).
 
 ## Install dependencies
 
@@ -84,11 +84,49 @@ specify an alternative configuration file. For example:
 
 The source example configuration file can be found in `~/rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
 
-Also see the [Configuring the Application Function](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Configuring-the-Application-Function) wiki page for details on configuration.
+Also see the [Configuring the Application Function](docs/configuration.md) page for details on configuration.
 
 ## Testing
 
-See the section on [Testing](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Developing-and-Contributing#testing) in the wiki.
+Follow the [Testing as a Local User](docs/testing-local-user.md) page for setting up a test environment without requiring full
+system installation.
+
+### Testing: M1 Interface
+
+The details of these tests change with different versions of the 5GMSd Application Function.
+
+If you are testing the v1.2.x versions then please visit the [Testing the M1 Interface on v1.2.0](docs/testing/testing-m1-v120.md) page.
+
+If you are testing the M1 interface on 5GMSd Application Function v1.3.0 to v1.4.0 then please visit the
+[Testing the M1 Interface on v1.3.0](docs/testing/testing-m1-v130.md) page.
+
+For testing the M1 interface on 5GMSd Application Function v1.4.1 or later, then please visit the
+[Testing the M1 Interface on v1.4.1](docs/testing/testing-m1-v141.md) page.
+
+### Testing the M3 Interface
+
+Depending on which version of the 5GMSd Application Function you wish to test, the commands to test the interface at reference point M3 change.
+
+If you wish to test 5GMSd Application Function v1.1.x then please see the [Testing the M3 Interface on v1.1.0](docs/testing/testing-m3-v110.md) page.
+
+For versions after v1.1.x (i.e. v1.2.0 and above) please use the [Testing the M3 Interface on v1.2.0](docs/testing/testing-m3-v120-md) page.
+
+### Testing: M5 Interface
+
+The details of these tests change with different versions of the 5GMSd Application Function.
+
+If you are testing versions up to v1.1.x then please visit the [Testing: M5 Interface on v1.0.0](docs/testing/testing-m5-v100.md)
+page.
+
+If you are testing the M5 interface on 5GMSd Application Function v1.2.x please visit the
+[Testing the M5 Interface on v1.2.0](docs/testing/testing-m5-v120.md) page.
+
+If you are testing the M5 interface on 5GMSd Application Function v1.3.0 or later please visit the
+[Testing the M5 Interface on v1.3.0](docs/testing/testing-m5-v130.md) page.
+
+### Testing with Postman
+
+For detailed instructions on how to use the Postman Collection please refer to this [documentation](docs/testing/testing-postman.md).
 
 ## Development
 
@@ -97,6 +135,6 @@ the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
 `development` branch of this project serves as an integration branch for new features. Consequently, please make sure to
 switch to the `development` branch before starting the implementation of a new feature.
 
-## Support
+## Acknowledgements
 
 The reference implementation of the Network Assistance and Dynamic Policies features was funded by the UK Government through the [REASON](https://reason-open-networks.ac.uk/) project.
