@@ -1,20 +1,20 @@
-# 5GMS Application Function
-
-This repository holds the 5GMS Application Function implementation for the 5G-MAG Reference Tools.
-Note that currently this implementation only supports downlink media streaming.
+<h1 align="center">5GMS Application Server</h1>
+<p align="center">
+  <img src="https://img.shields.io/github/v/tag/5G-MAG/rt-5gms-application-server?label=version" alt="Version">
+  <img src="https://img.shields.io/badge/Status-Under_Development-yellow" alt="Under Development">
+  <img src="https://img.shields.io/badge/License-5G--MAG%20Public%20License%20(v1.0)-blue" alt="License">
+</p>
 
 ## Introduction
 
 The 5GMS Application Function (AF) is a Network Function that forms part of the 5G Media Services framework as defined in ETSI TS 126.501.
 
+Additional information can be found at: https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/
+
 ### 5GMS Downlink Application Function
 A 5GMSd Application Function (AF), which can be deployed in the 5G Core Network or in an External Data Network, is responsible for managing the 5GMSd System. The AF is a logical function which embodies the control plane aspects of the system, including provisioning, configuration, and reporting, among others. A 5GMSd Application Provider provisions 5GMS functions using a RESTful HTTP-based provisioning interface at reference point M1d. Another RESTful HTTP-based configuration and reporting interface is exposed to UE-based 5GMSd Clients at reference point M5d.
 
-#### Specifications
-
-A list of specification related to this repository is available in the [Standards Wiki](https://github.com/5G-MAG/Standards/wiki/5G-Downlink-Media-Streaming-Architecture-(5GMSd):-Relevant-Specifications).
-
-#### About the implementation
+### About the implementation
 
 This AF uses the [Open5GS](https://open5gs.org/) framework to implement the network function.
 
