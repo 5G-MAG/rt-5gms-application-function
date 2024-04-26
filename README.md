@@ -1,4 +1,4 @@
-<h1 align="center">5GMS Application Server</h1>
+<h1 align="center">5GMS Application Function</h1>
 <p align="center">
   <img src="https://img.shields.io/github/v/tag/5G-MAG/rt-5gms-application-function?label=version" alt="Version">
   <img src="https://img.shields.io/badge/Status-Under_Development-yellow" alt="Under Development">
