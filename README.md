@@ -1,8 +1,8 @@
 <h1 align="center">5GMS Application Function</h1>
 <p align="center">
-  <img src="https://img.shields.io/badge/Status-Under_Development-yellow" alt="Under Development">
-  <img src="https://img.shields.io/github/v/tag/5G-MAG/rt-5gms-application-function?label=version" alt="Version">
-  <img src="https://img.shields.io/badge/License-5G--MAG%20Public%20License%20(v1.0)-blue" alt="License">
+  <a href="#"><img src="https://img.shields.io/badge/Status-Under_Development-yellow" alt="Under Development"></a>
+  <a href="https://github.com/5G-MAG/rt-5gms-application-function/releases/latest"><img src="https://img.shields.io/github/v/release/5G-MAG/rt-5gms-application-function?label=Version" alt="Version"></a>
+  <a href="https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view"><img src="https://img.shields.io/badge/License-5G--MAG%20Public%20License%20(v1.0)-blue" alt="License"></a>
 </p>
 
 ## Introduction
