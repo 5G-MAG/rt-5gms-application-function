@@ -88,7 +88,7 @@ Also see the [Configuring the Application Function](https://5g-mag.github.io/Get
 
 ## Testing
 
-Follow the [Testing as a Local User](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/rt-5gms-application-function/testing-local-user.html) page for setting up a test environment without requiring full
+Follow the [Testing as a Local User](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/installation-local-user-5GMSAF.html) page for setting up a test environment without requiring full
 system installation.
 
 ### Testing: M1 Interface
