@@ -1,12 +1,13 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2022-2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Author: Dev Audsin <dev.audsin@bbc.co.uk>
+ *         David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2022-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -29,7 +30,7 @@ time_t str_to_time(const char *str_time)
     static time_t time;
     struct tm tm = {0};
     strptime(str_time, "%a, %d %b %Y %H:%M:%S %Z", &tm);
-    time = mktime(&tm);      
+    time = mktime(&tm);
     return time;
 }
 
@@ -39,7 +40,7 @@ const char *get_time(time_t time_epoch)
     static char buf[80];
 
     /* Format and print the time, "ddd yyyy-mm-dd hh:mm:ss zzz" */
-    ts = localtime(&time_epoch);   
+    ts = localtime(&time_epoch);
     strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ts);
 
     return buf;
@@ -71,13 +72,13 @@ char *read_file(const char *filename)
 }
 
 int str_match(const char *line, const char *word_to_find) {
- 
+
     char* p = strstr(line,word_to_find);
     if ((p==line) || (p!=NULL && !isalnum((unsigned char)p[-1])))
     {
         p += strlen(word_to_find);
         if (!isalnum((unsigned char)*p))
-        {      
+        {
             return 1;
         } else {
             return 0;
@@ -92,7 +93,7 @@ char *get_path(const char *file)
     char *file_dir = NULL;
 
     path = realpath(file, NULL);
-    if(path == NULL){
+    if (path == NULL) {
         ogs_error("cannot find file with name[%s]: %s", file, strerror(errno));
         return NULL;
     }
@@ -128,7 +129,7 @@ long int ascii_to_long(const char *str)
     return ret;
 }
 
-uint16_t ascii_to_uint16(const char *str) 
+uint16_t ascii_to_uint16(const char *str)
 {
     long int ret;
     ret = ascii_to_long(str);

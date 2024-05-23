@@ -1,0 +1,43 @@
+openapi: 3.0.0
+info:
+  title: Maf_Management
+  version: 1.0.0
+  description: |
+    5GMS AF Maf_Management API
+    Copyright © 2023 British Broadcasting Corporation.
+    All rights reserved.
+tags:
+  - name: Maf_Management
+    description: '5G Media Streaming: AF Management API'
+externalDocs:
+  description: '5G-MAG Reference Tools - 5GMS Application Function'
+  url: 'https://github.com/5G-MAG/rt-common-shared/tree/main/5gms/5G_APIs-overrides'
+servers:
+  - url: '{apiRoot}/5gmag-rt-management/v1'
+    variables:
+      apiRoot:
+        default: https://example.com
+        description: See https://github.com/5G-MAG/rt-5gms-application-function/.
+paths:
+  /provisioning-sessions:
+    get:
+      operationId: enumerateProvisioningSessions
+      summary: 'Retrieve a list of current Provisioning Sessions.'
+      responses:
+        '200':
+          description: 'Success'
+          content:
+            application/json:
+              schema:
+                type: array
+                description: 'A list of current Provisioning Session resource identifiers.'
+                items:
+                  $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+        '500':
+          # Internal Server Error
+          $ref: 'TS29571_CommonData.yaml#/components/responses/500'
+        '503':
+          # Service Unavailable
+          $ref: 'TS29571_CommonData.yaml#/components/responses/503'
+        default:
+          $ref: 'TS29571_CommonData.yaml#/components/responses/default'

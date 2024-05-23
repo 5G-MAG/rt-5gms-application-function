@@ -1,7 +1,8 @@
 /*
  * License: 5G-MAG Public License (v1.0)
- * Author: Dev Audsin
- * Copyright: (C) 2022-2023 British Broadcasting Corporation
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2022-2024 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
  * program. If this file is missing then the license can be retrieved from
@@ -81,7 +82,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             stream = e->h.sbi.data;
             ogs_assert(stream);
 
-            if (!strcmp(request->h.method, OGS_SBI_HTTP_METHOD_OPTIONS) && !strcmp(request->h.uri, "*")){
+            if (!strcmp(request->h.method, OGS_SBI_HTTP_METHOD_OPTIONS) && !strcmp(request->h.uri, "*")) {
                 char *methods = NULL;
                 methods = ogs_msprintf("%s, %s, %s, %s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
                 response = nf_server_new_response(NULL, NULL,  0, NULL, 0, methods, NULL, app_meta);
@@ -138,7 +139,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 break;
 
             CASE("3gpp-m1")
-                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M1].ipv4, msaf_self()->config.servers[MSAF_SVR_M1].ipv6)){
+                if (check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M1].ipv4, msaf_self()->config.servers[MSAF_SVR_M1].ipv6)) {
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m1_sm, e);
@@ -149,9 +150,9 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     ogs_free(error);
                 }
                 break;
-            
+
             CASE("5gmag-rt-management")
-                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv4, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv6)){
+                if (check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv4, msaf_self()->config.servers[MSAF_SVR_MSAF].ipv6)) {
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_maf_mgmt_sm, e);
@@ -162,10 +163,10 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, NULL, "Not Found.", error, NULL, NULL, app_meta));
                     ogs_free(error);
                 }
-                break;   
+                break;
 
             CASE("3gpp-m5")
-                if(check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M5].ipv4, msaf_self()->config.servers[MSAF_SVR_M5].ipv6)){
+                if (check_event_addresses(e, msaf_self()->config.servers[MSAF_SVR_M5].ipv4, msaf_self()->config.servers[MSAF_SVR_M5].ipv6)) {
                     e->message = message;
                     message = NULL;
                     ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
@@ -198,7 +199,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             message->res_status = response->status;
 
             SWITCH(message->h.service.name)
-            
+
             CASE("3gpp-m3")
                 /* M1 state machine handles M3 responses */
                 e->message = message;
@@ -210,13 +211,13 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                 SWITCH(message->h.resource.component[0])
                 CASE(OGS_SBI_RESOURCE_NAME_NF_INSTANCES)
-		    cJSON *nf_profile;
+                    cJSON *nf_profile;
                     OpenAPI_nf_profile_t *nfprofile;
 
                     nf_instance = e->h.sbi.data;
                     ogs_assert(nf_instance);
 
-		    if (response->http.content_length && response->http.content){
+                    if (response->http.content_length && response->http.content) {
                        ogs_debug( "response: %s", response->http.content);
                        nf_profile = cJSON_Parse(response->http.content);
                        nfprofile = OpenAPI_nf_profile_parseFromJSON(nf_profile);
@@ -233,7 +234,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     e->h.sbi.message = message;
                     //message = NULL;
                     ogs_fsm_dispatch(&nf_instance->sm, e);
-		    ogs_sbi_response_free(response);
+                    ogs_sbi_response_free(response);
                     break;
 
                 CASE(OGS_SBI_RESOURCE_NAME_SUBSCRIPTIONS)
@@ -281,13 +282,13 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             break;
 
         case MSAF_EVENT_DELIVERY_BOOST_TIMER:
-	    ogs_assert(e);
+            ogs_assert(e);
             //e->message = message;
             //message = NULL;
             ogs_fsm_dispatch(&msaf_self()->msaf_fsm.msaf_m5_sm, e);
-	    break;
+            break;
 
-	case OGS_EVENT_SBI_TIMER:
+        case OGS_EVENT_SBI_TIMER:
             ogs_assert(e);
 
             switch(e->h.timer_id) {

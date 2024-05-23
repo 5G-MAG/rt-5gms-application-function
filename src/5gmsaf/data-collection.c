@@ -1,11 +1,11 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: David Waring
-Copyright: (C) 2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ * License: 5G-MAG Public License (v1.0)
+ * Author: David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2023-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
  */
 
 #include <errno.h>
@@ -19,6 +19,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "ogs-core.h"
 
 #include "context.h"
+#include "utilities.h"
 
 #include "data-collection.h"
 
@@ -41,7 +42,7 @@ bool msaf_data_collection_store(const char *provisioning_session_id, const char 
     size_t body_len;
 
     fd = open_data_store_file(provisioning_session_id, report_class, client_id, session_id, report_time, format);
-    
+
     if (fd < 0) {
         return false;
     }
@@ -73,7 +74,7 @@ static bool ensure_directory(const char *path)
         }
     } else {
         /* path doesn't exist so ensure parent directory is present and try to create wanted directory */
-        char *path_copy = ogs_strdup(path); 
+        char *path_copy = msaf_strdup(path);
         if (ensure_directory(dirname(path_copy)) && !mkdir(path, 0755)) {
             ret = true;
         }

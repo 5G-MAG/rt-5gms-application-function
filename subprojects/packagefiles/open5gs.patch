@@ -1,49 +1,3 @@
-#!/bin/sh
-#==============================================================================
-# 5G-MAG Reference Tools - Open5GS apply patches
-#==============================================================================
-# Author: David Waring
-# License: 5G-MAG Public License (v1.0)
-# Copyright: ©2022-2023 British Broadcasting Corporation
-#
-# For full license terms please see the LICENSE file distributed with this
-# program. If this file is missing then the license can be retrieved from
-# https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-#==============================================================================
-
-cd `dirname "$0"`
-
-open5gs_src=`realpath "$1"`
-patch_cmd=`which patch`
-
-if ! grep -q '/\* rt-5gms-applicatiopn-function patch applied \*/' "$open5gs_src/lib/sbi/server.c"; then
-    (cd "$open5gs_src"; "$patch_cmd" -p1 <<EOF
-diff --git a/configs/meson.build b/configs/meson.build
-index 9e625248a..2f2f3157b 100644
---- a/configs/meson.build
-+++ b/configs/meson.build
-@@ -26,7 +26,7 @@ build_configs_dir = join_paths(open5gs_build_dir, 'configs')
- conf_data.set('build_configs_dir', build_configs_dir)
- 
- build_subprojects_freeDiameter_extensions_dir = join_paths(
--        open5gs_build_dir, 'subprojects', 'freeDiameter', 'extensions')
-+        meson.global_build_root(), 'subprojects', 'freeDiameter', 'extensions')
- conf_data.set('build_subprojects_freeDiameter_extensions_dir',
-         build_subprojects_freeDiameter_extensions_dir)
- 
-diff --git a/lib/pfcp/context.c b/lib/pfcp/context.c
-index 8964b49dd..d8ea407b1 100644
---- a/lib/pfcp/context.c
-+++ b/lib/pfcp/context.c
-@@ -72,7 +72,7 @@ void ogs_pfcp_context_init(void)
-     ogs_pool_random_id_generate(&ogs_pfcp_pdr_teid_pool);
- 
-     pdr_random_to_index = ogs_calloc(
--            sizeof(ogs_pool_id_t), ogs_pfcp_pdr_pool.size);
-+            sizeof(ogs_pool_id_t), ogs_pfcp_pdr_pool.size+1);
-     ogs_assert(pdr_random_to_index);
-     for (i = 0; i < ogs_pfcp_pdr_pool.size; i++)
-         pdr_random_to_index[ogs_pfcp_pdr_teid_pool.array[i]] = i;
 diff --git a/lib/sbi/mhd-server.c b/lib/sbi/mhd-server.c
 index 817a448aa..1ef4e8a76 100644
 --- a/lib/sbi/mhd-server.c
@@ -171,18 +125,6 @@ index d9e3fa2e5..56332f77b 100644
 +    stream->common.server = sbi_sess->server;
  
      ogs_list_add(&sbi_sess->stream_list, stream);
- 
-diff --git a/lib/sbi/openapi/meson.build b/lib/sbi/openapi/meson.build
-index b3a507bd3..5f6388a0f 100644
---- a/lib/sbi/openapi/meson.build
-+++ b/lib/sbi/openapi/meson.build
-@@ -1370,6 +1370,7 @@ libsbi_openapi_sources = files('''
- '''.split())
- 
- libsbi_openapi_inc = include_directories('.')
-+libsbi_openapi_model_inc = include_directories('model')
- 
- sbi_openapi_cc_flags = ['-DOGS_SBI_COMPILATION']
  
 diff --git a/lib/sbi/server.c b/lib/sbi/server.c
 index af5cb8aad..518420c5c 100644
@@ -331,48 +273,3 @@ index c112f9330..53467171a 100644
  void ogs_sbi_server_remove(ogs_sbi_server_t *server);
  void ogs_sbi_server_remove_all(void);
  
-diff --git a/src/main.c b/src/main.c
-index 329d5b108..0f993a6a6 100644
---- a/src/main.c
-+++ b/src/main.c
-@@ -111,7 +111,7 @@ int main(int argc, const char *const argv[])
-         bool enable_debug;
-         bool enable_trace;
-     } optarg;
--    const char *argv_out[argc];
-+    const char *argv_out[argc+1];
- 
-     memset(&optarg, 0, sizeof(optarg));
- 
-diff --git a/src/meson.build b/src/meson.build
-index d313b6932..2e25dbd93 100644
---- a/src/meson.build
-+++ b/src/meson.build
-@@ -33,6 +33,8 @@ version_conf = configuration_data()
- version_conf.set_quoted('OPEN5GS_VERSION', package_version)
- configure_file(output : 'version.h', configuration : version_conf)
- 
-+app_main_c = files(['main.c'])
-+
- subdir('mme')
- subdir('hss')
- subdir('sgwc')
-diff --git a/tests/common/application.c b/tests/common/application.c
-index 1bf1a0528..501693a45 100644
---- a/tests/common/application.c
-+++ b/tests/common/application.c
-@@ -26,8 +26,8 @@ static void run(int argc, const char *const argv[],
-     int rv;
-     bool user_config;
- 
--    /* '-f sample-XXXX.conf -e error' is always added */
--    const char *argv_out[argc+4], *new_argv[argc+4];
-+    /* '-f sample-XXXX.conf -e error' + null is always added */
-+    const char *argv_out[argc+5], *new_argv[argc+5];
-     int argc_out;
- 
-     char conf_file[OGS_MAX_FILEPATH_LEN];
-EOF
-)
-fi
-exit 0

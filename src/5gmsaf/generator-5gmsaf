@@ -29,7 +29,7 @@ scriptdir=`cd "$scriptdir"; pwd`
 
 # Command line option defaults
 default_branch='REL-17'
-default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery TS26512_M1_ConsumptionReportingProvisioning TS26512_M1_PolicyTemplatesProvisioning TS26512_M1_MetricsReportingProvisioning M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation TS26512_M5_ConsumptionReporting TS26512_M5_NetworkAssistance TS26512_M5_DynamicPolicies Maf_Management"
+default_apis="TS26512_M1_ProvisioningSessions TS26512_M1_ContentHostingProvisioning TS26512_M1_ServerCertificatesProvisioning TS26512_M1_ContentProtocolsDiscovery TS26512_M1_ConsumptionReportingProvisioning TS26512_M1_PolicyTemplatesProvisioning TS26512_M1_MetricsReportingProvisioning M3_ContentHostingProvisioning M3_ServerCertificatesProvisioning TS26512_M5_ServiceAccessInformation TS26512_M5_ConsumptionReporting TS26512_M5_NetworkAssistance TS26512_M5_DynamicPolicies Maf_Management TS26512_M5_MetricsReporting"
 
 # Parse command line arguments
 ARGS=`getopt -n "$scriptname" -o 'a:b:hM:' -l 'api:,branch:,help,model-deps:' -s sh -- "$@"`
@@ -118,7 +118,7 @@ destdir=`realpath -m "$scriptdir/openapi"`
 openapi_gen_dir=`realpath "$scriptdir/../../subprojects/open5gs/lib/sbi/support/r17-20230301-openapitools-6.4.0/openapi-generator"`
 
 sed "s@^templateDir:.*@templateDir: \"${openapi_gen_dir}/templates\"@" $openapi_gen_dir/config.yaml > $scriptdir/config.yaml
-cp "${scriptdir}/openapi-templates/"*.mustache "${openapi_gen_dir}/templates/"
+cp "${scriptdir}/../../subprojects/rt-common-shared/open5gs-tools/openapi-generator-templates/c/"*.mustache "${openapi_gen_dir}/templates/"
 cat >> $scriptdir/config.yaml << EOF
 importMappings:
   set: set
@@ -141,7 +141,9 @@ if [ ! -d "$scriptdir/openapi" ]; then
     mkdir "$scriptdir/openapi"
 fi
 
-if ! "$scriptdir/../../subprojects/rt-common-shared/5gms/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 6.4.0 -y "$scriptdir/fix_openapi_yaml.py" -p "MSAF_API"; then
+rt_common_shared="$scriptdir/../../subprojects/rt-common-shared"
+
+if ! "$rt_common_shared/open5gs-tools/scripts/generate_openapi" -a "${APIS}" -b "${BRANCH}" -o "$scriptdir/openapi-extra-yaml:$scriptdir/5G_APIs-overrides:$rt_common_shared/5gms/5G_APIs-overrides" -c "$scriptdir/config.yaml" -l c -d "$scriptdir/openapi" -g 6.4.0 -y "$scriptdir/fix_openapi_yaml.py" -p "MSAF_API"; then
     echo "Error: Failed to generate OpenAPI model" 1>&2
     exit 1
 fi

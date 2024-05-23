@@ -1,12 +1,12 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Author: Dev Audsin <dev.audsin@bbc.co.uk>
+ * Copyright: (C) 2023 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #ifndef MSAF_POLICY_TEMPLATE_H
 #define MSAF_POLICY_TEMPLATE_H
@@ -44,7 +44,7 @@ extern bool msaf_policy_template_clear(ogs_hash_t *policy_templates);
 extern void msaf_policy_template_node_free(msaf_policy_template_node_t *node);
 
 cJSON *msaf_policy_template_convert_to_json(msaf_api_policy_template_t *policy_template);
-	
+
 #ifdef __cplusplus
 }
 #endif

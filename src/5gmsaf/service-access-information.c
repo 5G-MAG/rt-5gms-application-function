@@ -1,12 +1,14 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2022-2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ *          Vuk Stojkovic <vuk.stojkovic@fokus.fraunhofer.de>
+ * Copyright: (C) 2022-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include <libgen.h>
 #include <stdio.h>
@@ -19,12 +21,13 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "provisioning-session.h"
 #include "sai-cache.h"
 #include "utilities.h"
-
 #include "openapi/model/msaf_api_consumption_reporting_configuration.h"
 #include "openapi/model/msaf_api_content_hosting_configuration.h"
 #include "openapi/model/msaf_api_m5_media_entry_point.h"
 #include "openapi/model/msaf_api_provisioning_session.h"
 #include "openapi/model/msaf_api_service_access_information_resource.h"
+#include "metrics-reporting-configuration.h"
+
 
 #include "service-access-information.h"
 
@@ -40,6 +43,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
     msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
     OpenAPI_list_t *entry_points = NULL;
+    OpenAPI_list_t *cmrc_list = NULL;
 
     /* streaming entry points */
     ogs_debug("Adding streams to ServiceAccessInformation [%s]", provisioning_session->provisioningSessionId);
@@ -56,12 +60,12 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                     OpenAPI_lnode_t *prof_node;
                     m5_profiles = OpenAPI_list_create();
                     OpenAPI_list_for_each(dist_conf->entry_point->profiles, prof_node) {
-                        OpenAPI_list_add(m5_profiles, ogs_strdup(prof_node->data));
+                        OpenAPI_list_add(m5_profiles, msaf_strdup(prof_node->data));
                     }
                 }
 
                 url = ogs_msprintf("%s%s", dist_conf->base_url, dist_conf->entry_point->relative_path);
-                m5_entry = msaf_api_m5_media_entry_point_create(url, ogs_strdup(dist_conf->entry_point->content_type), m5_profiles);
+                m5_entry = msaf_api_m5_media_entry_point_create(url, msaf_strdup(dist_conf->entry_point->content_type), m5_profiles);
                 ogs_assert(m5_entry);
                 if (!entry_points) entry_points = OpenAPI_list_create();
                 OpenAPI_list_add(entry_points, m5_entry);
@@ -74,7 +78,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     if (provisioning_session->policy_templates) {
         OpenAPI_list_t *policy_templates_svr_list;
         OpenAPI_list_t *policy_template_bindings;
-        msaf_api_sdf_method_e sdf_method = msaf_api_sdf_method__5_TUPLE;
+        msaf_api_sdf_method_e sdf_method = msaf_api_sdf_method_VAL__5_TUPLE;
         OpenAPI_list_t *sdf_methods;
 
         policy_template_bindings = _policy_templates_hash_to_list_of_ready_bindings(provisioning_session->policy_templates);
@@ -91,7 +95,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 sdf_methods = OpenAPI_list_create();
                 ogs_assert(sdf_methods);
                 OpenAPI_list_add(sdf_methods, (void *)sdf_method);
-        
+
                 dpic = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_create(
                             policy_templates_svr_list, policy_template_bindings, sdf_methods);
             } else {
@@ -128,6 +132,76 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
         ogs_assert(ccrc);
     }
 
+    /* client metrics reporting configuration */
+    if (ogs_hash_count(provisioning_session->metrics_reporting_map) > 0) {
+
+        ogs_debug("Adding clientMetricsReporting to ServiceAccessInformation [%s]",
+                  provisioning_session->provisioningSessionId);
+
+        cmrc_list = OpenAPI_list_create();
+        ogs_assert(cmrc_list);
+
+        ogs_hash_index_t *hi = NULL;
+        void *val = NULL;
+        const void *key = NULL;
+
+        for (hi = ogs_hash_first(provisioning_session->metrics_reporting_map); hi; hi = ogs_hash_next(hi)) {
+
+            ogs_hash_this(hi, &key, NULL, &val);
+
+            const msaf_metrics_reporting_configuration_t *metrics_config = (msaf_metrics_reporting_configuration_t *)val;
+
+            char *server_url = ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname);
+            OpenAPI_list_t *cmrc_svr_list = OpenAPI_list_create();
+            ogs_assert(cmrc_svr_list);
+            OpenAPI_list_add(cmrc_svr_list, server_url);
+
+            OpenAPI_list_t *url_filters = NULL;
+            if (metrics_config->config->url_filters) {
+                url_filters = OpenAPI_list_create();
+                ogs_assert(url_filters);
+                OpenAPI_lnode_t *url_filt_node;
+                OpenAPI_list_for_each(metrics_config->config->url_filters, url_filt_node) {
+                    OpenAPI_list_add(url_filters, msaf_strdup((const char*)url_filt_node->data));
+                }
+            }
+
+            OpenAPI_list_t *metrics = NULL;
+            if (metrics_config->config->metrics) {
+                metrics = OpenAPI_list_create();
+                ogs_assert(metrics);
+                OpenAPI_lnode_t *metrics_node;
+                OpenAPI_list_for_each(metrics_config->config->metrics, metrics_node) {
+                    OpenAPI_list_add(metrics, msaf_strdup((const char*)metrics_node->data));
+                }
+            }
+
+            char *scheme = msaf_strdup(metrics_config->config->scheme);
+            if (!scheme || strlen(scheme) == 0) {
+                if (scheme) ogs_free(scheme);
+                scheme = msaf_strdup("urn:3GPP:ns:PSS:DASH:QM10");
+            }
+
+            msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_t *cmrc_inner =
+                    msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_create(
+                            msaf_strdup(metrics_config->config->metrics_reporting_configuration_id),
+                            cmrc_svr_list,
+                            NULL,
+                            scheme,
+                            msaf_strdup(metrics_config->config->data_network_name),
+                            !!metrics_config->config->reporting_interval,
+                            metrics_config->config->reporting_interval?*metrics_config->config->reporting_interval:0,
+                            metrics_config->config->sample_percentage,
+                            url_filters,
+                            metrics_config->config->sampling_period?*metrics_config->config->sampling_period:0,
+                            metrics);
+
+            if (cmrc_inner) {
+                OpenAPI_list_add(cmrc_list, cmrc_inner);
+            }
+        }
+    }
+
     /* Network Assistance Configuration */
     if (config->offerNetworkAssistance) {
         OpenAPI_list_t *na_svr_list;
@@ -142,11 +216,11 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     /* Create SAI */
     service_access_information = msaf_api_service_access_information_resource_create(
                 msaf_strdup(provisioning_session->provisioningSessionId),
-                msaf_api_provisioning_session_type_DOWNLINK,
+                msaf_api_provisioning_session_type_VAL_DOWNLINK,
                 streaming_access,
                 ccrc /* client_consumption_reporting_configuration */,
                 dpic /* dynamic_policy */,
-                NULL /* client_metrics_reporting */,
+                cmrc_list /* OpenAPI_list_t client_metrics_reporting */,
                 nac  /* network_assistance_configuration */,
                 NULL /* client_edge_resources */);
 
@@ -161,8 +235,8 @@ const msaf_sai_cache_entry_t *msaf_context_retrieve_service_access_information(c
     const msaf_sai_cache_entry_t *sai_entry = NULL;
 
     provisioning_session_context = msaf_provisioning_session_find_by_provisioningSessionId(provisioning_session_id);
-    if (provisioning_session_context == NULL){
-        ogs_error("Couldn't find the Provisioning Session ID [%s]", provisioning_session_id);    
+    if (provisioning_session_context == NULL) {
+        ogs_error("Couldn't find the Provisioning Session ID [%s]", provisioning_session_id);
         return NULL;
     }
 
@@ -185,12 +259,13 @@ const msaf_sai_cache_entry_t *msaf_context_retrieve_service_access_information(c
         ogs_debug("Found existing SAI cache entry");
     }
 
-    if (sai_entry == NULL){
+    if (sai_entry == NULL) {
        ogs_error("The provisioning Session [%s] does not have an associated Service Access Information", provisioning_session_id);
     }
 
     return sai_entry;
 }
+
 
 static OpenAPI_list_t *_policy_templates_hash_to_list_of_ready_bindings(ogs_hash_t *policy_templates)
 {
@@ -204,7 +279,7 @@ static OpenAPI_list_t *_policy_templates_hash_to_list_of_ready_bindings(ogs_hash
     for (hi = ogs_hash_first(policy_templates);
             hi; hi = ogs_hash_next(hi)) {
         policy_template_node = (msaf_policy_template_node_t *)ogs_hash_this_val(hi);
-        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_READY) {
+        if (policy_template_node->policy_template->state == msaf_api_policy_template_STATE_VAL_READY) {
             policy_template_binding = msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_policy_template_bindings_inner_create(msaf_strdup(policy_template_node->policy_template->external_reference), msaf_strdup(policy_template_node->policy_template->policy_template_id));
             OpenAPI_list_add(policy_template_bindings, policy_template_binding);
         }

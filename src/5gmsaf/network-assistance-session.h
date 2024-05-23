@@ -1,12 +1,12 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Author: Dev Audsin <dev.audsin@bbc.co.uk>
+ * Copyright: (C) 2023 British Broadcasting Corporation
+ * 
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #ifndef MSAF_NETWORK_ASSISTANCE_SESSION_H
 #define MSAF_NETWORK_ASSISTANCE_SESSION_H
@@ -31,11 +31,11 @@ typedef struct msaf_event_s msaf_event_t;
 
 typedef struct msaf_network_assistance_session_internal_metadata_s {
     msaf_event_t *create_event;
-    msaf_event_t *delivery_boost;    
+    msaf_event_t *delivery_boost;
 } msaf_network_assistance_session_internal_metadata_t;
 
 typedef struct msaf_network_assistance_session_s {
-    ogs_lnode_t node;	
+    ogs_lnode_t node;
     char *naSessionId;
     msaf_network_assistance_session_internal_metadata_t *metadata;
     msaf_api_network_assistance_session_t *NetworkAssistanceSession;

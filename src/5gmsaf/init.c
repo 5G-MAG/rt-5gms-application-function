@@ -1,12 +1,13 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2022-2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2022-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include "bsf-service-consumer.h"
 
@@ -128,7 +129,7 @@ static void msaf_main(void *data)
     int rv;
 
     ogs_fsm_init(&msaf_sm, msaf_state_initial, msaf_state_final, 0);
-    
+
     for ( ;; ) {
         ogs_pollset_poll(ogs_app()->pollset,
                 ogs_timer_mgr_next(ogs_app()->timer_mgr));
@@ -155,20 +156,20 @@ static void msaf_main(void *data)
         }
     }
 done:
-    
+
     ogs_fsm_fini(&msaf_sm, 0);
-  
+
 }
 
 static int msaf_set_time(void)
 {
-    if(ogs_env_set("TZ", "GMT") != OGS_OK)
+    if (ogs_env_set("TZ", "GMT") != OGS_OK)
     {
         ogs_error("Failed to set TZ to GMT");
         return OGS_ERROR;
     }
 
-    if(ogs_env_set("LC_TIME", "C") != OGS_OK)
+    if (ogs_env_set("LC_TIME", "C") != OGS_OK)
     {
         ogs_error("Failed to set LC_TIME to C");
         return OGS_ERROR;

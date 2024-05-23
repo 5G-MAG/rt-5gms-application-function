@@ -1,12 +1,13 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2022 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2022-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include "ogs-sbi.h"
 #include "server.h"
@@ -23,8 +24,8 @@ static bool nf_build_content(ogs_sbi_http_message_t *http, ogs_sbi_message_t *me
 
 static char *nf_build_json(ogs_sbi_message_t *message);
 
-ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, time_t last_modified, char *etag,
-        int cache_control, char *allow_methods, const nf_server_interface_metadata_t *interface,
+ogs_sbi_response_t *nf_server_new_response(const char *location, const char *content_type, time_t last_modified, const char *etag,
+        int cache_control, const char *allow_methods, const nf_server_interface_metadata_t *interface,
         const nf_server_app_metadata_t *app)
 {
     ogs_sbi_response_t *response = NULL;
@@ -34,29 +35,29 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
     response = ogs_sbi_response_new();
     ogs_expect(response);
 
-    if(content_type)
+    if (content_type)
     {
         ogs_sbi_header_set(response->http.headers, "Content-Type", content_type);
     }
 
-    if(location)
+    if (location)
     {
         ogs_sbi_header_set(response->http.headers, "Location", location);
     }
 
-    if(last_modified)
+    if (last_modified)
     {
 
         ogs_sbi_header_set(response->http.headers, "Last-Modified", get_time(last_modified));
     }
 
-    if(etag)
+    if (etag)
     {
 
         ogs_sbi_header_set(response->http.headers, "ETag", etag);
     }
 
-    if(cache_control)
+    if (cache_control)
     {
         char *response_cache_control;
         response_cache_control = ogs_msprintf("max-age=%d", cache_control);
@@ -64,7 +65,7 @@ ogs_sbi_response_t *nf_server_new_response(char *location, char *content_type, t
         ogs_free(response_cache_control);
     }
 
-    if(allow_methods)
+    if (allow_methods)
     {
 
         ogs_sbi_header_set(response->http.headers, "Allow", allow_methods);
@@ -128,7 +129,7 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
 
     memset(&problem, 0, sizeof(problem));
 
-    if(problem_detail) {
+    if (problem_detail) {
         problem_details = OpenAPI_problem_details_parseFromJSON(problem_detail);
         problem.invalid_params = problem_details->invalid_params;
 

@@ -1,12 +1,12 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2022-2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Author: Dev Audsin <dev.audsin@bbc.co.uk>
+ * Copyright: (C) 2022-2023 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #ifndef MSAF_PROVISIONING_SESSION_H
 #define MSAF_PROVISIONING_SESSION_H
@@ -17,6 +17,7 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 
 #include "openapi/model/msaf_api_provisioning_session_type.h"
 #include "openapi/model/msaf_api_policy_template.h"
+#include "openapi/model/msaf_api_metrics_reporting_configuration.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,6 +52,7 @@ typedef struct msaf_provisioning_session_s {
     } httpMetadata;
     ogs_hash_t *certificate_map;          //Type: char* => n/a (just used as a set - external tool manages data)
     ogs_hash_t *policy_templates; /* key: policy template id, value: msaf_policy_template_node_t */
+    ogs_hash_t *metrics_reporting_map;
     ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t*
     int marked_for_deletion;
 } msaf_provisioning_session_t;

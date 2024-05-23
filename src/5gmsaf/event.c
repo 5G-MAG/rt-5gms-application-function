@@ -1,11 +1,11 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2022-2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ * License: 5G-MAG Public License (v1.0)
+ * Author: Dev Audsin <dev.audsin@bbc.co.uk>
+ * Copyright: (C) 2022-2023 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
  */
 
 #include "context.h"
@@ -44,7 +44,7 @@ int check_event_addresses(msaf_event_t *e, ogs_sockaddr_t *sockaddr_v4, ogs_sock
             (sockaddr_v6 && ogs_sockaddr_is_equal(server->node.addr, sockaddr_v6))
            ) {
             return 1;
-        }     
+        }
     }
 
     return 0;
@@ -66,7 +66,7 @@ msaf_event_t *populate_msaf_event_with_metadata(msaf_event_t *e, const nf_server
     if (rv != OGS_OK) {
         ogs_error("ogs_sbi_parse_header() failed");
     }
-    
+
     event->nf_server_interface_metadata = nf_server_interface_metadata;
     event->app_meta = msaf_app_metadata();
 

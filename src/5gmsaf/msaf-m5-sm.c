@@ -1,7 +1,9 @@
 /*
  * License: 5G-MAG Public License (v1.0)
- * Author: Dev Audsin
- * Copyright: (C) 2023 British Broadcasting Corporation
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ *          Vuk Stojkovic <vuk.stojkovic@fokus.fraunhofer.de>
+ * Copyright: (C) 2023-2024 British Broadcasting Corporation
  *
  * For full license terms please see the LICENSE file distributed with this
  * program. If this file is missing then the license can be retrieved from
@@ -25,6 +27,7 @@
 #include "hash.h"
 #include "timer.h"
 #include "openapi/api/TS26512_M5_ServiceAccessInformationAPI-info.h"
+#include "openapi/api/TS26512_M5_MetricsReportingAPI-info.h"
 #include "openapi/api/TS26512_M5_ConsumptionReportingAPI-info.h"
 #include "openapi/api/TS26512_M5_NetworkAssistanceAPI-info.h"
 #include "openapi/model/msaf_api_consumption_report.h"
@@ -46,6 +49,12 @@ m5_consumptionreporting_api_metadata = {
 };
 
 static const nf_server_interface_metadata_t
+m5_metricsreporting_api_metadata = {
+    M5_METRICSREPORTING_API_NAME,
+    M5_METRICSREPORTING_API_VERSION
+};
+
+static const nf_server_interface_metadata_t
 m5_networkassistance_api_metadata = {
     M5_NETWORKASSISTANCE_API_NAME,
     M5_NETWORKASSISTANCE_API_VERSION
@@ -58,7 +67,7 @@ m5_dynamicpolicy_api_metadata = {
 };
 
 
-static bool 
+static bool
 is_dynamic_policy_create_request_valid(ogs_sbi_request_t *request, ogs_sbi_stream_t *stream, ogs_sbi_message_t *message,
                                        const nf_server_interface_metadata_t *m5_dynamicpolicy_api,
                                        const nf_server_app_metadata_t *app_meta);
@@ -90,6 +99,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     msaf_sm_debug(e);
 
     static const nf_server_interface_metadata_t *m5_serviceaccessinformation_api = &m5_serviceaccessinformation_api_metadata;
+    static const nf_server_interface_metadata_t *m5_metricsreporting_api = &m5_metricsreporting_api_metadata;
     static const nf_server_interface_metadata_t *m5_consumptionreporting_api = &m5_consumptionreporting_api_metadata;
     static const nf_server_interface_metadata_t *m5_networkassistance_api = &m5_networkassistance_api_metadata;
     static const nf_server_interface_metadata_t *m5_dynamicpolicy_api = &m5_dynamicpolicy_api_metadata;
@@ -105,24 +115,24 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
         case OGS_FSM_EXIT_SIG:
             break;
-	
-	case MSAF_EVENT_DELIVERY_BOOST_TIMER:
+
+        case MSAF_EVENT_DELIVERY_BOOST_TIMER:
             ogs_assert(e);
             switch(e->h.timer_id) {
                 case MSAF_TIMER_DELIVERY_BOOST:
-	            {		
-		        msaf_network_assistance_session_t *na_sess = NULL;
-	                na_sess = e->network_assistance_session; 
-		        ogs_assert(na_sess);
-			ogs_info("MSAF_EVENT_DELIVERY_BOOST_TIMER: MSAF_TIMER_DELIVERY_BOOST");
+                    {
+                        msaf_network_assistance_session_t *na_sess = NULL;
+                        na_sess = e->network_assistance_session;
+                        ogs_assert(na_sess);
+                        ogs_info("MSAF_EVENT_DELIVERY_BOOST_TIMER: MSAF_TIMER_DELIVERY_BOOST");
 
- 		        msaf_nw_assistance_session_update_pcf_on_timeout(na_sess);
-		    }
-		    break;
+                         msaf_nw_assistance_session_update_pcf_on_timeout(na_sess);
+                    }
+                    break;
                 default:
                     ogs_error("Invalid timer for event %s", msaf_event_get_name(e));
                     break;
-		    
+
             }
             break;
 
@@ -133,7 +143,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             ogs_assert(stream);
             message = e->message;
 
-            SWITCH(message->h.service.name)         
+            SWITCH(message->h.service.name)
             CASE("3gpp-m5")
                 if (strcmp(message->h.api.version, "v2") != 0) {
                     char *error;
@@ -144,22 +154,22 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                     break;
                 }
                 SWITCH(message->h.resource.component[0])
-		CASE("dynamic-policies")
+                CASE("dynamic-policies")
                     SWITCH(message->h.method)
-		    CASE(OGS_SBI_HTTP_METHOD_DELETE)
-                        if(message->h.resource.component[1] && !message->h.resource.component[2])
+                    CASE(OGS_SBI_HTTP_METHOD_DELETE)
+                        if (message->h.resource.component[1] && !message->h.resource.component[2])
                         {
                             msaf_dynamic_policy_t *msaf_dynamic_policy = NULL;
 
-			    msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId(message->h.resource.component[1]);
-                            if(!msaf_dynamic_policy) {
-				char *err = NULL;
+                            msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId(message->h.resource.component[1]);
+                            if (!msaf_dynamic_policy) {
+                                char *err = NULL;
                                 err = ogs_msprintf("The AF has no dynamic policy with id [%s].", message->h.resource.component[1]);
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Deleting dynamic policy failed.",
                                            err, NULL, m5_dynamicpolicy_api, app_meta));
                                 ogs_free(err);
-				break;
+                                break;
                             }
 
                             dynamic_policy_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m5_dynamicpolicy_api, app_meta);
@@ -170,39 +180,39 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                         break;
 
-		    CASE(OGS_SBI_HTTP_METHOD_GET)
-			if (message->h.resource.component[1] && !message->h.resource.component[2])    
-		        {
-			    ogs_sbi_response_t *response;
-		    	    cJSON *dynamic_policy = NULL;
-			    int response_code = 200;
-			    msaf_dynamic_policy_t *msaf_dynamic_policy;
+                    CASE(OGS_SBI_HTTP_METHOD_GET)
+                        if (message->h.resource.component[1] && !message->h.resource.component[2])
+                        {
+                            ogs_sbi_response_t *response;
+                                cJSON *dynamic_policy = NULL;
+                            int response_code = 200;
+                            msaf_dynamic_policy_t *msaf_dynamic_policy;
                             char *body;
                             char *hash;
 
 
                             dynamic_policy = msaf_dynamic_policy_get_json(message->h.resource.component[1]);
-			    
-			    if(!dynamic_policy) {
-			        const char *err = "Dynamic policy not found";
+
+                            if (!dynamic_policy) {
+                                const char *err = "Dynamic policy not found";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Retrieving dynamic policy failed.",
                                            err, NULL, m5_dynamicpolicy_api, app_meta));
-				ogs_sbi_message_free(message);
+                                ogs_sbi_message_free(message);
                                 ogs_free(message);
                                 return;
-			    }
+                            }
 
-			    body = cJSON_Print(dynamic_policy);
+                            body = cJSON_Print(dynamic_policy);
                             hash= calculate_hash(body);
-			    msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId((const char *)message->h.resource.component[1]);
+                            msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId((const char *)message->h.resource.component[1]);
 
                             response = nf_server_new_response(request->h.uri, "application/json",
                                                             msaf_dynamic_policy->dynamic_policy_created, hash,
                                                             msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age,
                                                             NULL, m5_dynamicpolicy_api, app_meta);
                             ogs_assert(response);
-                            nf_server_populate_response(response, strlen(body), ogs_strdup(body), response_code);
+                            nf_server_populate_response(response, strlen(body), msaf_strdup(body), response_code);
                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                             ogs_free(hash);
 
@@ -210,11 +220,11 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             cJSON_free(body);
 
 
-			     
-			}
-		        break;
-		    CASE(OGS_SBI_HTTP_METHOD_POST)
-		        {
+
+                        }
+                        break;
+                    CASE(OGS_SBI_HTTP_METHOD_POST)
+                        {
                             cJSON *dynamic_policy;
 
                             if (!is_dynamic_policy_create_request_valid (request, stream, message, m5_dynamicpolicy_api, app_meta)) return;
@@ -225,7 +235,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             dynamic_policy_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m5_dynamicpolicy_api, app_meta);
 
-                            if(!msaf_dynamic_policy_create(dynamic_policy, dynamic_policy_event)) {
+                            if (!msaf_dynamic_policy_create(dynamic_policy, dynamic_policy_event)) {
 
                                 const char *err = "Problem in obtaining the information required to create the Dynamic Policy";
                                 ogs_error("%s", err);
@@ -236,79 +246,79 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                             cJSON_Delete(dynamic_policy);
                         }
-	                break;
-		    CASE(OGS_SBI_HTTP_METHOD_PUT)
-			if (message->h.resource.component[1] && !message->h.resource.component[2])    
-		        {
+                        break;
+                    CASE(OGS_SBI_HTTP_METHOD_PUT)
+                        if (message->h.resource.component[1] && !message->h.resource.component[2])
+                        {
                             msaf_api_dynamic_policy_t *dynamic_policy;
                             msaf_dynamic_policy_t *msaf_dynamic_policy = NULL;
-			    cJSON *dynamic_policy_received;
-			    const char *reason;
+                            cJSON *dynamic_policy_received;
+                            const char *reason;
 
-                            if(!check_http_content_type(request->http,"application/json")){
+                            if (!check_http_content_type(request->http,"application/json")) {
                                 ogs_assert(true == nf_server_send_error(stream, 415, 1, message, "Unsupported Media Type.", "Expected content type: application/json", NULL, m5_dynamicpolicy_api, app_meta));
                                 ogs_sbi_message_free(message);
                                 ogs_free(message);
                                 return;
                             }
 
-                            if(!request->http.content) {
+                            if (!request->http.content) {
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Bad request.", "Request has no content", NULL, m5_dynamicpolicy_api, app_meta));
                                 ogs_sbi_message_free(message);
                                 ogs_free(message);
-                                return; 
+                                return;
 
                             }
 
-			    dynamic_policy_received = cJSON_Parse(request->http.content);
+                            dynamic_policy_received = cJSON_Parse(request->http.content);
 
                             dynamic_policy = msaf_api_dynamic_policy_parseRequestFromJSON(dynamic_policy_received, &reason);
 
                             if (!dynamic_policy) {
-				char *err;
-				err = ogs_msprintf("Badly formed Dynamic Policy [%s]", reason);
+                                char *err;
+                                err = ogs_msprintf("Badly formed Dynamic Policy [%s]", reason);
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, message, "Malformed request body", err, NULL, m5_dynamicpolicy_api, app_meta));
                                 ogs_free(err);
                                 break;
                             }
-			    /*
-			    if(strcmp(message->h.resource.component[1], dynamic_policy->dynamic_policy_id)){
+                            /*
+                            if (strcmp(message->h.resource.component[1], dynamic_policy->dynamic_policy_id)) {
                                 const char *err = "Updating dynamic policy: The path component and the JSON body have mismatching Dynamic policy id";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 1, message, "Updating dynamic policy failed.",
                                            err, NULL, m5_dynamicpolicy_api, app_meta));
                                 break;
-		            }
-			    */
+                            }
+                            */
 
-			    msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId(message->h.resource.component[1]);
-			    if(!msaf_dynamic_policy) {
-			        const char *err = "Updating dynamic policy: Dynamic policy not found";
+                            msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId(message->h.resource.component[1]);
+                            if (!msaf_dynamic_policy) {
+                                const char *err = "Updating dynamic policy: Dynamic policy not found";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Updating dynamic policy failed.",
                                            err, NULL, m5_dynamicpolicy_api, app_meta));
                                 break;
-	    
-			    }
-			    
-			    if(dynamic_policy->dynamic_policy_id) ogs_free(dynamic_policy->dynamic_policy_id);
-			    dynamic_policy->dynamic_policy_id = msaf_strdup(message->h.resource.component[1]);
-			    
-                            if(!msaf_dynamic_policy_update_pcf(msaf_dynamic_policy, dynamic_policy)) {
-			        const char *err = "Updating dynamic policy: Dynamic policy not found";
+
+                            }
+
+                            if (dynamic_policy->dynamic_policy_id) ogs_free(dynamic_policy->dynamic_policy_id);
+                            dynamic_policy->dynamic_policy_id = msaf_strdup(message->h.resource.component[1]);
+
+                            if (!msaf_dynamic_policy_update_pcf(msaf_dynamic_policy, dynamic_policy)) {
+                                const char *err = "Updating dynamic policy: Dynamic policy not found";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Updating dynamic policy failed.",
                                            err, NULL, m5_dynamicpolicy_api, app_meta));
                                 break;
-			    } else {
+                            } else {
                                 ogs_sbi_response_t *response;
                                 int response_code = 200;
                                 char *body;
-				char *hash;
-				cJSON *dyn_policy;
+                                char *hash;
+                                cJSON *dyn_policy;
 
-				dyn_policy = msaf_api_dynamic_policy_convertResponseToJSON((const msaf_api_dynamic_policy_t *)msaf_dynamic_policy->DynamicPolicy);
+                                dyn_policy = msaf_api_dynamic_policy_convertResponseToJSON((const msaf_api_dynamic_policy_t *)msaf_dynamic_policy->DynamicPolicy);
 
                                 body = cJSON_Print(dyn_policy);
                                 hash= calculate_hash(body);
@@ -318,30 +328,30 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                             0,
                                                             NULL, m5_dynamicpolicy_api, app_meta);
                                 ogs_assert(response);
-                                nf_server_populate_response(response, strlen(body), ogs_strdup(body), response_code);
+                                nf_server_populate_response(response, strlen(body), msaf_strdup(body), response_code);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                 ogs_free(hash);
 
                                 cJSON_Delete(dyn_policy);
                                 cJSON_free(body);
-    
-			    }
+
+                            }
 
 
-			    cJSON_Delete(dynamic_policy_received);
+                            cJSON_Delete(dynamic_policy_received);
 
 
-				
-			}
-	                break; 	    
+
+                        }
+                        break;
 
                     CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
-	                if (message->h.resource.component[1] && !message->h.resource.component[2]) {
-                            msaf_dynamic_policy_t *msaf_dynamic_policy;             
-			    ogs_sbi_response_t *response;
-			    char *methods = NULL;
-			    msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId(message->h.resource.component[1]);
-                            if(!msaf_dynamic_policy) {
+                        if (message->h.resource.component[1] && !message->h.resource.component[2]) {
+                            msaf_dynamic_policy_t *msaf_dynamic_policy;
+                            ogs_sbi_response_t *response;
+                            char *methods = NULL;
+                            msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId(message->h.resource.component[1]);
+                            if (!msaf_dynamic_policy) {
                                 const char *err = "OPTIONS: Dynamic policy not found";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Dynamic policy failed.",
@@ -349,119 +359,119 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 break;
 
                             }
-			    methods = ogs_msprintf("%s, %s, %s, %s",OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
-			    response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m5_dynamicpolicy_api, app_meta);
-                            nf_server_populate_response(response, 0, NULL, 204);
-                            ogs_assert(response);
-                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-			    if(methods) ogs_free(methods);
-			} else {
-		            		
-			    ogs_sbi_response_t *response;
-			    char *methods = NULL;
-
-			    methods = ogs_msprintf("%s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_OPTIONS);
+                            methods = ogs_msprintf("%s, %s, %s, %s",OGS_SBI_HTTP_METHOD_GET, OGS_SBI_HTTP_METHOD_PUT, OGS_SBI_HTTP_METHOD_DELETE, OGS_SBI_HTTP_METHOD_OPTIONS);
                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m5_dynamicpolicy_api, app_meta);
                             nf_server_populate_response(response, 0, NULL, 204);
                             ogs_assert(response);
                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-			    if(methods) ogs_free(methods);
+                            if (methods) ogs_free(methods);
+                        } else {
+
+                            ogs_sbi_response_t *response;
+                            char *methods = NULL;
+
+                            methods = ogs_msprintf("%s, %s",OGS_SBI_HTTP_METHOD_POST, OGS_SBI_HTTP_METHOD_OPTIONS);
+                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m5_dynamicpolicy_api, app_meta);
+                            nf_server_populate_response(response, 0, NULL, 204);
+                            ogs_assert(response);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                            if (methods) ogs_free(methods);
                         }
-		        break;
-	
-		    DEFAULT
+                        break;
+
+                    DEFAULT
                         ogs_error("Invalid HTTP method [%s]", message->h.method);
                         ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, message, "Invalid HTTP method.", message->h.method, NULL, NULL, app_meta));
                     END
                     break;
- 
-	        CASE("network-assistance")
+
+                CASE("network-assistance")
                     SWITCH(message->h.method)
-		    CASE(OGS_SBI_HTTP_METHOD_DELETE)
-                        if(message->h.resource.component[1])
+                    CASE(OGS_SBI_HTTP_METHOD_DELETE)
+                        if (message->h.resource.component[1])
                         {
-			    msaf_network_assistance_session_t *na_sess = NULL;
-		            na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);	    
-			    if(na_sess){
-			        ogs_sbi_response_t *response;
+                            msaf_network_assistance_session_t *na_sess = NULL;
+                            na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);
+                            if (na_sess) {
+                                ogs_sbi_response_t *response;
                                 response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL,  m5_networkassistance_api, app_meta);
                                 nf_server_populate_response(response, 0, NULL, 204);
                                 ogs_assert(response);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 
                                 msaf_network_assistance_session_delete_by_session_id((const char *)message->h.resource.component[1]);
-			    } else {
-				char *err = NULL;
+                            } else {
+                                char *err = NULL;
                                 err = ogs_msprintf("The AF has no network assistance session with id [%s].", message->h.resource.component[1]);
                                 ogs_error("%s", err);
-				ogs_assert(true == nf_server_send_error(stream, 404, 0, message, "Unable to retrieve the Network Assistance Session", err, NULL, m5_networkassistance_api, app_meta));
+                                ogs_assert(true == nf_server_send_error(stream, 404, 0, message, "Unable to retrieve the Network Assistance Session", err, NULL, m5_networkassistance_api, app_meta));
                                 ogs_free(err);
-			    }
+                            }
 
-			} else {
-			    ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Unable to retrieve the Network Assistance Session", "Session Id not present in the request", NULL, m5_networkassistance_api, app_meta));
-	
-			}	
-		        break;
+                        } else {
+                            ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Unable to retrieve the Network Assistance Session", "Session Id not present in the request", NULL, m5_networkassistance_api, app_meta));
+
+                        }
+                        break;
 
 
-		    CASE(OGS_SBI_HTTP_METHOD_GET)
-		        if(message->h.resource.component[1])
-			{
+                    CASE(OGS_SBI_HTTP_METHOD_GET)
+                        if (message->h.resource.component[1])
+                        {
 
-		            cJSON *network_assistance_sess;
-			    network_assistance_sess = msaf_network_assistance_session_get_json((const char *)message->h.resource.component[1]);
-			    if(network_assistance_sess) {
-				msaf_network_assistance_session_t *na_sess = NULL;
-			        ogs_sbi_response_t *response;
-			        int response_code = 200;	
-		                char *body;
-				char *hash;
+                            cJSON *network_assistance_sess;
+                            network_assistance_sess = msaf_network_assistance_session_get_json((const char *)message->h.resource.component[1]);
+                            if (network_assistance_sess) {
+                                msaf_network_assistance_session_t *na_sess = NULL;
+                                ogs_sbi_response_t *response;
+                                int response_code = 200;
+                                char *body;
+                                char *hash;
 
-				body = cJSON_Print(network_assistance_sess);
-			       	hash= calculate_hash(body);
+                                body = cJSON_Print(network_assistance_sess);
+                                       hash= calculate_hash(body);
 
-				na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);
+                                na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);
 
-				response = nf_server_new_response(request->h.uri, "application/json",
+                                response = nf_server_new_response(request->h.uri, "application/json",
                                                             na_sess->na_sess_created, hash,
-							    msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age,
+                                                            msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age,
                                                             NULL, m5_networkassistance_api, app_meta);
-				ogs_assert(response);
-                                nf_server_populate_response(response, strlen(body), ogs_strdup(body), response_code);
+                                ogs_assert(response);
+                                nf_server_populate_response(response, strlen(body), msaf_strdup(body), response_code);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-				ogs_free(hash);
-				
-				cJSON_Delete(network_assistance_sess);
-				cJSON_free(body);
+                                ogs_free(hash);
+
+                                cJSON_Delete(network_assistance_sess);
+                                cJSON_free(body);
 
 
 
-			    } else {
+                            } else {
 
                                 char *err = NULL;
                                 err = ogs_msprintf("The AF has no network assistance session with id [%s].", message->h.resource.component[1]);
                                 ogs_error("%s", err);
 
                                 ogs_assert(true == nf_server_send_error(stream, 404, 0, message, "Unable to retrieve the Network Assistance Session", err, NULL, m5_networkassistance_api, app_meta));
-				ogs_free(err);
-			    }
+                                ogs_free(err);
+                            }
 
 
-			} else {
-		            
+                        } else {
+
                             ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Unable to retrieve the Network Assistance Session", "Session Id not present in the request", NULL, m5_networkassistance_api, app_meta));
-			}
-		        break;
+                        }
+                        break;
 
-		    CASE(OGS_SBI_HTTP_METHOD_PUT)
-                        if(message->h.resource.component[1] && !message->h.resource.component[2])
+                    CASE(OGS_SBI_HTTP_METHOD_PUT)
+                        if (message->h.resource.component[1] && !message->h.resource.component[2])
                         {
                             msaf_network_assistance_session_t *na_sess;
-			    cJSON *network_assistance_sess;
-			    msaf_api_network_assistance_session_t *nas;
+                            cJSON *network_assistance_sess;
+                            msaf_api_network_assistance_session_t *nas;
 
-                            if(!check_http_content_type(request->http,"application/json")){
+                            if (!check_http_content_type(request->http,"application/json")) {
                                 ogs_assert(true == nf_server_send_error(stream, 415, 3, message, "Unsupported Media Type.", "Expected content type: application/json", NULL, m5_networkassistance_api, app_meta));
                                 ogs_sbi_message_free(message);
                                 ogs_free(message);
@@ -476,15 +486,15 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
                                 break;
                             }
-			    
-			    nas =  msaf_api_network_assistance_session_parseRequestFromJSON(network_assistance_sess, NULL);
-			    if(nas->na_session_id) {
-		                ogs_free(nas->na_session_id);
-			        nas->na_session_id = message->h.resource.component[1];
-			    }
+
+                            nas =  msaf_api_network_assistance_session_parseRequestFromJSON(network_assistance_sess, NULL);
+                            if (nas->na_session_id) {
+                                ogs_free(nas->na_session_id);
+                                nas->na_session_id = message->h.resource.component[1];
+                            }
 
                             na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);
-                            if(!na_sess){
+                            if (!na_sess) {
                                 char *err = NULL;
                                 err = ogs_msprintf("The AF has no network assistance session with id [%s].", message->h.resource.component[1]);
                                 ogs_error("%s", err);
@@ -494,20 +504,20 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 break;
                             }
 
-                            if(!msaf_nw_assistance_session_update(na_sess, nas)) {
-			                    const char *err = "Updating dynamic policy: Unable to communicate withe the PCF";
+                            if (!msaf_nw_assistance_session_update(na_sess, nas)) {
+                                            const char *err = "Updating dynamic policy: Unable to communicate withe the PCF";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 404, 1, message, "Updating dynamic policy failed.",
                                            err, NULL, m5_networkassistance_api, app_meta));
                                 break;
-			                } else {
+                                        } else {
                                 ogs_sbi_response_t *response;
                                 int response_code = 200;
                                 char *body;
-				char *hash;
-				cJSON *nw_assist_session;
+                                char *hash;
+                                cJSON *nw_assist_session;
 
-				nw_assist_session = msaf_api_network_assistance_session_convertResponseToJSON((const msaf_api_network_assistance_session_t *)na_sess->NetworkAssistanceSession);
+                                nw_assist_session = msaf_api_network_assistance_session_convertResponseToJSON((const msaf_api_network_assistance_session_t *)na_sess->NetworkAssistanceSession);
 
                                 body = cJSON_Print(nw_assist_session);
                                 hash = calculate_hash(body);
@@ -517,95 +527,95 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                             0,
                                                             NULL, m5_networkassistance_api, app_meta);
                                 ogs_assert(response);
-                                nf_server_populate_response(response, strlen(body), ogs_strdup(body), response_code);
+                                nf_server_populate_response(response, strlen(body), msaf_strdup(body), response_code);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                 ogs_free(hash);
 
                                 cJSON_Delete(nw_assist_session);
                                 cJSON_free(body);
-                            }	            
+                            }
 
-        	            cJSON_Delete(network_assistance_sess);
-				
-            		}
-	                break; 	    	
+                            cJSON_Delete(network_assistance_sess);
+
+                            }
+                        break;
 
                     CASE(OGS_SBI_HTTP_METHOD_POST)
-			if(message->h.resource.component[1] && !strcmp(message->h.resource.component[2], "boost-request"))
+                        if (message->h.resource.component[1] && !strcmp(message->h.resource.component[2], "boost-request"))
                         {
-			    msaf_network_assistance_session_t *na_sess;
-			    na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);
-			    if(!na_sess){
-			        char *err = NULL;
+                            msaf_network_assistance_session_t *na_sess;
+                            na_sess = msaf_network_assistance_session_retrieve((const char *)message->h.resource.component[1]);
+                            if (!na_sess) {
+                                char *err = NULL;
                                 err = ogs_msprintf("The AF has no network assistance session with id [%s].", message->h.resource.component[1]);
                                 ogs_error("%s", err);
 
                                 ogs_assert(true == nf_server_send_error(stream, 404, 0, message, "Unable to retrieve the Network Assistance Session", err, NULL, m5_networkassistance_api, app_meta));
                                 ogs_free(err);
 
-			    }
-			    if(!is_ue_allowed_to_request_delivery_boost(na_sess)) {
-			        char *reason = NULL;
-				msaf_api_operation_success_response_t *operation_success_response;
-				cJSON *op_success_response;
-				char *success_response;
-				ogs_sbi_response_t *response;
+                            }
+                            if (!is_ue_allowed_to_request_delivery_boost(na_sess)) {
+                                char *reason = NULL;
+                                msaf_api_operation_success_response_t *operation_success_response;
+                                cJSON *op_success_response;
+                                char *success_response;
+                                ogs_sbi_response_t *response;
                                 int response_code = 200;
 
 
                                 reason = ogs_msprintf("The AF has an active delivery boost for the network assistance session [%s].", message->h.resource.component[1]);
                                 ogs_debug("%s", reason);
-				
-				operation_success_response = msaf_api_operation_success_response_create(reason, 0);
-				op_success_response = msaf_api_operation_success_response_convertResponseToJSON(operation_success_response);
-				success_response = cJSON_Print(op_success_response);
 
-				response = nf_server_new_response(NULL, "application/json", 0, NULL, 0, NULL, m5_networkassistance_api, app_meta);
+                                operation_success_response = msaf_api_operation_success_response_create(reason, 0);
+                                op_success_response = msaf_api_operation_success_response_convertResponseToJSON(operation_success_response);
+                                success_response = cJSON_Print(op_success_response);
+
+                                response = nf_server_new_response(NULL, "application/json", 0, NULL, 0, NULL, m5_networkassistance_api, app_meta);
                                 ogs_assert(response);
-                                nf_server_populate_response(response, strlen(success_response), ogs_strdup(success_response), response_code);
+                                nf_server_populate_response(response, strlen(success_response), msaf_strdup(success_response), response_code);
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
 
-				cJSON_Delete(op_success_response);
-				cJSON_free(success_response);
-				//ogs_free(reason);
-				msaf_api_operation_success_response_free(operation_success_response);
-				break;
+                                cJSON_Delete(op_success_response);
+                                cJSON_free(success_response);
+                                //ogs_free(reason);
+                                msaf_api_operation_success_response_free(operation_success_response);
+                                break;
 
-			    }
+                            }
 
-                            nw_assist_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m5_networkassistance_api, app_meta); 
-			    msaf_nw_assistance_session_delivery_boost_update(na_sess, nw_assist_event);
+                            nw_assist_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m5_networkassistance_api, app_meta);
+                            msaf_nw_assistance_session_delivery_boost_update(na_sess, nw_assist_event);
 
-			} else {
-				
-		            cJSON *network_assistance_sess;
-		            cJSON *service_data_flow_descriptions = NULL;
-			    cJSON *policy_template_id = NULL;
-			    cJSON *requested_qos = NULL;
-			    cJSON *provisioning_session_id = NULL;
+                        } else {
 
-	        	    if(!check_http_content_type(request->http,"application/json")){
-			        ogs_assert(true == nf_server_send_error(stream, 415, 3, message, "Unsupported Media Type.", "Expected content type: application/json", NULL, m5_networkassistance_api, app_meta));
+                            cJSON *network_assistance_sess;
+                            cJSON *service_data_flow_descriptions = NULL;
+                            cJSON *policy_template_id = NULL;
+                            cJSON *requested_qos = NULL;
+                            cJSON *provisioning_session_id = NULL;
+
+                            if (!check_http_content_type(request->http,"application/json")) {
+                                ogs_assert(true == nf_server_send_error(stream, 415, 3, message, "Unsupported Media Type.", "Expected content type: application/json", NULL, m5_networkassistance_api, app_meta));
                                 ogs_sbi_message_free(message);
                                 ogs_free(message);
-			    }
+                            }
                             ogs_debug("Request body: %s", request->http.content);
 
                             network_assistance_sess = cJSON_Parse(request->http.content);
 
-			    if (!network_assistance_sess) {
+                            if (!network_assistance_sess) {
                                 const char *err = "networkAssistanceSession: Could not parse request body as JSON";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
                                 break;
-                            }  
+                            }
 
-			    service_data_flow_descriptions = cJSON_GetObjectItemCaseSensitive(network_assistance_sess, "serviceDataFlowDescriptions");
+                            service_data_flow_descriptions = cJSON_GetObjectItemCaseSensitive(network_assistance_sess, "serviceDataFlowDescriptions");
                             if (!service_data_flow_descriptions) {
                                 const char *err = "createNetworkAssistanceSession: \"serviceDataFlowDescriptions\" not present";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
-			        cJSON_Delete(network_assistance_sess);
+                                cJSON_Delete(network_assistance_sess);
                                 break;
                             }
                             if (!cJSON_IsArray(service_data_flow_descriptions)) {
@@ -613,31 +623,31 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
                                 cJSON_Delete(network_assistance_sess);
-				break;
+                                break;
                             }
 
-			    provisioning_session_id = cJSON_GetObjectItemCaseSensitive(network_assistance_sess, "provisioningSessionId");
-			    if(!provisioning_session_id) {
-			        const char *err = "createNetworkAssistanceSession: \"provisioningSessionId\" is not present";
+                            provisioning_session_id = cJSON_GetObjectItemCaseSensitive(network_assistance_sess, "provisioningSessionId");
+                            if (!provisioning_session_id) {
+                                const char *err = "createNetworkAssistanceSession: \"provisioningSessionId\" is not present";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
                                 cJSON_Delete(network_assistance_sess);
                                 break;
-	    
-			    }
-			    if (!cJSON_IsString(provisioning_session_id)) {
-			        const char *err = "createNetworkAssistanceSession: \"provisioningSessionId\" is not a string";
+
+                            }
+                            if (!cJSON_IsString(provisioning_session_id)) {
+                                const char *err = "createNetworkAssistanceSession: \"provisioningSessionId\" is not a string";
                                 ogs_error("%s", err);
                                 ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Network Assistance Session failed.", err, NULL, m5_networkassistance_api, app_meta));
                                 cJSON_Delete(network_assistance_sess);
                                 break;
-	    
-			    }
+
+                            }
 
                             policy_template_id = cJSON_GetObjectItemCaseSensitive(network_assistance_sess, "policyTemplateId");
                             if (!policy_template_id) {
                                 ogs_debug("createNetworkAssistanceSession: \"policyTemplateId\" is not present");
-                           
+
                             }
                             if (!policy_template_id && cJSON_IsString(policy_template_id)) {
                                 ogs_debug("createNetworkAssistanceSession: \"policyTemplateId\" is not a string");
@@ -647,10 +657,10 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             if (!requested_qos) {
                                 ogs_debug("createNetworkAssistanceSession: \"requestedQoS\" is not present");
                             }
-                       
-			    nw_assist_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m5_networkassistance_api, app_meta);
 
-			    if(!msaf_nw_assistance_session_create(network_assistance_sess, nw_assist_event)) {
+                            nw_assist_event = (msaf_event_t*)populate_msaf_event_with_metadata(e, m5_networkassistance_api, app_meta);
+
+                            if (!msaf_nw_assistance_session_create(network_assistance_sess, nw_assist_event)) {
 
                                 const char *err = "Problem in obtaining the information required to create the Network Assitance Session";
                                 ogs_error("%s", err);
@@ -658,18 +668,18 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 cJSON_Delete(network_assistance_sess);
                                 break;
 
-			    }
+                            }
 
 
-			    cJSON_Delete(network_assistance_sess);
-			}
-		        break; 
-		    DEFAULT
+                            cJSON_Delete(network_assistance_sess);
+                        }
+                        break;
+                    DEFAULT
                         ogs_error("Invalid HTTP method [%s]", message->h.method);
                         ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, message, "Invalid HTTP method.", message->h.method, NULL, NULL, app_meta));
                     END
                     break;
-	
+
                 CASE("service-access-information")
                     SWITCH(message->h.method)
                     CASE(OGS_SBI_HTTP_METHOD_GET)
@@ -718,7 +728,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             ogs_sbi_response_t *response;
                             response = nf_server_new_response(NULL, "application/json", ogs_time_sec(sai_entry->generated)+1, sai_entry->hash, msaf_self()->config.server_response_cache_control->m5_service_access_information_response_max_age, NULL, m5_serviceaccessinformation_api, app_meta);
                             ogs_assert(response);
-                            nf_server_populate_response(response, response_body?strlen(response_body):0, ogs_strdup(response_body), response_code);
+                            nf_server_populate_response(response, response_body?strlen(response_body):0, msaf_strdup(response_body), response_code);
                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                         }
                         break;
@@ -739,6 +749,106 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN, 1, message, "Invalid HTTP method.", message->h.method, NULL, NULL, app_meta));
                     END
                     break;
+
+                CASE("metrics-reporting")
+                    SWITCH(message->h.method)
+                    CASE(OGS_SBI_HTTP_METHOD_POST)
+                        if(message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]){
+
+                            msaf_provisioning_session_t *provisioning_session;
+                            provisioning_session = msaf_provisioning_session_find_by_provisioningSessionId(message->h.resource.component[1]);
+
+                            if(provisioning_session){
+                                if (ogs_hash_count(provisioning_session->metrics_reporting_map) == 0) {
+                                    char *err;
+                                    err = ogs_msprintf("No MetricsReportingConfiguration for Provisioning Session [%s]", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true==nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, message, "Not found", err, NULL, m5_metricsreporting_api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    const char *content_type = "application/xml";
+                                    ogs_hash_index_t *hi;
+                                    for (hi = ogs_hash_first(request->http.headers); hi; hi = ogs_hash_next(hi)) {
+                                        if (!ogs_strcasecmp(ogs_hash_this_key(hi), OGS_SBI_CONTENT_TYPE)) {
+                                            content_type = ogs_hash_this_val(hi);
+                                            break;
+                                        }
+                                    }
+
+                                    SWITCH(content_type)
+                                    CASE("application/xml")
+
+                                    /* This will parse relevant information from incoming XML */
+                                    char *parseXmlField(const char *xmlString, const char *fieldName) {
+                                        char *startTag = malloc(strlen(fieldName) + 3);
+                                        char *endTag = "\"";
+                                        sprintf(startTag, "%s=\"", fieldName);
+                                        char *startPosition = strstr(xmlString, startTag), *endPosition, *fieldValue = NULL;
+                                        if (startPosition && (endPosition = strstr(startPosition += strlen(startTag), endTag))) {
+                                            fieldValue = strndup(startPosition, endPosition - startPosition);
+                                        }
+                                        free(startTag);
+                                        return fieldValue;
+                                    }
+                                    if (request->http.content) {
+                                        char *reportTime = parseXmlField(request->http.content, "reportTime");
+                                        char *recordingSessionId = parseXmlField(request->http.content, "recordingSessionId");
+                                        char *clientId = parseXmlField(request->http.content, "clientID");
+
+                                        if (msaf_data_collection_store(message->h.resource.component[1], "metrics_reports", clientId, recordingSessionId, reportTime, "xml", request->http.content)) {
+                                            ogs_sbi_response_t *response;
+                                            response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, NULL,m5_metricsreporting_api, app_meta);
+                                            ogs_assert(response);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        } else {
+                                            char *err;
+                                            err = ogs_msprintf( "Failed to store Metrics Report for provisioning session [%s]", message->h.resource.component[1]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1, message, "Data storage error", err, NULL, m5_metricsreporting_api, app_meta));
+                                            ogs_free(err);
+                                        }
+                                        break;
+                                        DEFAULT
+                                        char *err;
+                                        err = ogs_msprintf( "Unrecognised content type for Metrics Report for Provisioning Session [%s]", message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE, 1, message, "Unsupported Media Type",err, NULL, m5_metricsreporting_api, app_meta));
+                                        ogs_free(err);
+                                        END
+                                    }
+                                }
+                            } else{
+                                char *err;
+                                err = ogs_msprintf("Provisioning session [%s] not found for Metrics Report", message->h.resource.component[1]);
+                                ogs_error("%s", err);
+                                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, message, "Not Found", err, NULL, m5_metricsreporting_api, app_meta));
+                                ogs_free(err);
+                            }
+                        } else {
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, message, "No Metrics ID Found", NULL, NULL, m5_metricsreporting_api, app_meta));
+                        }
+                        break;
+                    CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
+                        if (message->h.resource.component[1] && message->h.resource.component[2] && !message->h.resource.component[3]) {
+                            ogs_sbi_response_t *response;
+                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, OGS_SBI_HTTP_METHOD_POST ", " OGS_SBI_HTTP_METHOD_OPTIONS, m5_metricsreporting_api, app_meta);
+                            ogs_assert(response);
+                            nf_server_populate_response(response, 0, NULL, 204);
+                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                        } else {
+                            ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 2, message, "No Metrics ID Found", message->h.method, NULL, m5_metricsreporting_api, app_meta));
+                        }
+                    DEFAULT
+                        char *err;
+                        err = ogs_msprintf("Method [%s] not implemented for M5 Metrics Reporting API", message->h.method);
+                        ogs_error("%s", err);
+                        ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_MEHTOD_NOT_ALLOWED, 1, message, "Method Not Allowed", err, NULL, m5_metricsreporting_api, app_meta));
+                        ogs_free(err);
+                    END
+                    break;
+                DEFAULT
+
                 CASE("consumption-reporting")
                     SWITCH(message->h.method)
                     CASE(OGS_SBI_HTTP_METHOD_POST)
@@ -843,6 +953,7 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                         }
                         break;
                     CASE(OGS_SBI_HTTP_METHOD_OPTIONS)
+
                         if (message->h.resource.component[1] && !message->h.resource.component[2]) {
                             ogs_sbi_response_t *response;
                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0,
@@ -904,7 +1015,7 @@ static bool is_dynamic_policy_create_request_valid(ogs_sbi_request_t *request, o
     cJSON *policy_template_id = NULL;
     cJSON *provisioning_session_id = NULL;
 
-    if(!check_http_content_type(request->http,"application/json")){
+    if (!check_http_content_type(request->http,"application/json")) {
         ogs_assert(true == nf_server_send_error(stream, 415, 3, message, "Unsupported Media Type.",
                                                 "Expected content type: application/json", NULL, m5_dynamicpolicy_api, app_meta));
         ogs_sbi_message_free(message);
@@ -938,7 +1049,7 @@ static bool is_dynamic_policy_create_request_valid(ogs_sbi_request_t *request, o
     }
 
     provisioning_session_id = cJSON_GetObjectItemCaseSensitive(dynamic_policy, "provisioningSessionId");
-    if(!provisioning_session_id) {
+    if (!provisioning_session_id) {
         const char *err = "createDynamicPolicy: \"provisioningSessionId\" is not present";
         ogs_error("%s", err);
         ogs_assert(true == nf_server_send_error(stream, 400, 0, message, "Creation of the Dynamic Policy failed.", err, NULL, m5_dynamicpolicy_api, app_meta));
@@ -972,7 +1083,7 @@ static bool is_dynamic_policy_create_request_valid(ogs_sbi_request_t *request, o
         return 0;
     }
 
-    if(dynamic_policy) {
+    if (dynamic_policy) {
         cJSON_Delete(dynamic_policy);
         dynamic_policy = NULL;
     }

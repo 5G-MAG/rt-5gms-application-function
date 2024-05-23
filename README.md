@@ -1,24 +1,24 @@
-# 5GMS Application Function
-
-This repository holds the 5GMS Application Function implementation for the 5G-MAG Reference Tools.
-Note that currently this implementation only supports downlink media streaming.
+<h1 align="center">5GMS Application Function</h1>
+<p align="center">
+  <a href="#"><img src="https://img.shields.io/badge/Status-Under_Development-yellow" alt="Under Development"></a>
+  <a href="https://github.com/5G-MAG/rt-5gms-application-function/releases/latest"><img src="https://img.shields.io/github/v/release/5G-MAG/rt-5gms-application-function?label=Version" alt="Version"></a>
+  <a href="https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view"><img src="https://img.shields.io/badge/License-5G--MAG%20Public%20License%20(v1.0)-blue" alt="License"></a>
+</p>
 
 ## Introduction
 
 The 5GMS Application Function (AF) is a Network Function that forms part of the 5G Media Services framework as defined in ETSI TS 126.501.
 
+Additional information can be found at: https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/
+
 ### 5GMS Downlink Application Function
 A 5GMSd Application Function (AF), which can be deployed in the 5G Core Network or in an External Data Network, is responsible for managing the 5GMSd System. The AF is a logical function which embodies the control plane aspects of the system, including provisioning, configuration, and reporting, among others. A 5GMSd Application Provider provisions 5GMS functions using a RESTful HTTP-based provisioning interface at reference point M1d. Another RESTful HTTP-based configuration and reporting interface is exposed to UE-based 5GMSd Clients at reference point M5d.
 
-#### Specifications
-
-A list of specification related to this repository is available in the [Standards Wiki](https://github.com/5G-MAG/Standards/wiki/5G-Downlink-Media-Streaming-Architecture-(5GMSd):-Relevant-Specifications).
-
-#### About the implementation
+### About the implementation
 
 This AF uses the [Open5GS](https://open5gs.org/) framework to implement the network function.
 
-A list of currently supported features is available [here](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Feature-Matrix).
+A list of currently supported features is available [here](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/features-af.html).
 
 ## Install dependencies
 
@@ -84,11 +84,49 @@ specify an alternative configuration file. For example:
 
 The source example configuration file can be found in `~/rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
 
-Also see the [Configuring the Application Function](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Configuring-the-Application-Function) wiki page for details on configuration.
+Also see the [Configuring the Application Function](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/configuration-5GMSAF.html) page for details on configuration.
 
 ## Testing
 
-See the section on [Testing](https://github.com/5G-MAG/rt-5gms-application-function/wiki/Developing-and-Contributing#testing) in the wiki.
+Follow the [Testing as a Local User](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/installation-local-user-5GMSAF.html) page for setting up a test environment without requiring full
+system installation.
+
+### Testing: M1 Interface
+
+The details of these tests change with different versions of the 5GMSd Application Function.
+
+If you are testing the v1.2.x versions then please visit the [Testing the M1 Interface on v1.2.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m1-v120.html) page.
+
+If you are testing the M1 interface on 5GMSd Application Function v1.3.0 to v1.4.0 then please visit the
+[Testing the M1 Interface on v1.3.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m1-v130.html) page.
+
+For testing the M1 interface on 5GMSd Application Function v1.4.1 or later, then please visit the
+[Testing the M1 Interface on v1.4.1](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m1-v141.html) page.
+
+### Testing the M3 Interface
+
+Depending on which version of the 5GMSd Application Function you wish to test, the commands to test the interface at reference point M3 change.
+
+If you wish to test 5GMSd Application Function v1.1.x then please see the [Testing the M3 Interface on v1.1.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m3-v110.html) page.
+
+For versions after v1.1.x (i.e. v1.2.0 and above) please use the [Testing the M3 Interface on v1.2.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m3-v120.html) page.
+
+### Testing: M5 Interface
+
+The details of these tests change with different versions of the 5GMSd Application Function.
+
+If you are testing versions up to v1.1.x then please visit the [Testing: M5 Interface on v1.0.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m5-v100.html)
+page.
+
+If you are testing the M5 interface on 5GMSd Application Function v1.2.x please visit the
+[Testing the M5 Interface on v1.2.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m5-v120.html) page.
+
+If you are testing the M5 interface on 5GMSd Application Function v1.3.0 or later please visit the
+[Testing the M5 Interface on v1.3.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m5-v130.html) page.
+
+### Testing with Postman
+
+For detailed instructions on how to use the Postman Collection please refer to this [documentation](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-postman.html).
 
 ## Development
 
@@ -97,6 +135,6 @@ the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
 `development` branch of this project serves as an integration branch for new features. Consequently, please make sure to
 switch to the `development` branch before starting the implementation of a new feature.
 
-## Support
+## Acknowledgements
 
 The reference implementation of the Network Assistance and Dynamic Policies features was funded by the UK Government through the [REASON](https://reason-open-networks.ac.uk/) project.

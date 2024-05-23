@@ -1,12 +1,13 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2023 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2023-2024 British Broadcasting Corporation
+ *
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include "utilities.h"
 #include "dynamic-policy.h"
@@ -33,7 +34,7 @@ typedef struct app_session_change_cb_data_s {
 static msaf_dynamic_policy_t *msaf_dynamic_policy_init(void);
 static void msaf_dynamic_policy_remove(msaf_dynamic_policy_t *msaf_dynamic_policy);
 static void ue_connection_details_free(ue_network_identifier_t *ue_connection);
-static char *set_max_bit_rate_compliant_with_policy_template(char *policy_template_m1_qos_bit_rate, char *m5_qos_bit_rate); 
+static char *set_max_bit_rate_compliant_with_policy_template(char *policy_template_m1_qos_bit_rate, char *m5_qos_bit_rate);
 static int calculate_max_bit_rate_for_enforcement(char *policy_template_m1_qos_bit_rate, char *m5_qos_bit_rate);
 static bool app_session_change_callback(pcf_app_session_t *app_session, void *user_data);
 static bool app_session_notification_callback(pcf_app_session_t *app_session, const OpenAPI_events_notification_t *notifications, void *user_data);
@@ -85,13 +86,13 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
 
 
     dynamic_policy =  msaf_api_dynamic_policy_parseRequestFromJSON(dynamicPolicy, &reason);
-    if(!dynamic_policy) {
-	ogs_error("Dynamic Policy Badly formed JSON: [%s]", reason);     
+    if (!dynamic_policy) {
+        ogs_error("Dynamic Policy Badly formed JSON: [%s]", reason);
         return 0;
     }
 
     dyn_policy = msaf_dynamic_policy_init();
-    if(!dyn_policy) return 0;
+    if (!dyn_policy) return 0;
 
     dyn_policy->DynamicPolicy = dynamic_policy;
     ogs_assert(dyn_policy->DynamicPolicy);
@@ -111,18 +112,18 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
             service_data_flow_description = (msaf_api_service_data_flow_description_t *)node->data;
 
             /* Not Implemented Yet */
-	    if(service_data_flow_description->domain_name) {
-	        ogs_error("Service Data Flow Descriptions specified using a domain name are not yet supported by this implementation");
-                msaf_dynamic_policy_remove(dyn_policy);
-                return 0;		
-	    }	
-
-            /* Validate SDF */
-	    if (service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
-	        ogs_error("Validation of service data flow description failed: Only one of flowDescription or domainName may be present");
+            if (service_data_flow_description->domain_name) {
+                ogs_error("Service Data Flow Descriptions specified using a domain name are not yet supported by this implementation");
                 msaf_dynamic_policy_remove(dyn_policy);
                 return 0;
-	    }
+            }
+
+            /* Validate SDF */
+            if (service_data_flow_description->flow_description && service_data_flow_description->domain_name) {
+                ogs_error("Validation of service data flow description failed: Only one of flowDescription or domainName may be present");
+                msaf_dynamic_policy_remove(dyn_policy);
+                return 0;
+            }
 
             if (!service_data_flow_description->flow_description && !service_data_flow_description->domain_name) {
                 ogs_error("Validation of service data flow description failed: flowDescription or domainName must be present");
@@ -130,7 +131,7 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
                 return 0;
             }
 
-	    if (service_data_flow_description->flow_description) {
+            if (service_data_flow_description->flow_description) {
 
                 if (!service_data_flow_description->flow_description->direction) {
                     ogs_error("Mandatory direction property missing");
@@ -181,8 +182,8 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
                     return 0;
                 }
 
-		msaf_policy_template = msaf_provisioning_session_get_policy_template_by_id(dynamic_policy->provisioning_session_id, dynamic_policy->policy_template_id);
-		if (!msaf_policy_template) {
+                msaf_policy_template = msaf_provisioning_session_get_policy_template_by_id(dynamic_policy->provisioning_session_id, dynamic_policy->policy_template_id);
+                if (!msaf_policy_template) {
                     ogs_error("Cannot find policy template %s in provisioning session %s", dynamic_policy->policy_template_id, dynamic_policy->provisioning_session_id);
                     msaf_dynamic_policy_remove(dyn_policy);
                     return 0;
@@ -193,16 +194,16 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
                     ogs_error("Unable to convert policy to MediaComponent");
                     msaf_dynamic_policy_remove(dyn_policy);
                     return 0;
-                } 
-                dynamic_policy_set_enforcement_bit_rate(msaf_policy_template, dynamic_policy);
-		 /*
-	         dynamic_policy->is_enforcement_bit_rate = true;
-		 if (!dynamic_policy->qos_specification) {
-		        dynamic_policy->enforcement_bit_rate = ogs_sbi_bitrate_from_string(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl);
-                 } else {
-		        dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl, dynamic_policy->qos_specification->mar_bw_dl_bit_rate); 
                 }
-	        */	
+                dynamic_policy_set_enforcement_bit_rate(msaf_policy_template, dynamic_policy);
+                 /*
+                 dynamic_policy->is_enforcement_bit_rate = true;
+                 if (!dynamic_policy->qos_specification) {
+                        dynamic_policy->enforcement_bit_rate = ogs_sbi_bitrate_from_string(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl);
+                 } else {
+                        dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl, dynamic_policy->qos_specification->mar_bw_dl_bit_rate);
+                }
+                */
                 pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, ue_connection->address);
 
                 if (pcf_address) {
@@ -212,7 +213,7 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
                 }
                 ue_connection_details_free(ue_connection);
             }
-	}
+        }
     } else {
         ogs_error("Must have a serviceDataFlowDescriptions");
         msaf_dynamic_policy_remove(dyn_policy);
@@ -230,30 +231,30 @@ int msaf_dynamic_policy_update_pcf(msaf_dynamic_policy_t *msaf_dynamic_policy, m
     ogs_assert(dynamic_policy);
 
     msaf_policy_template = msaf_provisioning_session_get_policy_template_by_id(dynamic_policy->provisioning_session_id, dynamic_policy->policy_template_id);
-    if(!msaf_policy_template) return 0;
+    if (!msaf_policy_template) return 0;
 
     dynamic_policy_set_enforcement_bit_rate(msaf_policy_template, dynamic_policy);
 
     /*
 
-    if(!dynamic_policy->qos_specification) {
+    if (!dynamic_policy->qos_specification) {
         dynamic_policy->enforcement_bit_rate = ogs_sbi_bitrate_from_string(msaf_policy_template->policy_template->qo_s_specification->max_btr_dl);
     } else {
         dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(msaf_policy_template->policy_template->qo_s_specification->max_btr_dl, dynamic_policy->qos_specification->mar_bw_dl_bit_rate);
-    } 
-    */   
+    }
+    */
     media_comps = update_media_component(msaf_policy_template->policy_template->qo_s_specification, dynamic_policy->qos_specification, dynamic_policy->media_type?dynamic_policy->media_type: OpenAPI_media_type_VIDEO);
 
     if (msaf_dynamic_policy->pcf_app_session) {
 
-        if(!pcf_session_update_app_session(msaf_dynamic_policy->pcf_app_session, media_comps)) {
+        if (!pcf_session_update_app_session(msaf_dynamic_policy->pcf_app_session, media_comps)) {
             ogs_error("Unable to send dynamic policy update request to the PCF");
-	    return 0;
+            return 0;
         }
 
     } else {
             ogs_error("The dynamic policy has no associated App Session");
-	    return 0;
+            return 0;
     }
     update_dynamic_policy_context(msaf_dynamic_policy, dynamic_policy);
 
@@ -266,8 +267,8 @@ cJSON *msaf_dynamic_policy_get_json(const char *dynamic_policy_id)
     msaf_dynamic_policy_t *dynamic_policy = NULL;
 
     dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId(dynamic_policy_id);
-    
-    if(dynamic_policy)
+
+    if (dynamic_policy)
         return msaf_api_dynamic_policy_convertResponseToJSON(dynamic_policy->DynamicPolicy);
 
     return NULL;
@@ -282,48 +283,48 @@ msaf_dynamic_policy_find_by_dynamicPolicyId(const char *dynamicPolicyId)
 
 void msaf_dynamic_policy_delete_by_id(const char *dynamic_policy_id, msaf_event_t *delete_event)
 {
-    
+
     msaf_dynamic_policy_t *msaf_dynamic_policy;
 
     if (!msaf_self()->dynamic_policies) return;
 
 
     msaf_dynamic_policy = msaf_dynamic_policy_find_by_dynamicPolicyId(dynamic_policy_id);
-    if(msaf_dynamic_policy) {
+    if (msaf_dynamic_policy) {
         add_delete_event_metadata_to_dynamic_policy_context(msaf_dynamic_policy, delete_event);
         pcf_app_session_free(msaf_dynamic_policy->pcf_app_session);
     }
-}    
+}
 
 void msaf_context_dynamic_policy_free(msaf_dynamic_policy_t *dynamic_policy) {
-    msaf_dynamic_policy_remove(dynamic_policy);	
+    msaf_dynamic_policy_remove(dynamic_policy);
 }
 
 
 /*Private functions */
 
-static msaf_dynamic_policy_t *msaf_dynamic_policy_init(void){
+static msaf_dynamic_policy_t *msaf_dynamic_policy_init(void) {
 
     msaf_dynamic_policy_t *dyn_policy;
     dyn_policy = ogs_calloc(1, sizeof(msaf_dynamic_policy_t));
-    if(!dyn_policy) return NULL;
+    if (!dyn_policy) return NULL;
     return dyn_policy;
 
 
 }
 
 static void update_dynamic_policy_context(msaf_dynamic_policy_t *msaf_dynamic_policy, msaf_api_dynamic_policy_t *dynamic_policy) {
-  
-    cJSON *dynamic_policy_json;	
+
+    cJSON *dynamic_policy_json;
     char *dynamic_policy_to_hash;
-    
+
     dynamic_policy_json = msaf_api_dynamic_policy_convertResponseToJSON(dynamic_policy);
-    if(dynamic_policy_json) {
+    if (dynamic_policy_json) {
         dynamic_policy_to_hash = cJSON_Print(dynamic_policy_json);
-        if(msaf_dynamic_policy->hash) ogs_free(msaf_dynamic_policy->hash);
+        if (msaf_dynamic_policy->hash) ogs_free(msaf_dynamic_policy->hash);
         msaf_dynamic_policy->hash = calculate_hash(dynamic_policy_to_hash);
         msaf_dynamic_policy->dynamic_policy_created = time(NULL);
-        if(msaf_dynamic_policy->DynamicPolicy)
+        if (msaf_dynamic_policy->DynamicPolicy)
             msaf_api_dynamic_policy_free(msaf_dynamic_policy->DynamicPolicy);
         msaf_dynamic_policy->DynamicPolicy = dynamic_policy;
 
@@ -331,7 +332,7 @@ static void update_dynamic_policy_context(msaf_dynamic_policy_t *msaf_dynamic_po
         cJSON_free(dynamic_policy_to_hash);
 
     } else {
-        ogs_error("Error converting the Dynamic Policy to JSON"); 	     
+        ogs_error("Error converting the Dynamic Policy to JSON");
     }
 }
 
@@ -347,32 +348,32 @@ static OpenAPI_list_t *populate_media_component(msaf_api_m1_qo_s_specification_t
     MediaComponentList = OpenAPI_list_create();
     ogs_assert(MediaComponentList);
 
-    if(!requested_qos) {
-	if(m1_qos->max_auth_btr_dl) {   
+    if (!requested_qos) {
+        if (m1_qos->max_auth_btr_dl) {
             mar_bw_dl_bit_rate = m1_qos->max_auth_btr_dl;
-	} else if(m1_qos->max_btr_dl) {   
+        } else if (m1_qos->max_btr_dl) {
             mar_bw_dl_bit_rate = m1_qos->max_btr_dl;
-	}
+        }
 
-	if(m1_qos->max_auth_btr_ul) {   
+        if (m1_qos->max_auth_btr_ul) {
             mar_bw_ul_bit_rate = m1_qos->max_auth_btr_ul;
-	} else if(m1_qos->max_btr_ul) {   
+        } else if (m1_qos->max_btr_ul) {
             mar_bw_ul_bit_rate = m1_qos->max_btr_ul;
-	}
+        }
 
     } else {
-	
-	if(m1_qos->max_auth_btr_dl) {    
+
+        if (m1_qos->max_auth_btr_dl) {
             mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_auth_btr_dl, requested_qos->mar_bw_dl_bit_rate);
-	} else if(m1_qos->max_btr_dl) {
+        } else if (m1_qos->max_btr_dl) {
             mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_btr_dl, requested_qos->mar_bw_dl_bit_rate);
-	}
-	
-	if(m1_qos->max_auth_btr_ul) {    
+        }
+
+        if (m1_qos->max_auth_btr_ul) {
             mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_auth_btr_ul, requested_qos->mar_bw_ul_bit_rate);
-	} else if(m1_qos->max_btr_ul) {
+        } else if (m1_qos->max_btr_ul) {
             mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_btr_ul, requested_qos->mar_bw_ul_bit_rate);
-	}
+        }
     }
 
     if (flow_description->src_ip || flow_description->src_port !=0 || flow_description->protocol != IPPROTO_IP ||
@@ -424,7 +425,7 @@ static OpenAPI_list_t *populate_media_component(msaf_api_m1_qo_s_specification_t
         ogs_free(ue_port);
         ogs_free(remote_port);
 
-	media_sub_comp = OpenAPI_media_sub_component_create(OpenAPI_af_sig_protocol_NULL,
+        media_sub_comp = OpenAPI_media_sub_component_create(OpenAPI_af_sig_protocol_NULL,
                 NULL, 0, flow_descs, OpenAPI_flow_status_ENABLED,
                 mar_bw_dl_bit_rate,
                 mar_bw_ul_bit_rate,
@@ -472,30 +473,30 @@ static OpenAPI_list_t *update_media_component(msaf_api_m1_qo_s_specification_t *
     media_comps = OpenAPI_list_create();
     ogs_assert(media_comps);
 
-    if(!requested_qos) {
-        if(m1_qos->max_auth_btr_dl) {
+    if (!requested_qos) {
+        if (m1_qos->max_auth_btr_dl) {
             mar_bw_dl_bit_rate = m1_qos->max_auth_btr_dl;
-        } else if(m1_qos->max_btr_dl) {
+        } else if (m1_qos->max_btr_dl) {
             mar_bw_dl_bit_rate = m1_qos->max_btr_dl;
         }
 
-        if(m1_qos->max_auth_btr_ul) {
+        if (m1_qos->max_auth_btr_ul) {
             mar_bw_ul_bit_rate = m1_qos->max_auth_btr_ul;
-        } else if(m1_qos->max_btr_ul) {
+        } else if (m1_qos->max_btr_ul) {
             mar_bw_ul_bit_rate = m1_qos->max_btr_ul;
         }
 
     } else {
 
-        if(m1_qos->max_auth_btr_dl) {
+        if (m1_qos->max_auth_btr_dl) {
             mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_auth_btr_dl, requested_qos->mar_bw_dl_bit_rate);
-        } else if(m1_qos->max_btr_dl) {
+        } else if (m1_qos->max_btr_dl) {
             mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_btr_dl, requested_qos->mar_bw_dl_bit_rate);
         }
 
-        if(m1_qos->max_auth_btr_ul) {
+        if (m1_qos->max_auth_btr_ul) {
             mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_auth_btr_ul, requested_qos->mar_bw_ul_bit_rate);
-        } else if(m1_qos->max_btr_ul) {
+        } else if (m1_qos->max_btr_ul) {
             mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_btr_ul, requested_qos->mar_bw_ul_bit_rate);
         }
     }
@@ -567,9 +568,9 @@ static char *set_max_bit_rate_compliant_with_policy_template(char *policy_templa
 
     qos_bit_rate_m5 = ogs_sbi_bitrate_from_string(m5_qos_bit_rate);
     qos_bit_rate_m1 = ogs_sbi_bitrate_from_string(policy_template_m1_qos_bit_rate);
-    if(qos_bit_rate_m5 > qos_bit_rate_m1)
+    if (qos_bit_rate_m5 > qos_bit_rate_m1)
         return policy_template_m1_qos_bit_rate;
-    return m5_qos_bit_rate;    
+    return m5_qos_bit_rate;
 }
 
 static int calculate_max_bit_rate_for_enforcement(char *policy_template_m1_qos_bit_rate, char *m5_qos_bit_rate) {
@@ -578,7 +579,7 @@ static int calculate_max_bit_rate_for_enforcement(char *policy_template_m1_qos_b
 
     qos_bit_rate_m5 = ogs_sbi_bitrate_from_string(m5_qos_bit_rate);
     qos_bit_rate_m1 = ogs_sbi_bitrate_from_string(policy_template_m1_qos_bit_rate);
-    if(qos_bit_rate_m5 > qos_bit_rate_m1)
+    if (qos_bit_rate_m5 > qos_bit_rate_m1)
         return qos_bit_rate_m1;
     return qos_bit_rate_m5;
 }
@@ -587,7 +588,7 @@ static void dynamic_policy_set_enforcement_bit_rate(msaf_policy_template_node_t 
 {
 
     dynamic_policy->is_enforcement_bit_rate = true;
-    if(!dynamic_policy->qos_specification) {
+    if (!dynamic_policy->qos_specification) {
         dynamic_policy->enforcement_bit_rate = ogs_sbi_bitrate_from_string(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl);
     } else {
         dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl, dynamic_policy->qos_specification->mar_bw_dl_bit_rate);
@@ -602,9 +603,9 @@ static void create_dynamic_policy_app_session(const ogs_sockaddr_t *pcf_address,
     ue_network_identifier_t *ue_net = NULL;
 
     pcf_session = msaf_pcf_session_new(pcf_address);
-    
-    if(!pcf_session) {
-        ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));	    
+
+    if (!pcf_session) {
+        ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));
     }
 
     ue_net  = copy_ue_network_connection_identifier(ue_connection);
@@ -635,10 +636,10 @@ static ue_network_identifier_t *copy_ue_network_connection_identifier(const ue_n
     ue_net_connection_copy = ogs_calloc(1, sizeof(ue_network_identifier_t));
     if (ue_net_connection_copy) {
         if (ue_net_connection->address) ogs_copyaddrinfo(&ue_net_connection_copy->address, ue_net_connection->address);
-        if (ue_net_connection->supi) ue_net_connection_copy->supi = ogs_strdup(ue_net_connection->supi);
-        if (ue_net_connection->gpsi) ue_net_connection_copy->gpsi = ogs_strdup(ue_net_connection->gpsi);
-        if (ue_net_connection->dnn) ue_net_connection_copy->dnn = ogs_strdup(ue_net_connection->dnn);
-        if (ue_net_connection->ip_domain) ue_net_connection_copy->ip_domain = ogs_strdup(ue_net_connection->ip_domain);
+        ue_net_connection_copy->supi = msaf_strdup(ue_net_connection->supi);
+        ue_net_connection_copy->gpsi = msaf_strdup(ue_net_connection->gpsi);
+        ue_net_connection_copy->dnn = msaf_strdup(ue_net_connection->dnn);
+        ue_net_connection_copy->ip_domain = msaf_strdup(ue_net_connection->ip_domain);
     }
     return  ue_net_connection_copy;
 }
@@ -654,20 +655,20 @@ static void free_ue_network_connection_identifier(ue_network_identifier_t *ue_ne
     ogs_free(ue_net_connection);
 }
 
-static void msaf_dynamic_policy_remove(msaf_dynamic_policy_t *msaf_dynamic_policy){
-   
-    if(!msaf_dynamic_policy) return;
+static void msaf_dynamic_policy_remove(msaf_dynamic_policy_t *msaf_dynamic_policy) {
 
-    if(msaf_dynamic_policy->dynamicPolicyId) {
+    if (!msaf_dynamic_policy) return;
+
+    if (msaf_dynamic_policy->dynamicPolicyId) {
         ogs_free(msaf_dynamic_policy->dynamicPolicyId);
         msaf_dynamic_policy->dynamicPolicyId = NULL;
     }
 
-    if(msaf_dynamic_policy->DynamicPolicy) msaf_api_dynamic_policy_free(msaf_dynamic_policy->DynamicPolicy);
-    if(msaf_dynamic_policy->hash) ogs_free(msaf_dynamic_policy->hash);
-    if(msaf_dynamic_policy->metadata){
-        if(msaf_dynamic_policy->metadata->create_event) msaf_event_free(msaf_dynamic_policy->metadata->create_event);
-	if(msaf_dynamic_policy->metadata->delete_event) msaf_event_free(msaf_dynamic_policy->metadata->delete_event);
+    if (msaf_dynamic_policy->DynamicPolicy) msaf_api_dynamic_policy_free(msaf_dynamic_policy->DynamicPolicy);
+    if (msaf_dynamic_policy->hash) ogs_free(msaf_dynamic_policy->hash);
+    if (msaf_dynamic_policy->metadata) {
+        if (msaf_dynamic_policy->metadata->create_event) msaf_event_free(msaf_dynamic_policy->metadata->create_event);
+        if (msaf_dynamic_policy->metadata->delete_event) msaf_event_free(msaf_dynamic_policy->metadata->delete_event);
         ogs_free(msaf_dynamic_policy->metadata);
     }
 
@@ -676,24 +677,24 @@ static void msaf_dynamic_policy_remove(msaf_dynamic_policy_t *msaf_dynamic_polic
 }
 
 static void ue_connection_details_free(ue_network_identifier_t *ue_connection) {
-    if(ue_connection->address) ogs_freeaddrinfo(ue_connection->address);
-    if(ue_connection->ip_domain) ogs_free(ue_connection->ip_domain);
+    if (ue_connection->address) ogs_freeaddrinfo(ue_connection->address);
+    if (ue_connection->ip_domain) ogs_free(ue_connection->ip_domain);
     ogs_free(ue_connection);
 
 }
 
-static bool app_session_change_callback(pcf_app_session_t *app_session, void *data){
+static bool app_session_change_callback(pcf_app_session_t *app_session, void *data) {
 
     msaf_dynamic_policy_t *dynamic_policy;
     ogs_debug("change callback(app_session=%p, data=%p)", app_session, data);
 
     dynamic_policy = (msaf_dynamic_policy_t *)data;
 
-    if(!app_session){
+    if (!app_session) {
 
-        if(dynamic_policy->metadata->create_event)
+        if (dynamic_policy->metadata->create_event)
         {
-	    ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));
+            ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));
             msaf_dynamic_policy_remove(dynamic_policy);
             return true;
         }
@@ -702,7 +703,7 @@ static bool app_session_change_callback(pcf_app_session_t *app_session, void *da
         return true;
     }
 
-    if(app_session && dynamic_policy->metadata->create_event){
+    if (app_session && dynamic_policy->metadata->create_event) {
         dynamic_policy->pcf_app_session = app_session;
         create_msaf_dynamic_policy_and_send_response(dynamic_policy);
         return true;
@@ -751,7 +752,7 @@ free_ogs_hash_dynamic_policy(void *rec, const void *key, int klen, const void *v
     return 1;
 }
 
-static bool create_msaf_dynamic_policy_and_send_response(msaf_dynamic_policy_t *dyn_policy){
+static bool create_msaf_dynamic_policy_and_send_response(msaf_dynamic_policy_t *dyn_policy) {
     ogs_uuid_t uuid;
     char id[OGS_UUID_FORMATTED_LENGTH + 1];
     ogs_sbi_response_t *response;
@@ -775,14 +776,14 @@ static bool create_msaf_dynamic_policy_and_send_response(msaf_dynamic_policy_t *
     dyn_policy->dynamic_policy_created = time(NULL);
 
     dynamic_policy = msaf_api_dynamic_policy_convertResponseToJSON(dyn_policy->DynamicPolicy);
-    if(dynamic_policy) {
+    if (dynamic_policy) {
         dynamic_policy_to_hash = cJSON_Print(dynamic_policy);
         dyn_policy->hash = calculate_hash(dynamic_policy_to_hash);
     } else {
         ogs_error("Error converting Dynamic Policy to JSON");
-	ogs_free(dyn_policy->DynamicPolicy->dynamic_policy_id);
-	ogs_free(dyn_policy->dynamicPolicyId);
-	return 0;	
+        ogs_free(dyn_policy->DynamicPolicy->dynamic_policy_id);
+        ogs_free(dyn_policy->dynamicPolicyId);
+        return 0;
     }
 
     ogs_hash_set(msaf_self()->dynamic_policies, msaf_strdup(id), OGS_HASH_KEY_STRING, dyn_policy);
@@ -798,7 +799,7 @@ static bool create_msaf_dynamic_policy_and_send_response(msaf_dynamic_policy_t *
     nf_server_populate_response(response, response_body?strlen(response_body):0, msaf_strdup(response_body), response_code);
     ogs_assert(true == ogs_sbi_server_send_response(dyn_policy->metadata->create_event->h.sbi.data, response));
 
-    if(dyn_policy->metadata->create_event)
+    if (dyn_policy->metadata->create_event)
     {
         msaf_event_free(dyn_policy->metadata->create_event);
         dyn_policy->metadata->create_event =  NULL;
@@ -821,7 +822,7 @@ static bool app_session_notification_callback(pcf_app_session_t *app_session, co
     return true;
 }
 
-static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding, void *data){
+static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding, void *data) {
     int rv;
     int valid_time = 50;
     ogs_time_t expires;
@@ -835,20 +836,20 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
 
     ogs_assert(ue_address);
 
-    if(pcf_binding){
+    if (pcf_binding) {
         const ogs_sockaddr_t *pcf_address;
         expires = ogs_time_now() + ogs_time_from_sec(valid_time);
         rv =  msaf_pcf_cache_add(msaf_self()->pcf_cache, ue_address, (const OpenAPI_pcf_binding_t *)pcf_binding, expires);
         OpenAPI_pcf_binding_free(pcf_binding);
 
 
-        if (rv != true){
+        if (rv != true) {
             ogs_error("Adding PCF Binding to the cache failed");
             retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
             return false;
         }
         pcf_address = msaf_pcf_cache_find(msaf_self()->pcf_cache, retrieve_pcf_binding_cb_data->ue_connection->address);
-        if(pcf_address){
+        if (pcf_address) {
             create_dynamic_policy_app_session(pcf_address, retrieve_pcf_binding_cb_data->ue_connection, retrieve_pcf_binding_cb_data->media_component, retrieve_pcf_binding_cb_data->dyn_policy);
             retrieve_pcf_binding_cb_data_free(retrieve_pcf_binding_cb_data);
             return true;
@@ -930,7 +931,7 @@ static char *flow_description_protocol_to_string(int protocol)
 
 static char *flow_description_port(int port)
 {
-    if (port == 0) return ogs_strdup("");
+    if (port == 0) return msaf_strdup("");
     return ogs_msprintf(" %d", port);
 }
 

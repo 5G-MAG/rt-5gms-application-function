@@ -1,12 +1,13 @@
 /*
-License: 5G-MAG Public License (v1.0)
-Author: Dev Audsin
-Copyright: (C) 2022 British Broadcasting Corporation
-
-For full license terms please see the LICENSE file distributed with this
-program. If this file is missing then the license can be retrieved from
-https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
-*/
+ * License: 5G-MAG Public License (v1.0)
+ * Authors: Dev Audsin <dev.audsin@bbc.co.uk>
+ *          David Waring <david.waring2@bbc.co.uk>
+ * Copyright: (C) 2022-2024 British Broadcasting Corporation
+ * 
+ * For full license terms please see the LICENSE file distributed with this
+ * program. If this file is missing then the license can be retrieved from
+ * https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
+ */
 
 #include "ogs-core.h"
 #include "ogs-sbi.h"
@@ -48,7 +49,7 @@ msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisio
 
     msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
     ogs_assert(msaf_as);
-    ogs_list_for_each(&msaf_self()->application_server_states, as_state){
+    ogs_list_for_each(&msaf_self()->application_server_states, as_state) {
         if (as_state->application_server == msaf_as) {
             msaf_application_server_state_ref_node_t *as_state_ref;
 
@@ -90,7 +91,7 @@ msaf_application_server_state_update( msaf_provisioning_session_t *provisioning_
 {
     msaf_application_server_state_ref_node_t *as_state_ref;
 
-    ogs_list_for_each(&provisioning_session->application_server_states, as_state_ref){
+    ogs_list_for_each(&provisioning_session->application_server_states, as_state_ref) {
         resource_id_node_t *chc;
         msaf_application_server_state_node_t *as_state = as_state_ref->as_state;
         ogs_list_t *certs = msaf_retrieve_certificates_from_map(provisioning_session);
@@ -188,11 +189,11 @@ msaf_application_server_add(char *canonical_hostname, char *url_path_prefix_form
 
 void msaf_application_server_state_log(ogs_list_t *list, const char* list_name) {
     resource_id_node_t *state_node;
-    if(!list || (ogs_list_count(list) == 0)){
+    if (!list || (ogs_list_count(list) == 0)) {
         ogs_debug("%s is empty",list_name);
     } else{
         int i = 1;
-        ogs_list_for_each(list, state_node){
+        ogs_list_for_each(list, state_node) {
             ogs_debug("%s[%d]: %s\n", list_name, i, state_node->state);
             i++;
         }
@@ -274,26 +275,26 @@ void next_action_for_application_server(msaf_application_server_state_node_t *as
         cJSON_Delete(json);
         cJSON_free(data);
 
-    }   else if (ogs_list_first(&as_state->delete_content_hosting_configurations) !=  NULL) {
+    } else if (ogs_list_first(&as_state->delete_content_hosting_configurations) !=  NULL) {
         char *component;
         resource_id_node_t *delete_chc = ogs_list_first(&as_state->delete_content_hosting_configurations);
         ogs_debug("M3 client: Sending DELETE method for Content Hosting Configuration [%s] to the Application Server [%s]", delete_chc->state, as_state->application_server->canonicalHostname);
         component = ogs_msprintf("content-hosting-configurations/%s", delete_chc->state);
         m3_client_as_state_requests(as_state, NULL, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_DELETE, component);
         ogs_free(component);
-    }   else if (ogs_list_first(&as_state->delete_certificates) !=  NULL) {
+    } else if (ogs_list_first(&as_state->delete_certificates) !=  NULL) {
         char *component;
         resource_id_node_t *delete_cert = ogs_list_first(&as_state->delete_certificates);
         ogs_debug("M3 client: Sending DELETE method for certificate [%s] to the Application Server [%s]", delete_cert->state, as_state->application_server->canonicalHostname);
         component = ogs_msprintf("certificates/%s", delete_cert->state);
         m3_client_as_state_requests(as_state, NULL, NULL, NULL, (char *)OGS_SBI_HTTP_METHOD_DELETE, component);
         ogs_free(component);
-    }  else if(ogs_list_first(&as_state->purge_content_hosting_cache) != NULL){
+    } else if (ogs_list_first(&as_state->purge_content_hosting_cache) != NULL) {
         purge_resource_id_node_t *purge_chc = ogs_list_first(&as_state->purge_content_hosting_cache);
         ogs_assert(purge_chc);
         ogs_assert(purge_chc->provisioning_session_id);
         char *component =  ogs_msprintf("content-hosting-configurations/%s/purge", purge_chc->provisioning_session_id);
-        if(purge_chc->purge_regex) {
+        if (purge_chc->purge_regex) {
             ogs_debug("M3 client: Sending cache purge operation for resource [%s] to the Application Server", purge_chc->provisioning_session_id);
             m3_client_as_state_requests(as_state, purge_chc, "application/x-www-form-urlencoded", purge_chc->purge_regex, OGS_SBI_HTTP_METHOD_POST, component);
         } else {

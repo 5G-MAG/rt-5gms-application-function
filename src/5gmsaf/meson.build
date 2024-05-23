@@ -34,6 +34,8 @@ libmsaf_dist_sources = files('''
     application-server-context.c
     certmgr.c
     certmgr.h
+    metrics-reporting-configuration.c
+    metrics-reporting-configuration.h
     consumption-report-configuration.c
     consumption-report-configuration.h
     context.c
