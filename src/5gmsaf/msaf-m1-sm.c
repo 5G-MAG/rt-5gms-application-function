@@ -1719,13 +1719,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 }
 
                                             } else {
-                                                static const char methods[] = OGS_SBI_HTTP_METHOD_POST ", "
+                                                static const char methods_feature_enabled[] = OGS_SBI_HTTP_METHOD_POST ", "
                                                                               OGS_SBI_HTTP_METHOD_OPTIONS;
-                                                static const char disabled_methods[] = OGS_SBI_HTTP_METHOD_OPTIONS;
+                                                static const char methods_feature_disabled[] = OGS_SBI_HTTP_METHOD_OPTIONS;
                                                 if (!msaf_self()->config.open5gsIntegration_flag) {
-                                                    response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, disabled_methods, m1_policytemplatesprovisioning_api, app_meta);
+                                                    response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods_feature_disabled, m1_policytemplatesprovisioning_api, app_meta);
                                                 } else {
-                                                    response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods, m1_policytemplatesprovisioning_api, app_meta);
+                                                    response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods_feature_enabled, m1_policytemplatesprovisioning_api, app_meta);
                                                 }
                                                 nf_server_populate_response(response, 0, NULL, 204);
                                                 ogs_assert(response);
