@@ -1672,9 +1672,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                 msaf_delete_content_hosting_configuration(message->h.resource.component[1]);
                                 msaf_delete_certificates(message->h.resource.component[1]);
-                                msaf_context_provisioning_session_free(provisioning_session);
                                 msaf_consumption_report_configuration_deregister(provisioning_session);
                                 msaf_provisioning_session_hash_remove(message->h.resource.component[1]);
+                                msaf_context_provisioning_session_free(provisioning_session);
                             }
                         } else {
                             char *err;
