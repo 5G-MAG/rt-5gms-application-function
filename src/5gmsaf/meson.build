@@ -22,6 +22,8 @@ sbi_openapi_inc = open5gs_project.get_variable('libsbi_openapi_model_inc')
 libscbsf_dep = svc_consumers_project.get_variable('libscbsf_dep')
 libscpcf_dep = svc_consumers_project.get_variable('libscpcf_dep')
 
+libpcre2 = dependency('libpcre2-8')
+
 latest_apis = get_option('latest_apis')
 fiveg_api_approval = get_option('fiveg_api_approval')
 fiveg_api_release = get_option('fiveg_api_release')
@@ -155,7 +157,8 @@ libmsaf_dep = declare_dependency(
                     libapp_dep,
                     libscbsf_dep,
                     libscpcf_dep,
-                    libcrypt_dep])
+                    libcrypt_dep,
+                    libpcre2])
 
 msaf_sources = files('''
     app.c

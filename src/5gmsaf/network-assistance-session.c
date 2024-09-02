@@ -59,7 +59,7 @@ int msaf_nw_assistance_session_create(cJSON *network_assistance_sess, msaf_event
     OpenAPI_lnode_t *node = NULL;
     OpenAPI_list_t *media_component = NULL;
 
-    nas =  msaf_api_network_assistance_session_parseRequestFromJSON(network_assistance_sess, NULL);
+    nas =  msaf_api_network_assistance_session_parseRequestFromJSON(network_assistance_sess, NULL, NULL);
     if (!nas) return 0;
 
     na_sess = msaf_network_assistance_session_init();
@@ -224,12 +224,12 @@ void msaf_nw_assistance_session_delivery_boost_update(msaf_network_assistance_se
 
         if (!pcf_session_update_app_session(na_sess->pcf_app_session, media_comps)) {
             ogs_error("Unable to send update request to the PCF");
-            ogs_assert(true == nf_server_send_error(e->h.sbi.data, 401, 0, e->message, "Creation of delivery boost failed.", "Unable to send update request to the PCF" , NULL, e->nf_server_interface_metadata, e->app_meta));
+            ogs_assert(true == nf_server_send_error(e->h.sbi.data, 401, 0, e->message, "Creation of delivery boost failed.", "Unable to send update request to the PCF" , NULL, NULL, e->nf_server_interface_metadata, e->app_meta));
         }
 
     } else {
             ogs_error("The Network Assistance Session has no associated App Session");
-            ogs_assert(true == nf_server_send_error(e->h.sbi.data, 401, 0, e->message, "Creation of delivery boost failed.", "The Network Assistance Session has no associated App Session" , NULL, e->nf_server_interface_metadata, e->app_meta));
+            ogs_assert(true == nf_server_send_error(e->h.sbi.data, 401, 0, e->message, "Creation of delivery boost failed.", "The Network Assistance Session has no associated App Session" , NULL, NULL, e->nf_server_interface_metadata, e->app_meta));
 
     }
     ogs_info("END of msaf_nw_assistance_session_update_pcf");
@@ -632,7 +632,7 @@ static bool app_session_change_callback(pcf_app_session_t *app_session, void *da
         if (na_sess->metadata->create_event)
         {
             /*
-            ogs_assert(true == nf_server_send_error(na_sess->create_event->h.sbi.data, 401, 0, na_sess->create_event->message, "Creation of the Network Assistance Session failed.", "PCF App Session creation failed" , NULL, na_sess->create_event->local.nf_server_interface_metadata, na_sess->create_event->local.app_meta));
+            ogs_assert(true == nf_server_send_error(na_sess->create_event->h.sbi.data, 401, 0, na_sess->create_event->message, "Creation of the Network Assistance Session failed.", "PCF App Session creation failed" , NULL, NULL, na_sess->create_event->local.nf_server_interface_metadata, na_sess->create_event->local.app_meta));
             */
             msaf_network_assistance_session_remove(na_sess);
             return false;
@@ -841,7 +841,7 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
            ogs_error("%s", err);
            ogs_assert(true == nf_server_send_error(retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->h.sbi.data, 404, 0,
                                    retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->message,
-                                   "PCF app session creation failed.", err, NULL,
+                                   "PCF app session creation failed.", err, NULL, NULL,
                                    retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->nf_server_interface_metadata,
                                    retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->app_meta));
            ogs_free(err);
@@ -856,7 +856,7 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
         ogs_error("%s", err);
         ogs_assert(true == nf_server_send_error(retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->h.sbi.data, 404, 0,
                                    retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->message,
-                                   "PCF Binding not found.", err, NULL,
+                                   "PCF Binding not found.", err, NULL, NULL,
                                    retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->nf_server_interface_metadata,
                                    retrieve_pcf_binding_cb_data->na_sess->metadata->create_event->app_meta));
         ogs_free(err);

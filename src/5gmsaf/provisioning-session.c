@@ -59,9 +59,9 @@ static char *calculate_provisioning_session_hash(msaf_api_provisioning_session_t
 static ogs_hash_t *msaf_certificate_map();
 static ogs_hash_t *msaf_policy_templates_new(void);
 
-static msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data_populate(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_policy_template_state_change_callback callback, void *user_data);
+static msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data_populate(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_STATE_e new_state, msaf_policy_template_state_change_callback callback, void *user_data);
 
-static void msaf_provisioning_session_policy_template_delete(msaf_provisioning_session_t *msaf_provisioning_session, msaf_policy_template_node_t *policy_template_node, msaf_api_policy_template_state_e new_state, void *user_data);
+static void msaf_provisioning_session_policy_template_delete(msaf_provisioning_session_t *msaf_provisioning_session, msaf_policy_template_node_t *policy_template_node, msaf_api_policy_template_STATE_e new_state, void *user_data);
 
 static int free_ogs_hash_provisioning_session_policy_template(void *rec, const void *key, int klen, const void *value);
 
@@ -233,6 +233,82 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         ogs_error("Unable to retrieve Provisioning Session [%s]", provisioning_session_id);
     }
     return provisioning_session_json;
+}
+
+msaf_provisioning_session_t *
+msaf_provisioning_session_parseRequestFromJSON(cJSON *json, const char **reason, char **err_parameter)
+{
+    msaf_provisioning_session_t *provisioning_session = NULL;
+
+    /* Due to missing "read-only" flags in the v17 3GPP OpenAPI YAML we have to parse ourselves, when fixed use: */
+#if 0
+    msaf_api_provisioning_session_t *api_session;
+    api_session = msaf_api_provisioning_session_parseRequestFromJSON(json, reason, err_parameter);
+
+    if (api_session) {
+        provisioning_session = msaf_provisioning_session_create(msaf_api_provisioning_session_type_ToString(api_session->provisioning_session_type), api_session->asp_id, api_session->app_id);
+        msaf_api_provisioning_session_free(api_session);
+    }
+#else
+    cJSON *entry;
+    const char *asp_id = NULL;
+    const char *app_id;
+    msaf_api_provisioning_session_type_e prov_sess_type;
+
+    if (reason) *reason = NULL;
+    if (err_parameter) *err_parameter = NULL;
+
+    entry = cJSON_GetObjectItemCaseSensitive(json, "provisioningSessionType");
+    if (!entry) {
+        ogs_error("msaf_provisioning_session_parseFromJSON() failed [provisioningSessionType]");
+        if (reason) *reason = "Required field \"provisioningSessionType\" not found";
+        if (err_parameter) *err_parameter = ogs_strdup("provisioningSessionType");
+        return provisioning_session;
+    }
+    if (!cJSON_IsString(entry)) {
+        ogs_error("msaf_provisioning_session_parseFromJSON() failed [provisioning_session_type]");
+        if (reason) *reason = "Field \"provisioningSessionType\" is not an enumeration string";
+        if (err_parameter) *err_parameter = ogs_strdup("provisioningSessionType");
+        return provisioning_session;
+    }
+    prov_sess_type = msaf_api_provisioning_session_type_FromString(entry->valuestring);
+    if (prov_sess_type < 0) {
+        ogs_error("msaf_provisioning_session_parseFromJSON() failed [provisioning_session_type]");
+        if (reason) *reason = "Field \"provisioningSessionType\" enumerated value not recognised";
+        if (err_parameter) *err_parameter = ogs_strdup("provisioningSessionType");
+        return provisioning_session;
+    }
+
+    entry = cJSON_GetObjectItemCaseSensitive(json, "aspId");
+    if (entry) {
+        if (!cJSON_IsString(entry) && !cJSON_IsNull(entry)) {
+            ogs_error("msaf_provisioning_session_parseFromJSON() failed [asp_id]");
+            if (reason) *reason = "Field \"aspId\" is not a string or 'null'";
+            if (err_parameter) *err_parameter = ogs_strdup("aspId");
+            return provisioning_session;
+        }
+        asp_id = entry->valuestring;
+    }
+
+    entry = cJSON_GetObjectItemCaseSensitive(json, "appId");
+    if (!entry) {
+        ogs_error("msaf_provisioning_session_parseFromJSON() failed [appId]");
+        if (reason) *reason = "Required field \"appId\" not found";
+        if (err_parameter) *err_parameter = ogs_strdup("appId");
+        return provisioning_session;
+    }
+    if (!cJSON_IsString(entry)) {
+        ogs_error("msaf_provisioning_session_parseFromJSON() failed [appId]");
+        if (reason) *reason = "Field \"appId\" is not a string";
+        if (err_parameter) *err_parameter = ogs_strdup("appId");
+        return provisioning_session;
+    }
+    app_id = entry->valuestring;
+
+    provisioning_session = msaf_provisioning_session_create(msaf_api_provisioning_session_type_ToString(prov_sess_type), asp_id, app_id);
+#endif
+
+    return provisioning_session;
 }
 
 int
@@ -441,7 +517,7 @@ msaf_retrieve_certificates_from_map(msaf_provisioning_session_t *provisioning_se
 }
 
 int
-msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session, const char **reason_ret)
+msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session, const char **reason_ret, char **err_param)
 {
     OpenAPI_lnode_t *dist_config_node = NULL;
     msaf_api_distribution_configuration_t *dist_config = NULL;
@@ -456,7 +532,7 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
     url_path = url_path_create(macro, provisioning_session->provisioningSessionId, msaf_as);
 
     msaf_api_content_hosting_configuration_t *content_hosting_configuration
-        = msaf_api_content_hosting_configuration_parseRequestFromJSON(content_hosting_config, reason_ret);
+        = msaf_api_content_hosting_configuration_parseRequestFromJSON(content_hosting_config, reason_ret, err_param);
 
     if (!content_hosting_configuration) {
         if (reason_ret) {
@@ -687,7 +763,7 @@ bool msaf_provisioning_session_update_policy_template(msaf_provisioning_session_
     return true;
 }
 
-bool msaf_provisioning_session_send_policy_template_state_change_event(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_policy_template_state_change_callback callback, void *user_data)
+bool msaf_provisioning_session_send_policy_template_state_change_event(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_STATE_e new_state, msaf_policy_template_state_change_callback callback, void *user_data)
 {
     msaf_event_t *event;
     int rv;
@@ -765,7 +841,7 @@ static ogs_hash_t *msaf_policy_templates_new(void)
     return policy_templates;
 }
 
-static msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data_populate(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_policy_template_state_change_callback callback, void *user_data)
+static msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data_populate(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_STATE_e new_state, msaf_policy_template_state_change_callback callback, void *user_data)
 {
     msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data;
 
@@ -782,7 +858,7 @@ static msaf_policy_template_change_state_event_data_t *msaf_policy_template_chan
 
 }
 
-static void msaf_provisioning_session_policy_template_delete(msaf_provisioning_session_t *msaf_provisioning_session, msaf_policy_template_node_t *policy_template_node, msaf_api_policy_template_state_e new_state, void *user_data)
+static void msaf_provisioning_session_policy_template_delete(msaf_provisioning_session_t *msaf_provisioning_session, msaf_policy_template_node_t *policy_template_node, msaf_api_policy_template_STATE_e new_state, void *user_data)
 {
     ogs_assert(msaf_provisioning_session);
     ogs_assert(policy_template_node);

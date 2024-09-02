@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "ogs-core.h"
 
@@ -108,6 +109,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     /* client consumption reporting configuration */
     if (provisioning_session->consumptionReportingConfiguration) {
         OpenAPI_list_t *ccrc_svr_list;
+        const msaf_api_consumption_reporting_configuration_t *crc = provisioning_session->consumptionReportingConfiguration;
 
         ogs_debug("Adding clientConsumptionReportingConfiguration to ServiceAccessInformation [%s]",
                   provisioning_session->provisioningSessionId);
@@ -116,18 +118,12 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
         ogs_assert(ccrc_svr_list);
         OpenAPI_list_add(ccrc_svr_list, ogs_msprintf("http%s://%s/3gpp-m5/v2/", is_tls?"s":"", svr_hostname));
         ccrc = msaf_api_service_access_information_resource_client_consumption_reporting_configuration_create(
-                    provisioning_session->consumptionReportingConfiguration->reporting_interval?true:false,
-                    *provisioning_session->consumptionReportingConfiguration->reporting_interval,
+                    crc->reporting_interval?true:false,
+                    crc->reporting_interval?*crc->reporting_interval:0,
                     ccrc_svr_list,
-                    provisioning_session->consumptionReportingConfiguration->is_location_reporting?
-                        provisioning_session->consumptionReportingConfiguration->location_reporting:
-                        0,
-                    provisioning_session->consumptionReportingConfiguration->is_access_reporting?
-                        provisioning_session->consumptionReportingConfiguration->access_reporting:
-                        0,
-                    provisioning_session->consumptionReportingConfiguration->is_sample_percentage?
-                        provisioning_session->consumptionReportingConfiguration->sample_percentage:
-                        100.0
+                    crc->is_location_reporting?crc->location_reporting:0,
+                    crc->is_access_reporting?crc->access_reporting:0,
+                    crc->is_sample_percentage?crc->sample_percentage:100.0
                     );
         ogs_assert(ccrc);
     }
@@ -166,10 +162,9 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 }
             }
 
-            OpenAPI_list_t *metrics = NULL;
+            OpenAPI_list_t *metrics = OpenAPI_list_create();
+            ogs_assert(metrics);
             if (metrics_config->config->metrics) {
-                metrics = OpenAPI_list_create();
-                ogs_assert(metrics);
                 OpenAPI_lnode_t *metrics_node;
                 OpenAPI_list_for_each(metrics_config->config->metrics, metrics_node) {
                     OpenAPI_list_add(metrics, msaf_strdup((const char*)metrics_node->data));
@@ -182,18 +177,28 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 scheme = msaf_strdup("urn:3GPP:ns:PSS:DASH:QM10");
             }
 
+            OpenAPI_list_t *slice_scope = NULL;
+            if (metrics_config->config->slice_scope) {
+                slice_scope = OpenAPI_list_create();
+                ogs_assert(slice_scope);
+                OpenAPI_lnode_t *node;
+                OpenAPI_list_for_each(metrics_config->config->slice_scope, node) {
+                    OpenAPI_list_add(slice_scope, msaf_api_snssai_copyResponse(NULL, (const msaf_api_snssai_t*)node->data));
+                }
+            }
+
             msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_t *cmrc_inner =
                     msaf_api_service_access_information_resource_client_metrics_reporting_configurations_inner_create(
                             msaf_strdup(metrics_config->config->metrics_reporting_configuration_id),
                             cmrc_svr_list,
-                            NULL,
+                            slice_scope,
                             scheme,
                             msaf_strdup(metrics_config->config->data_network_name),
                             !!metrics_config->config->reporting_interval,
                             metrics_config->config->reporting_interval?*metrics_config->config->reporting_interval:0,
-                            metrics_config->config->sample_percentage,
+                            metrics_config->config->is_sample_percentage?metrics_config->config->sample_percentage:100.0,
                             url_filters,
-                            metrics_config->config->sampling_period?*metrics_config->config->sampling_period:0,
+                            *metrics_config->config->sampling_period,
                             metrics);
 
             if (cmrc_inner) {

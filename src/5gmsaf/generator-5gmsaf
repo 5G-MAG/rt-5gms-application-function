@@ -122,10 +122,14 @@ cp "${scriptdir}/../../subprojects/rt-common-shared/open5gs-tools/openapi-genera
 cat >> $scriptdir/config.yaml << EOF
 importMappings:
   set: set
+  any_type: any_type
   msaf_api_set: set
+  msaf_api_any_type: any_type
 typeMappings:
   set: set
+  any_type: any_type
   msaf_api_set: set
+  msaf_api_any_type: any_type
 files:
   api-info-head.mustache:
     templateType: API
@@ -134,6 +138,22 @@ files:
     templateType: SupportingFiles
     folder: include
     destinationFilename: set.h
+  any_type.c.mustache:
+    templateType: SupportingFiles
+    folder: src
+    destinationFilename: any_type.c
+  any_type.h.mustache:
+    templateType: SupportingFiles
+    folder: include
+    destinationFilename: any_type.h
+  OpenAPI_regex.c.mustache:
+    templateType: SupportingFiles
+    folder: src
+    destinationFilename: OpenAPI_regex.c
+  OpenAPI_regex.h.mustache:
+    templateType: SupportingFiles
+    folder: include
+    destinationFilename: OpenAPI_regex.h
 EOF
 
 # call the common generate_openapi script
@@ -149,6 +169,8 @@ if ! "$rt_common_shared/open5gs-tools/scripts/generate_openapi" -a "${APIS}" -b 
 fi
  
 ln -s ../include/set.h "$scriptdir/openapi/model/msaf_api_set.h"
+ln -s ../include/OpenAPI_regex.h "$scriptdir/openapi/model/OpenAPI_regex.h"
+ln -s ../src/OpenAPI_regex.c "$scriptdir/openapi/model/OpenAPI_regex.c"
 
 # Delete any model file already in the Open5GS SBI library to avoid clashes
 for f in "$scriptdir/openapi/model"/*.[ch]; do

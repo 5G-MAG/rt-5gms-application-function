@@ -82,12 +82,13 @@ int msaf_dynamic_policy_create(cJSON *dynamicPolicy, msaf_event_t *e)
     msaf_policy_template_node_t *msaf_policy_template;
     OpenAPI_lnode_t *node = NULL;
     OpenAPI_list_t *media_component = NULL;
-    const char *reason;
+    const char *reason = NULL;
+    char *parameter = NULL;
 
-
-    dynamic_policy =  msaf_api_dynamic_policy_parseRequestFromJSON(dynamicPolicy, &reason);
+    dynamic_policy =  msaf_api_dynamic_policy_parseRequestFromJSON(dynamicPolicy, &reason, &parameter);
     if (!dynamic_policy) {
-        ogs_error("Dynamic Policy Badly formed JSON: [%s]", reason);
+        ogs_error("Dynamic Policy Badly formed JSON (at %s): [%s]", parameter, reason);
+        if (parameter) ogs_free(parameter);
         return 0;
     }
 
@@ -605,7 +606,7 @@ static void create_dynamic_policy_app_session(const ogs_sockaddr_t *pcf_address,
     pcf_session = msaf_pcf_session_new(pcf_address);
 
     if (!pcf_session) {
-        ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));
+        ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));
     }
 
     ue_net  = copy_ue_network_connection_identifier(ue_connection);
@@ -694,7 +695,7 @@ static bool app_session_change_callback(pcf_app_session_t *app_session, void *da
 
         if (dynamic_policy->metadata->create_event)
         {
-            ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));
+            ogs_assert(true == nf_server_send_error(dynamic_policy->metadata->create_event->h.sbi.data, 401, 0, dynamic_policy->metadata->create_event->message, "Failed to create dynamic policy.", "Unable to establish connection with the PCF." , NULL, NULL, dynamic_policy->metadata->create_event->nf_server_interface_metadata, dynamic_policy->metadata->create_event->app_meta));
             msaf_dynamic_policy_remove(dynamic_policy);
             return true;
         }
@@ -860,7 +861,7 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
            ogs_error("%s", err);
            ogs_assert(true == nf_server_send_error(retrieve_pcf_binding_cb_data->dyn_policy->metadata->create_event->h.sbi.data, 404, 0,
                                    retrieve_pcf_binding_cb_data->dyn_policy->metadata->create_event->message,
-                                   "PCF app session creation failed.", err, NULL,
+                                   "PCF app session creation failed.", err, NULL, NULL,
                                    retrieve_pcf_binding_cb_data->dyn_policy->metadata->create_event->nf_server_interface_metadata,
                                    retrieve_pcf_binding_cb_data->dyn_policy->metadata->create_event->app_meta));
            ogs_free(err);
@@ -875,7 +876,7 @@ static bool bsf_retrieve_pcf_binding_callback(OpenAPI_pcf_binding_t *pcf_binding
         ogs_error("%s", err);
         ogs_assert(true == nf_server_send_error(retrieve_pcf_binding_cb_data->dyn_policy->metadata->create_event->h.sbi.data, 404, 0,
                                    retrieve_pcf_binding_cb_data->dyn_policy->metadata->create_event->message,
-                                   "PCF Binding not found.", err, NULL,
+                                   "PCF Binding not found.", err, NULL, NULL,
                                    retrieve_pcf_binding_cb_data->dyn_policy->metadata->create_event->nf_server_interface_metadata,
                                    retrieve_pcf_binding_cb_data->dyn_policy->metadata->create_event->app_meta));
         ogs_free(err);

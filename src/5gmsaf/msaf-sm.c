@@ -97,7 +97,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
             rv = ogs_sbi_parse_header(message, &request->h);
             if (rv != OGS_OK) {
                 ogs_error("ogs_sbi_parse_header() failed");
-                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, NULL, "cannot parse HTTP message", NULL, NULL, NULL, app_meta));
+                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 1, NULL, "cannot parse HTTP message", NULL, NULL, NULL, NULL, app_meta));
                 ogs_sbi_message_free(message);
                 break;
             }
@@ -146,7 +146,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 } else {
                     char *error;
                     error = ogs_msprintf("Resource [%s] not found.", request->h.uri);
-                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, NULL, "Not Found.", error, NULL, NULL, app_meta));
+                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, NULL, "Not Found.", error, NULL, NULL, NULL, app_meta));
                     ogs_free(error);
                 }
                 break;
@@ -160,7 +160,7 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 } else {
                     char *error;
                     error = ogs_msprintf("Resource [%s] not found.", request->h.uri);
-                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, NULL, "Not Found.", error, NULL, NULL, app_meta));
+                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, NULL, "Not Found.", error, NULL, NULL, NULL, app_meta));
                     ogs_free(error);
                 }
                 break;
@@ -173,13 +173,13 @@ void msaf_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                 } else {
                     char *error;
                     error = ogs_msprintf("Resource [%s] not found.", request->h.uri);
-                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, NULL, "Not Found.", error, NULL, NULL, app_meta));
+                    ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 1, NULL, "Not Found.", error, NULL, NULL, NULL, app_meta));
                     ogs_free(error);
                 }
                 break;
             DEFAULT
                 ogs_error("Invalid API name [%s]", message->h.service.name);
-                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, message, "Invalid API name.",  message->h.service.name, NULL, NULL, app_meta));
+                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, 0, message, "Invalid API name.",  message->h.service.name, NULL, NULL, NULL, app_meta));
 
             END
             if (message) ogs_sbi_message_free(message);

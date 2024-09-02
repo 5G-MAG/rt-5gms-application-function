@@ -19,9 +19,9 @@ static void msaf_policy_template_set_state_reason(msaf_api_policy_template_t *po
 
 /***** Public functions *****/
 
-msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON, const char **reason)
+msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON, const char **reason, char **parameter)
 {
-    return msaf_api_policy_template_parseRequestFromJSON(policy_templateJSON, reason);
+    return msaf_api_policy_template_parseRequestFromJSON(policy_templateJSON, reason, parameter);
 }
 
 void msaf_policy_template_set_id(msaf_api_policy_template_t *policy_template, const char *policy_template_id)
@@ -59,7 +59,7 @@ msaf_policy_template_node_t *msaf_policy_template_populate(msaf_api_policy_templ
     return msaf_policy_template;
 }
 
-bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_provisioning_session_t *provisioning_session) {
+bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template, msaf_api_policy_template_STATE_e new_state, msaf_provisioning_session_t *provisioning_session) {
 
 
    ogs_assert(policy_template);

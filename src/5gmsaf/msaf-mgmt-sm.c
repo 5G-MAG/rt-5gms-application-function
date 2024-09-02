@@ -78,7 +78,7 @@ void msaf_maf_mgmt_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
             DEFAULT
                 ogs_error("Resource [%s] not found.", message->h.service.name);
-                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, message, "Not Found.", message->h.service.name, NULL, maf_management_api, app_meta));
+                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND, 0, message, "Not Found.", message->h.service.name, NULL, NULL, maf_management_api, app_meta));
 
             END
             break;

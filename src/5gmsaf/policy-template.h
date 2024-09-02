@@ -21,13 +21,13 @@ extern "C" {
 
 #define msaf_policy_template_free(policy_template) msaf_api_policy_template_free(policy_template)
 
-extern bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_provisioning_session_t *provisioning_session);
+extern bool msaf_policy_template_set_state(msaf_api_policy_template_t *policy_template, msaf_api_policy_template_STATE_e new_state, msaf_provisioning_session_t *provisioning_session);
 
 extern void msaf_policy_template_set_id(msaf_api_policy_template_t *policy_template, const char *policy_template_id);
 
 extern msaf_api_policy_template_t *msaf_policy_template_create(cJSON *policy_template);
 
-extern msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON, const char **reason);
+extern msaf_api_policy_template_t *msaf_policy_template_parseFromJSON(cJSON *policy_templateJSON, const char **reason, char **parameter);
 
 extern cJSON *msaf_policy_template_convertToJSON(msaf_api_policy_template_t *policy_template);
 

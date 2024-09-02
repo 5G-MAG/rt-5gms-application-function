@@ -120,7 +120,9 @@ static bool nf_server_send_problem(
 
 bool nf_server_send_error(ogs_sbi_stream_t *stream,
         int status, int number_of_components, ogs_sbi_message_t *message,
-        const char *title, const char *detail, cJSON * problem_detail, const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app)
+        const char *title, const char *detail, cJSON * problem_detail,
+        OpenAPI_list_t *invalid_parameters,
+        const nf_server_interface_metadata_t *interface, const nf_server_app_metadata_t *app)
 {
     OpenAPI_problem_details_t problem;
     OpenAPI_problem_details_t *problem_details = NULL;
@@ -132,7 +134,19 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
     if (problem_detail) {
         problem_details = OpenAPI_problem_details_parseFromJSON(problem_detail);
         problem.invalid_params = problem_details->invalid_params;
+        problem_details->invalid_params = NULL;
+    }
 
+    if (invalid_parameters) {
+        if (!problem.invalid_params) {
+            problem.invalid_params = invalid_parameters;
+        } else {
+            OpenAPI_lnode_t *node;
+            OpenAPI_list_for_each(invalid_parameters, node) {
+                OpenAPI_list_add(problem.invalid_params, node->data);
+            }
+            OpenAPI_list_free(invalid_parameters);
+        }
     }
 
     if (message) {
@@ -169,6 +183,13 @@ bool nf_server_send_error(ogs_sbi_stream_t *stream,
         ogs_free(problem.title);
     if (problem.detail)
         ogs_free(problem.detail);
+    if (problem.invalid_params) {
+        OpenAPI_lnode_t *node;
+        OpenAPI_list_for_each(problem.invalid_params, node) {
+            OpenAPI_invalid_param_free(node->data);
+        }
+        OpenAPI_list_free(problem.invalid_params);
+    }
     if (problem_details)
         OpenAPI_problem_details_free(problem_details);
 
@@ -244,6 +265,17 @@ static char *nf_build_json(ogs_sbi_message_t *message)
     }
 
     return content;
+}
+
+OpenAPI_list_t *nf_server_invalid_param(char *parameter, const char *err)
+{
+    OpenAPI_invalid_param_t *inv_param;
+    OpenAPI_list_t *ret;
+
+    inv_param = OpenAPI_invalid_param_create(parameter, msaf_strdup(err));
+    ret = OpenAPI_list_create();
+    OpenAPI_list_add(ret, inv_param);
+    return ret;
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

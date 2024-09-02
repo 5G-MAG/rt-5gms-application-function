@@ -59,7 +59,7 @@ typedef struct msaf_provisioning_session_s {
 
 typedef struct msaf_application_server_state_node_s msaf_application_server_state_node_t;
 
-typedef void (*msaf_policy_template_state_change_callback)(msaf_provisioning_session_t *provisioning_session, msaf_policy_template_node_t *policy_template_node, msaf_api_policy_template_state_e new_state, void *user_data);
+typedef void (*msaf_policy_template_state_change_callback)(msaf_provisioning_session_t *provisioning_session, msaf_policy_template_node_t *policy_template_node, msaf_api_policy_template_STATE_e new_state, void *user_data);
 
 typedef struct msaf_application_server_state_ref_node_s {
     ogs_lnode_t node;
@@ -69,7 +69,7 @@ typedef struct msaf_application_server_state_ref_node_s {
 typedef struct msaf_policy_template_change_state_event_data_s {
     msaf_provisioning_session_t *provisioning_session;
     msaf_policy_template_node_t *policy_template_node;
-    msaf_api_policy_template_state_e new_state;
+    msaf_api_policy_template_STATE_e new_state;
     msaf_policy_template_state_change_callback callback;
     void *callback_user_data;
 } msaf_policy_template_change_state_event_data_t;
@@ -77,6 +77,7 @@ typedef struct msaf_policy_template_change_state_event_data_s {
 extern msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id);
 extern void msaf_provisioning_session_free(msaf_provisioning_session_t *provisioning_session);
 extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
+extern msaf_provisioning_session_t *msaf_provisioning_session_parseRequestFromJSON(cJSON *json, const char **reason, char **err_parameter);
 extern cJSON *msaf_provisioning_session_get_json(const char *provisioning_session_id);
 
 extern msaf_api_content_hosting_configuration_t *msaf_content_hosting_configuration_create(msaf_provisioning_session_t *provisioning_session);
@@ -99,7 +100,7 @@ extern void msaf_provisioning_session_certificate_hash_remove(const char *provis
 
 extern int uri_relative_check(const char *entry_point_path);
 
-extern int msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session, const char **reason_ret);
+extern int msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_session_t *provisioning_session, const char **reason_ret, char **err_parameter);
 
 extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(const char *provisioning_session_id);
 
@@ -115,7 +116,7 @@ extern msaf_policy_template_node_t *msaf_provisioning_session_find_policy_templa
 
 extern msaf_policy_template_node_t *msaf_provisioning_session_get_policy_template_by_id(const char *provisioning_session_id, const char *policy_template_id);
 
-extern bool msaf_provisioning_session_send_policy_template_state_change_event(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_state_e new_state, msaf_policy_template_state_change_callback callback, void *user_data);
+extern bool msaf_provisioning_session_send_policy_template_state_change_event(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_STATE_e new_state, msaf_policy_template_state_change_callback callback, void *user_data);
 
 extern bool msaf_provisioning_session_update_policy_template(msaf_provisioning_session_t *provisioning_session, msaf_policy_template_node_t *msaf_policy_template, msaf_api_policy_template_t *policy_template);
 

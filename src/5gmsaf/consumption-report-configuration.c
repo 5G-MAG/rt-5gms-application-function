@@ -89,16 +89,16 @@ bool msaf_consumption_report_configuration_deregister(msaf_provisioning_session_
     return true;
 }
 
-msaf_api_consumption_reporting_configuration_t *msaf_consumption_report_configuration_parseJSON(cJSON *json /* [no-transfer, not-null] */, const char **err_out /* [out, not-null] */)
+msaf_api_consumption_reporting_configuration_t *msaf_consumption_report_configuration_parseJSON(cJSON *json /* [no-transfer, not-null] */, const char **err_out /* [out, not-null] */, char **err_param /* [out, transfer, not-null] */)
 {
     msaf_api_consumption_reporting_configuration_t *crc;
 
     *err_out = NULL;
+    *err_param = NULL;
 
-    crc = msaf_api_consumption_reporting_configuration_parseRequestFromJSON(json, err_out);
+    crc = msaf_api_consumption_reporting_configuration_parseRequestFromJSON(json, err_out, err_param);
     if (!crc) {
-        /* err_out set by parser */
-        /* *err_out = "Failed to convert JSON to a ConsumptionReportingConfiguration"; */
+        /* err_out and err_param set by parser */
         return NULL;
     }
 
