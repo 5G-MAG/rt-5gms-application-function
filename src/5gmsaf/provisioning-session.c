@@ -1000,7 +1000,7 @@ free_ogs_hash_entry(void *rec, const void *key, int klen, const void *value)
     free_ogs_hash_context_t *fohc = (free_ogs_hash_context_t*)rec;
     ogs_hash_set(fohc->hash, key, klen, NULL);
     fohc->value_free_fn((void*)value);
-    ogs_free((void*)key);
+    //ogs_free((void*)key);
     return 1;
 }
 

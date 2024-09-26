@@ -81,8 +81,7 @@ msaf_metrics_reporting_configuration_t* process_and_map_metrics_reporting_config
         provisioning_session->metrics_reporting_map = msaf_metrics_reporting_map();
     }
 
-    char *hashKey = msaf_strdup(msaf_metrics_config->config->metrics_reporting_configuration_id);
-    ogs_hash_set(provisioning_session->metrics_reporting_map, hashKey, OGS_HASH_KEY_STRING, msaf_metrics_config);
+    ogs_hash_set(provisioning_session->metrics_reporting_map, msaf_metrics_config->config->metrics_reporting_configuration_id, OGS_HASH_KEY_STRING, msaf_metrics_config);
 
     return msaf_metrics_config;
 }

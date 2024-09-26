@@ -462,8 +462,8 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_list_remove(&extra_domains_list, node);
                                         ogs_free(node);
                                     }
-
-                                    ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(csr_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(csr_cert->id));
+                                    char *csr_cert_id = msaf_strdup(csr_cert->id);
+                                    ogs_hash_set(msaf_provisioning_session->certificate_map, csr_cert_id, OGS_HASH_KEY_STRING, csr_cert_id);
                                     ogs_sbi_response_t *response;
                                     location = ogs_msprintf("%s/%s", request->h.uri, csr_cert->id);
                                     if (csr_cert->cache_control_max_age) {
