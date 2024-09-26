@@ -23,8 +23,9 @@ A list of currently supported features is available [here](https://5g-mag.github
 ## Install dependencies
 
 ```bash
-sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev curl wget default-jdk cmake
-python3 -m pip install build pyOpenSSL meson
+sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev libpcre2-dev curl wget default-jdk cmake
+sudo python3 -m pip install meson
+python3 -m pip install build pyOpenSSL
 ```
 
 ## Downloading
@@ -54,7 +55,7 @@ meson build
 ninja -C build
 ```
 
-**Note:** Errors during the `meson build` command are often caused by missing dependancies or a network issue while trying to retrieve the API files and `openapi-generator` JAR file. See the `~/rt-5gms-application-function/build/meson-logs/meson-log.txt` log file for the errors in greater detail. Search for `generator-5gmsaf` to find the start of the API fetch sequence.
+**Note:** Errors during the `meson build` command are often caused by missing dependencies or a network issue while trying to retrieve the API files and `openapi-generator` JAR file. See the `~/rt-5gms-application-function/build/meson-logs/meson-log.txt` log file for the errors in greater detail. Search for `generator-5gmsaf` to find the start of the API fetch sequence.
 
 ## Installing
 
