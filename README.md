@@ -12,12 +12,12 @@ in ETSI TS 126.501.
 
 Additional information can be found at: https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/
 
-### 5GMS Downlink Application Function
+### 5GMSd AF
 
-A 5GMSd Application Function (AF), which can be deployed in the 5G Core Network or in an External Data Network, is
-responsible for managing the 5GMSd System. The AF is a logical function which embodies the control plane aspects of the
-system, including provisioning, configuration, and reporting, among others. A 5GMSd Application Provider provisions 5GMS
-functions using a RESTful HTTP-based provisioning interface at reference point M1d. Another RESTful HTTP-based
+A downlink 5GMS Application Function (AF), which can be deployed in the Trusted Data Network or in an External Data Network,
+is responsible for managing the downlink 5G Media Streaming System. The AF is a logical Network Function which embodies the
+provisioning, configuration and reporting aspects of the 5GMS system, among others. A 5GMSd Application Provider provisions
+5GMS services using a RESTful HTTP-based provisioning interface at reference point M1d. Another RESTful HTTP-based
 configuration and reporting interface is exposed to UE-based 5GMSd Clients at reference point M5d.
 
 ### About the implementation
@@ -29,8 +29,8 @@ available [here](https://5g-mag.github.io/Getting-Started/pages/5g-media-streami
 
 ## Docker Setup
 
-A Docker Compose based setup of the Application Function and the Application Server can be found in
-the [rt-5gms-examples](https://github.com/5G-MAG/rt-5gms-examples/tree/development/5gms-docker-setup) project.
+A setup comprising the 5GMSd AF and 5GMSd AS based on Docker Compose can be found in the
+[rt-5gms-examples](https://github.com/5G-MAG/rt-5gms-examples/tree/development/5gms-docker-setup) project.
 
 ## Install dependencies
 
@@ -95,8 +95,7 @@ The Application Function can be executed with the command:
 ```
 
 This uses the installed configuration file at `/usr/local/etc/open5gs/msaf.yaml`. You can use the `-c` command line
-parameter to
-specify an alternative configuration file. For example:
+parameter to specify an alternative configuration file. For example:
 
 ```bash
 /usr/local/bin/open5gs-msafd -c alternate-msaf.yaml
@@ -104,23 +103,22 @@ specify an alternative configuration file. For example:
 
 The source example configuration file can be found in `~/rt-5gms-application-function/src/5gmsaf/msaf.yaml`.
 
-Also see
-the [Configuring the Application Function](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/configuration-5GMSAF.html)
+Also see the
+[Configuring the Application Function](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/configuration-5GMSAF.html)
 page for details on configuration.
 
 ## Testing
 
-Follow
-the [Testing as a Local User](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/installation-local-user-5GMSAF.html)
-page for setting up a test environment without requiring full
-system installation.
+Follow the
+[Testing as a Local User](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/installation-local-user-5GMSAF.html)
+page for setting up a test environment without requiring full system installation.
 
 ### Testing: M1 Interface
 
 The details of these tests change with different versions of the 5GMSd Application Function.
 
-If you are testing the v1.2.x versions then please visit
-the [Testing the M1 Interface on v1.2.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m1-v120.html)
+If you are testing the v1.2.x versions then please visit the
+[Testing the M1 Interface on v1.2.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m1-v120.html)
 page.
 
 If you are testing the M1 interface on 5GMSd Application Function v1.3.0 to v1.4.0 then please visit the
@@ -131,25 +129,25 @@ For testing the M1 interface on 5GMSd Application Function v1.4.1 or later, then
 [Testing the M1 Interface on v1.4.1](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m1-v141.html)
 page.
 
-### Testing the M3 Interface
+### Testing the reference point M3 API
 
 Depending on which version of the 5GMSd Application Function you wish to test, the commands to test the interface at
-reference point M3 change.
+reference point M3 are different.
 
-If you wish to test 5GMSd Application Function v1.1.x then please see
-the [Testing the M3 Interface on v1.1.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m3-v110.html)
+If you wish to test 5GMSd Application Function v1.1.x then please see the
+[Testing the M3 Interface on v1.1.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m3-v110.html)
 page.
 
-For versions after v1.1.x (i.e. v1.2.0 and above) please use
-the [Testing the M3 Interface on v1.2.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m3-v120.html)
+For versions after v1.1.x (i.e. v1.2.0 and above) please use the
+[Testing the M3 Interface on v1.2.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m3-v120.html)
 page.
 
-### Testing: M5 Interface
+### Testing the reference point M5 API
 
 The details of these tests change with different versions of the 5GMSd Application Function.
 
-If you are testing versions up to v1.1.x then please visit
-the [Testing: M5 Interface on v1.0.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m5-v100.html)
+If you are testing versions up to v1.1.x then please visit the
+[Testing: M5 Interface on v1.0.0](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-m5-v100.html)
 page.
 
 If you are testing the M5 interface on 5GMSd Application Function v1.2.x please visit the
@@ -163,12 +161,12 @@ page.
 ### Testing with Postman
 
 For detailed instructions on how to use the Postman Collection please refer to
-this [documentation](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-postman.html).
+[this documentation](https://5g-mag.github.io/Getting-Started/pages/5g-media-streaming/usage/application-function/testing-postman.html).
 
 ## Development
 
-This project follows
-the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow). The
+This project follows the
+[Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow). The
 `development` branch of this project serves as an integration branch for new features. Consequently, please make sure to
 switch to the `development` branch before starting the implementation of a new feature.
 
