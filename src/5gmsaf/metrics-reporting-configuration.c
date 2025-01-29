@@ -99,9 +99,8 @@ int msaf_delete_metrics_configuration(msaf_provisioning_session_t *provisioning_
 
     if (!metrics_config) return -1;
 
+    ogs_hash_set(provisioning_session->metrics_reporting_map, metrics_configuration_id, OGS_HASH_KEY_STRING, NULL);
     msaf_metrics_reporting_configuration_free(metrics_config);
-
-    ogs_hash_set(provisioning_session->metrics_reporting_map, msaf_strdup(metrics_configuration_id), OGS_HASH_KEY_STRING, NULL);
 
     return 0;
 }
