@@ -376,7 +376,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             char *err;
                                             err = ogs_msprintf("Unable to retrieve certificate for the Provisioning Session [%s].", message->h.resource.component[1]);
                                             ogs_error("%s", err);
-                                            ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Internal Server Error.", err, NULL, NULL, m1_contenthostingprovisioning_api, app_meta));
+                                            ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Certificate not found.", err, NULL, NULL, m1_contenthostingprovisioning_api, app_meta));
                                             ogs_free(err);
                                         }
                                     } else {
