@@ -72,8 +72,10 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
                 OpenAPI_list_add(entry_points, m5_entry);
             }
         }
+        if (entry_points) {
+            streaming_access = msaf_api_service_access_information_resource_streaming_access_create(entry_points, NULL);
+        }
     }
-    streaming_access = msaf_api_service_access_information_resource_streaming_access_create(entry_points, NULL);
 
     // Dynamic policy invocation configuration
     if (provisioning_session->policy_templates) {
