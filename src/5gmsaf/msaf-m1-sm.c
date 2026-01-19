@@ -622,13 +622,13 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         }
                                     }
                                 }
-                            }
-                            else if (api == m1_policytemplatesprovisioning_api) {
+                            } else if (api == m1_policytemplatesprovisioning_api) {
                                 cJSON *policy_template =  NULL;
                                 msaf_api_policy_template_t *policy_temp = NULL;
                                 char *pol_temp;
-                                const char *parse_err;
-                                char *err_param;
+                                const char *parse_err = NULL;
+                                char *err_param = NULL;
+                                int err_status = 0;
 
                                 if (!msaf_self()->config.open5gsIntegration_flag) {
                                     const char *err = "Policy Templates are not available on this instance of the 5GMS Application Function.";
@@ -646,7 +646,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 if (policy_temp) {
                                     _policy_template_remove_read_only(policy_temp);
                                     /* add policy template */
-                                    if (msaf_provisioning_session_add_policy_template(msaf_provisioning_session, policy_temp, time(NULL))) {
+                                    if (msaf_provisioning_session_add_policy_template(msaf_provisioning_session, policy_temp, time(NULL), &err_status, &parse_err, (const char**)&err_param)) {
                                         char *location;
                                         msaf_policy_template_node_t *msaf_policy_template;
 
@@ -663,15 +663,22 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(response);
                                         ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                         ogs_free(location);
+                                        ogs_info("policy template id: %s", policy_temp->policy_template_id);
                                     } else {
                                         char *err;
-                                        err = ogs_msprintf("Problem adding the policy template to the provisioning session [%s].", message->h.resource.component[1]);
+                                        if (parse_err) {
+                                            if (err_param) {
+                                                err = ogs_msprintf("Problem adding the policy template to the provisioning session [%s]: problem with field \"%s\": %s", message->h.resource.component[1], err_param, parse_err);
+                                            } else {
+                                                err = ogs_msprintf("Problem adding the policy template to the provisioning session [%s]: %s", message->h.resource.component[1], parse_err);
+                                            }
+                                        } else {
+                                            err = ogs_msprintf("Problem adding the policy template to the provisioning session [%s].", message->h.resource.component[1]);
+                                        }
                                         ogs_error("%s",err);
-                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Problem adding the policy template.", err, NULL, NULL, api, app_meta));
+                                        ogs_assert(true == nf_server_send_error(stream, err_status, 2, message, "Problem adding the policy template.", err, NULL, NULL, api, app_meta));
                                         ogs_free(err);
-                                   }
-
-                                    ogs_info("policy template id: %s", policy_temp->policy_template_id);
+                                    }
                                 } else {
                                     char *err;
                                     OpenAPI_list_t *invalid_params = NULL;

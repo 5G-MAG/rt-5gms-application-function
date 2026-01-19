@@ -52,6 +52,7 @@ typedef struct msaf_provisioning_session_s {
     } httpMetadata;
     ogs_hash_t *certificate_map;          //Type: char* => n/a (just used as a set - external tool manages data)
     ogs_hash_t *policy_templates; /* key: policy template id, value: msaf_policy_template_node_t */
+    ogs_hash_t *policy_templates_by_external_id; /* key: external policy id, value: msaf_policy_template_node_t (not owned) */
     ogs_hash_t *metrics_reporting_map;
     ogs_list_t application_server_states; //Type: msaf_application_server_state_ref_node_t*
     int marked_for_deletion;
@@ -106,7 +107,7 @@ extern cJSON *msaf_get_content_hosting_configuration_by_provisioning_session_id(
 
 extern char *enumerate_provisioning_sessions(void);
 
-extern bool msaf_provisioning_session_add_policy_template(msaf_provisioning_session_t *provisioning_session, msaf_api_policy_template_t *policy_template, time_t creation_time);
+extern bool msaf_provisioning_session_add_policy_template(msaf_provisioning_session_t *provisioning_session, msaf_api_policy_template_t *policy_template, time_t creation_time, int *result_status, const char **err_msg, const char **err_parameter);
 
 extern bool msaf_provisioning_session_delete_policy_template(msaf_provisioning_session_t *provisioning_session, msaf_policy_template_node_t *policy_template);
 

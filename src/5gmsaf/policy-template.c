@@ -256,7 +256,6 @@ bool msaf_policy_template_clear(ogs_hash_t *policy_templates)
         ogs_hash_this(hi, &key, &key_len, (void**)(&node));
         ogs_hash_set(policy_templates, key, key_len, NULL);
         msaf_policy_template_node_free(node);
-        ogs_free((void*)key);
     }
 
     return true;
