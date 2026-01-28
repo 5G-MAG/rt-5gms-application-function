@@ -779,7 +779,8 @@ bool msaf_provisioning_session_update_policy_template(msaf_provisioning_session_
     ogs_assert(msaf_policy_template);
     ogs_assert(policy_template);
 
-    policy_template_id = msaf_strdup(msaf_policy_template->policy_template->policy_template_id);
+    policy_template_id = msaf_policy_template->policy_template->policy_template_id;
+    msaf_policy_template->policy_template->policy_template_id = NULL;
 
     msaf_policy_template_free(msaf_policy_template->policy_template);
     msaf_policy_template->policy_template = policy_template;
