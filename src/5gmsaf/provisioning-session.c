@@ -702,30 +702,27 @@ int uri_relative_check(const char *entry_point_path)
 char *enumerate_provisioning_sessions(void)
 {
     ogs_hash_index_t *hi;
-    char *provisioning_sessions = "[]";
+    char *provisioning_sessions = NULL;
     int number_of_provisioning_sessions = ogs_hash_count(msaf_self()->provisioningSessions_map);
-    if (number_of_provisioning_sessions)
-    {
-        provisioning_sessions = ogs_calloc(1, (4 + (sizeof(char)*(OGS_UUID_FORMATTED_LENGTH + 1) *number_of_provisioning_sessions) +1));
-        provisioning_sessions[0] = '[';
-
-        for (hi = ogs_hash_first(msaf_self()->provisioningSessions_map); hi; hi = ogs_hash_next(hi)) {
-            const char *key = NULL;
-            const char *val = NULL;
-            char *provisioning_session = NULL;
-            key = ogs_hash_this_key(hi);
-            ogs_assert(key);
-            val = ogs_hash_this_val(hi);
-            ogs_assert(val);
-            provisioning_session = ogs_msprintf("\"%s\", ", key);
-            strcat(provisioning_sessions, provisioning_session);
-            ogs_free(provisioning_session);
-        }
-        provisioning_sessions[strlen(provisioning_sessions) - 2] = ']';
-        provisioning_sessions[strlen(provisioning_sessions) - 1] = '\0';
+    
+    if (!number_of_provisioning_sessions) {
+        return msaf_strdup("[]");
     }
-    return provisioning_sessions;
 
+    provisioning_sessions = ogs_calloc(1, 3 + number_of_provisioning_sessions * (OGS_UUID_FORMATTED_LENGTH + 4));
+    provisioning_sessions[0] = '[';
+
+    for (hi = ogs_hash_first(msaf_self()->provisioningSessions_map); hi; hi = ogs_hash_next(hi)) {
+        const char *key = ogs_hash_this_key(hi);
+        char *provisioning_session = NULL;
+        ogs_assert(key);
+        provisioning_session = ogs_msprintf("\"%s\", ", key);
+        strcat(provisioning_sessions, provisioning_session);
+        ogs_free(provisioning_session);
+    }
+    provisioning_sessions[strlen(provisioning_sessions) - 2] = ']';
+    provisioning_sessions[strlen(provisioning_sessions) - 1] = '\0';
+    return provisioning_sessions;
 }
 
 bool msaf_provisioning_session_add_policy_template(msaf_provisioning_session_t *provisioning_session, msaf_api_policy_template_t *policy_template, time_t creation_time, int *result_status, const char **err_msg, const char **err_parameter)
