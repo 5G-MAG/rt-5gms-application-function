@@ -35,9 +35,7 @@ A setup comprising the 5GMSd AF and 5GMSd AS based on Docker Compose can be foun
 ## Install dependencies
 
 ```bash
-sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev libpcre2-dev curl wget default-jdk cmake
-sudo python3 -m pip install meson
-python3 -m pip install build pyOpenSSL
+sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libtins-dev libtalloc-dev libpcre2-dev curl wget default-jdk cmake
 ```
 
 ## Downloading
@@ -54,6 +52,17 @@ git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-fun
 cd rt-5gms-application-function
 git submodule update
 ```
+## Python environment
+
+Create a repository-local virtual environment and install the Python build tooling:
+
+```bash
+cd ~/rt-5gms-application-function
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install meson build pyOpenSSL
+```
 
 ## Building
 
@@ -63,8 +72,9 @@ To build the 5GMS Application Function from the source:
 
 ```bash
 cd ~/rt-5gms-application-function
-meson build
-ninja -C build
+. .venv/bin/activate
+meson setup build
+meson compile -C build
 ```
 
 **Note:** Errors during the `meson build` command are often caused by missing dependencies or a network issue while
@@ -77,9 +87,12 @@ trying to retrieve the API files and `openapi-generator` JAR file. See the
 To install the built Application Function as a system process:
 
 ```bash
-cd ~/rt-5gms-application-function/build
-sudo meson install --no-rebuild
+cd ~/rt-5gms-application-function
+sudo ./.venv/bin/meson install -C build --no-rebuild
 ```
+
+The install step must use the same Meson executable that created the `build` directory. Running
+`sudo meson install` may pick a different system Meson version and fail with a build directory version mismatch.
 
 ## Running
 
