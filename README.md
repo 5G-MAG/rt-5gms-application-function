@@ -35,7 +35,43 @@ A setup comprising the 5GMSd AF and 5GMSd AS based on Docker Compose can be foun
 ## Install dependencies
 
 ```bash
-sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libtins-dev libtalloc-dev libpcre2-dev curl wget default-jdk cmake
+sudo apt update
+sudo apt install \
+    bison \
+    build-essential \
+    cmake \
+    curl \
+    default-jdk \
+    flex \
+    git \
+    libbson-dev \
+    libcurl4-gnutls-dev \
+    libgcrypt-dev \
+    libgnutls28-dev \
+    libidn11-dev \
+    libmicrohttpd-dev \
+    libmongoc-dev \
+    libnghttp2-dev \
+    libpcre2-dev \
+    libsctp-dev \
+    libssl-dev \
+    libtalloc-dev \
+    libtins-dev \
+    libyaml-dev \
+    meson \
+    ninja-build \
+    python3-aiofiles \
+    python3-build \
+    python3-h11 \
+    python3-h2 \
+    python3-httpx \
+    python3-openssl \
+    python3-pip \
+    python3-setuptools \
+    python3-venv \
+    python3-wheel \
+    python3-yaml \
+    wget
 ```
 
 ## Downloading
@@ -52,17 +88,6 @@ git clone --recurse-submodules https://github.com/5G-MAG/rt-5gms-application-fun
 cd rt-5gms-application-function
 git submodule update
 ```
-## Python environment
-
-Create a repository-local virtual environment and install the Python build tooling:
-
-```bash
-cd ~/rt-5gms-application-function
-python3 -m venv .venv
-. .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install meson build pyOpenSSL
-```
 
 ## Building
 
@@ -72,9 +97,8 @@ To build the 5GMS Application Function from the source:
 
 ```bash
 cd ~/rt-5gms-application-function
-. .venv/bin/activate
-meson setup build
-meson compile -C build
+meson build
+ninja -C build
 ```
 
 **Note:** Errors during the `meson build` command are often caused by missing dependencies or a network issue while
@@ -88,11 +112,11 @@ To install the built Application Function as a system process:
 
 ```bash
 cd ~/rt-5gms-application-function
-sudo ./.venv/bin/meson install -C build --no-rebuild
-```
+sudo meson install --no-rebuild -C build
 
-The install step must use the same Meson executable that created the `build` directory. Running
-`sudo meson install` may pick a different system Meson version and fail with a build directory version mismatch.
+sudo mkdir -p /usr/local/var/log/open5gs/reports
+sudo chmod -R 777 /usr/local/var/log/open5gs/reports
+```
 
 ## Running
 
