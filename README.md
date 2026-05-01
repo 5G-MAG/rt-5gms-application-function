@@ -35,9 +35,8 @@ A setup comprising the 5GMSd AF and 5GMSd AS based on Docker Compose can be foun
 ## Install dependencies
 
 ```bash
-sudo apt install git python3-pip python3-venv python3-setuptools python3-wheel ninja-build build-essential flex bison git libsctp-dev libgnutls28-dev libgcrypt-dev libssl-dev libidn11-dev libmongoc-dev libbson-dev libyaml-dev libnghttp2-dev libmicrohttpd-dev libcurl4-gnutls-dev libnghttp2-dev libtins-dev libtalloc-dev libpcre2-dev curl wget default-jdk cmake
-sudo python3 -m pip install meson
-python3 -m pip install build pyOpenSSL
+sudo apt update
+sudo apt install bison build-essential cmake curl default-jdk flex git libbson-dev libcurl4-gnutls-dev libgcrypt-dev libgnutls28-dev libidn11-dev libmicrohttpd-dev libmongoc-dev libnghttp2-dev libpcre2-dev libsctp-dev libssl-dev libtalloc-dev libtins-dev libyaml-dev meson ninja-build python3-aiofiles python3-build python3-h11 python3-h2 python3-httpx python3-openssl python3-pip python3-setuptools python3-venv python3-wheel python3-yaml wget
 ```
 
 ## Downloading
@@ -77,8 +76,11 @@ trying to retrieve the API files and `openapi-generator` JAR file. See the
 To install the built Application Function as a system process:
 
 ```bash
-cd ~/rt-5gms-application-function/build
-sudo meson install --no-rebuild
+cd ~/rt-5gms-application-function
+sudo meson install --no-rebuild -C build
+
+sudo mkdir -p /usr/local/var/log/open5gs/reports
+sudo chmod -R 777 /usr/local/var/log/open5gs/reports
 ```
 
 ## Running
