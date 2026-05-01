@@ -36,42 +36,7 @@ A setup comprising the 5GMSd AF and 5GMSd AS based on Docker Compose can be foun
 
 ```bash
 sudo apt update
-sudo apt install \
-    bison \
-    build-essential \
-    cmake \
-    curl \
-    default-jdk \
-    flex \
-    git \
-    libbson-dev \
-    libcurl4-gnutls-dev \
-    libgcrypt-dev \
-    libgnutls28-dev \
-    libidn11-dev \
-    libmicrohttpd-dev \
-    libmongoc-dev \
-    libnghttp2-dev \
-    libpcre2-dev \
-    libsctp-dev \
-    libssl-dev \
-    libtalloc-dev \
-    libtins-dev \
-    libyaml-dev \
-    meson \
-    ninja-build \
-    python3-aiofiles \
-    python3-build \
-    python3-h11 \
-    python3-h2 \
-    python3-httpx \
-    python3-openssl \
-    python3-pip \
-    python3-setuptools \
-    python3-venv \
-    python3-wheel \
-    python3-yaml \
-    wget
+sudo apt install bison build-essential cmake curl default-jdk flex git libbson-dev libcurl4-gnutls-dev libgcrypt-dev libgnutls28-dev libidn11-dev libmicrohttpd-dev libmongoc-dev libnghttp2-dev libpcre2-dev libsctp-dev libssl-dev libtalloc-dev libtins-dev libyaml-dev meson ninja-build python3-aiofiles python3-build python3-h11 python3-h2 python3-httpx python3-openssl python3-pip python3-setuptools python3-venv python3-wheel python3-yaml wget
 ```
 
 ## Downloading
