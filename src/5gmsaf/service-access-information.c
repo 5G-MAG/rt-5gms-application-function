@@ -38,7 +38,7 @@ msaf_api_service_access_information_resource_t *
 msaf_context_service_access_information_create(msaf_provisioning_session_t *provisioning_session, bool is_tls, const char *svr_hostname)
 {
     msaf_api_service_access_information_resource_t *service_access_information;
-    msaf_api_service_access_information_resource_streaming_access_t *streaming_access;
+    msaf_api_service_access_information_resource_streaming_access_t *streaming_access = NULL;
     msaf_configuration_t *config = &msaf_self()->config;
     msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_t *dpic = NULL;
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
