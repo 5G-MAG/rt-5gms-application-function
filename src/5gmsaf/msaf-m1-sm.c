@@ -98,6 +98,7 @@ static const nf_server_interface_metadata_t
         M1_METRICSREPORTINGPROVISIONING_API_VERSION
 };
 
+static void _discard_pending_content_hosting_configuration_upload(msaf_application_server_state_node_t *as_state, const char *resource_id);
 static void _policy_template_extra_validation(msaf_api_policy_template_t **policy_template, const char **parse_err, char **err_parameter);
 static void _policy_template_remove_read_only(msaf_api_policy_template_t *policy_template);
 
@@ -2156,6 +2157,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                         SWITCH(message->h.method)
                         CASE(OGS_SBI_HTTP_METHOD_POST)
+                            int discard_pending_chc_upload = 0;
 
                             if (response->status == 201) {
 
@@ -2177,25 +2179,40 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             }
                             if (response->status == 405) {
                                 ogs_error("Content Hosting Configuration resource already exist at the specified path\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 413) {
                                 ogs_error("Payload too large\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 414) {
                                 ogs_error("URI too long\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 415) {
                                 ogs_error("Unsupported media type\n");
+                                discard_pending_chc_upload = 1;
+                            }
+                            if (response->status == 422) {
+                                ogs_error("Unprocessable Entity\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 500) {
                                 ogs_error("Internal server error\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 503) {
                                 ogs_error("Service unavailable\n");
+                                discard_pending_chc_upload = 1;
+                            }
+                            if (discard_pending_chc_upload) {
+                                _discard_pending_content_hosting_configuration_upload(as_state, message->h.resource.component[1]);
                             }
                             next_action_for_application_server(as_state);
                             break;
                         CASE(OGS_SBI_HTTP_METHOD_PUT)
+                            int discard_pending_chc_upload = 0;
+
                             if (response->status == 200 || response->status == 204) {
 
                                 ogs_debug("[%s] Method [%s] with Response [%d] recieved for Content Hosting Configuration [%s]", message->h.resource.component[0], message->h.method, response->status, message->h.resource.component[1]);
@@ -2215,21 +2232,30 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             }
                             if (response->status == 404) {
                                 ogs_error("Not Found\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 413) {
                                 ogs_error("Payload too large\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 414) {
                                 ogs_error("URI too long\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 415) {
                                 ogs_error("Unsupported Media Type\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 500) {
                                 ogs_error("Internal Server Error\n");
+                                discard_pending_chc_upload = 1;
                             }
                             if (response->status == 503) {
                                 ogs_error("Service Unavailable\n");
+                                discard_pending_chc_upload = 1;
+                            }
+                            if (discard_pending_chc_upload) {
+                                _discard_pending_content_hosting_configuration_upload(as_state, message->h.resource.component[1]);
                             }
                             next_action_for_application_server(as_state);
                             break;
@@ -2637,6 +2663,26 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     if (message) {
         ogs_sbi_message_free(message);
         ogs_free(message);
+    }
+}
+
+static void _discard_pending_content_hosting_configuration_upload(msaf_application_server_state_node_t *as_state, const char *resource_id)
+{
+    resource_id_node_t *content_hosting_configuration = NULL;
+
+    if (!as_state || !resource_id) return;
+
+    ogs_list_for_each(&as_state->upload_content_hosting_configurations, content_hosting_configuration) {
+        if (!strcmp(content_hosting_configuration->state, resource_id))
+            break;
+    }
+
+    if (content_hosting_configuration) {
+        ogs_debug("Discarding pending Content Hosting Configuration upload [%s]", content_hosting_configuration->state);
+        ogs_list_remove(&as_state->upload_content_hosting_configurations, content_hosting_configuration);
+        if (content_hosting_configuration->state)
+            ogs_free(content_hosting_configuration->state);
+        ogs_free(content_hosting_configuration);
     }
 }
 
