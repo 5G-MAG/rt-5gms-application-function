@@ -47,6 +47,7 @@ typedef struct msaf_provisioning_session_policy_template_delete_data_s {
 } msaf_provisioning_session_policy_template_delete_data_t;
 
 static regex_t *relative_path_re = NULL;
+static regex_t *base_url_re = NULL;
 
 static void safe_ogs_free(void *ptr);
 static int ogs_hash_do_cert_check(void *rec, const void *key, int klen, const void *value);
@@ -55,9 +56,11 @@ static int free_ogs_hash_provisioning_session(void *rec, const void *key, int kl
 static int free_ogs_hash_provisioning_session_certificate(void *rec, const void *key, int klen, const void *value);
 static char* url_path_create(const char* macro, const char* session_id, const msaf_application_server_node_t *msaf_as);
 static void tidy_relative_path_re(void);
+static void tidy_base_url_re(void);
 static char *calculate_provisioning_session_hash(msaf_api_provisioning_session_t *provisioning_session);
 static ogs_hash_t *msaf_certificate_map();
 static ogs_hash_t *msaf_policy_templates_new(void);
+static int base_url_check(const char *base_url);
 
 static msaf_policy_template_change_state_event_data_t *msaf_policy_template_change_state_event_data_populate(msaf_provisioning_session_t *provisioning_session,  msaf_policy_template_node_t *policy_template, msaf_api_policy_template_STATE_e new_state, msaf_policy_template_state_change_callback callback, void *user_data);
 
@@ -550,7 +553,18 @@ msaf_distribution_create(cJSON *content_hosting_config, msaf_provisioning_sessio
         ogs_free(url_path);
         return 0;
     }
-
+    
+    if (content_hosting_configuration->ingest_configuration &&
+        content_hosting_configuration->ingest_configuration->base_url){
+        if (!base_url_check(content_hosting_configuration->ingest_configuration->base_url)) {
+            if (reason_ret) *reason_ret = "ingestConfiguration.baseUrl malformed";
+            if (err_param) *err_param = ogs_strdup("ingestConfiguration.baseUrl");
+            cJSON_Delete(content_hosting_config);
+            ogs_free(url_path);
+            if (content_hosting_configuration) msaf_api_content_hosting_configuration_free(content_hosting_configuration);
+            return 0;
+        }
+    }
     if (content_hosting_configuration->distribution_configurations) {
         OpenAPI_list_for_each(content_hosting_configuration->distribution_configurations, dist_config_node) {
             char *protocol = "http";
@@ -655,6 +669,48 @@ msaf_provisioning_session_certificate_hash_remove(const char *provisioning_sessi
         provisioning_session->certificate_map
     };
     ogs_hash_do(free_ogs_hash_provisioning_session_certificate, &fohpsc, provisioning_session->certificate_map);
+}
+
+int base_url_check(const char *BaseUrl)
+{
+    int result;
+
+    if (base_url_re == NULL) {
+        base_url_re = (regex_t*) ogs_calloc(1,sizeof(*base_url_re));
+        ogs_assert(base_url_re != NULL);
+        result = regcomp(base_url_re, "^[Hh][Tt][Tt][Pp][Ss]?://[^[:space:]/?#]+([^[:space:]#]*)?$", REG_EXTENDED);
+        if (result) {
+            if (result == REG_ESPACE) {
+                ogs_error("Regex error: Out of memory");
+            } else {
+                ogs_error("Syntax error in the regular expression passed");
+            }
+            ogs_free(base_url_re);
+            base_url_re = NULL;
+            return 0;
+        }
+        atexit(tidy_base_url_re);
+    }
+
+    result = regexec(base_url_re, BaseUrl, 0, NULL, 0);
+
+    if (!result) {
+        ogs_debug("%s matches the regular expression\n", BaseUrl);
+        return 1;
+    } else if (result == REG_NOMATCH) {
+        ogs_debug("%s does not match the regular expression\n", BaseUrl);
+        return 0;
+    } else {
+        char *buffer;
+        int length;
+
+        length = regerror(result, base_url_re, NULL, 0);
+        buffer = (char*) ogs_calloc(1, length);
+        (void) regerror (result, base_url_re, buffer, length);
+        ogs_error("Regex match failed: %s\n", buffer);
+        ogs_free(buffer);
+        return 0;
+    }
 }
 
 int uri_relative_check(const char *entry_point_path)
@@ -997,6 +1053,16 @@ url_path_create(const char* macro, const char* session_id, const msaf_applicatio
     return url_path_prefix;
 }
 
+
+static void
+tidy_base_url_re(void)
+{
+    if (base_url_re != NULL) {
+        regfree(base_url_re);
+        ogs_free(base_url_re);
+        base_url_re = NULL;
+    }
+}
 
 static void
 tidy_relative_path_re(void)

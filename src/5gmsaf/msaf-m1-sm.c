@@ -2246,6 +2246,10 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                 ogs_error("Unsupported Media Type\n");
                                 discard_pending_chc_upload = 1;
                             }
+                            if (response->status == 422) {
+                                ogs_error("Unprocessable Entity\n");
+                                discard_pending_chc_upload = 1;
+                            }
                             if (response->status == 500) {
                                 ogs_error("Internal Server Error\n");
                                 discard_pending_chc_upload = 1;
