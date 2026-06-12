@@ -239,13 +239,15 @@ void msaf_nw_assistance_session_delivery_boost_update(msaf_network_assistance_se
 void msaf_nw_assistance_session_update_pcf_on_timeout(msaf_network_assistance_session_t *na_sess) {
 
     OpenAPI_list_t *media_comps;
-    char *mir_bw_dl_bit_rate;
+    char *mir_bw_dl_bit_rate = NULL; 
     bool rv = false;
 
     ogs_assert(na_sess);
-
-    mir_bw_dl_bit_rate = msaf_strdup(na_sess->NetworkAssistanceSession->requested_qo_s->mir_bw_dl_bit_rate);
-    ogs_assert(mir_bw_dl_bit_rate);
+    if (!na_sess->NetworkAssistanceSession->requested_qo_s) {
+        ogs_debug("no RequestedQoS NetworkAssistanceSession.RequestedQoS has cardinality [0..1] so mir_bw_dl_bit_rate is NULL");
+    } else {
+        mir_bw_dl_bit_rate = msaf_strdup(na_sess->NetworkAssistanceSession->requested_qo_s->mir_bw_dl_bit_rate);
+    }
 
     media_comps = update_media_component(mir_bw_dl_bit_rate);
 
@@ -413,7 +415,13 @@ static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_a
     OpenAPI_map_t *MediaComponentMap = NULL;
     OpenAPI_media_component_t *MediaComponent = NULL;
     OpenAPI_list_t *media_sub_comp_list = NULL;
-
+    char *mar_bw_dl_bit_rate = requested_qos ? requested_qos->mar_bw_dl_bit_rate : NULL;
+    char *mar_bw_ul_bit_rate = requested_qos ? requested_qos->mar_bw_ul_bit_rate : NULL;
+    char *min_des_bw_dl_bit_rate = requested_qos ? requested_qos->min_des_bw_dl_bit_rate : NULL;
+    char *min_des_bw_ul_bit_rate = requested_qos ? requested_qos->min_des_bw_ul_bit_rate : NULL;
+    char *mir_bw_dl_bit_rate = requested_qos ? requested_qos->mir_bw_dl_bit_rate : NULL;
+    char *mir_bw_ul_bit_rate = requested_qos ? requested_qos->mir_bw_ul_bit_rate : NULL;
+    
     MediaComponentList = OpenAPI_list_create();
     ogs_assert(MediaComponentList);
 
@@ -466,8 +474,8 @@ static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_a
 
         media_sub_comp = OpenAPI_media_sub_component_create(OpenAPI_af_sig_protocol_NULL,
                 NULL, 0, flow_descs, OpenAPI_flow_status_ENABLED,
-                requested_qos->mar_bw_dl_bit_rate,
-                requested_qos->mar_bw_ul_bit_rate,
+                msaf_strdup(mar_bw_dl_bit_rate),
+                msaf_strdup(mar_bw_ul_bit_rate),
                 NULL , OpenAPI_flow_usage_NULL);
         ogs_assert(media_sub_comp);
 
@@ -481,10 +489,10 @@ static OpenAPI_list_t *populate_media_component(char *policy_template_id, msaf_a
 
     MediaComponent = OpenAPI_media_component_create(NULL, NULL, NULL, false, 0, NULL, NULL,
             false, 0, NULL, false, 0.0, false, 0.0, NULL, OpenAPI_flow_status_NULL,
-            msaf_strdup(requested_qos->mar_bw_dl_bit_rate), msaf_strdup(requested_qos->mar_bw_ul_bit_rate),
+            msaf_strdup(mar_bw_dl_bit_rate), msaf_strdup(mar_bw_ul_bit_rate),
             false, 0, false, 0, NULL, NULL, 0, media_sub_comp_list, media_type,
-            requested_qos->min_des_bw_dl_bit_rate, requested_qos->min_des_bw_ul_bit_rate,
-            msaf_strdup(requested_qos->mir_bw_dl_bit_rate), msaf_strdup(requested_qos->mir_bw_ul_bit_rate),
+            msaf_strdup(min_des_bw_dl_bit_rate), msaf_strdup(min_des_bw_ul_bit_rate),
+            msaf_strdup(mir_bw_dl_bit_rate), msaf_strdup(mir_bw_ul_bit_rate),
             OpenAPI_preemption_capability_NULL, OpenAPI_preemption_vulnerability_NULL,
             OpenAPI_priority_sharing_indicator_NULL, OpenAPI_reserv_priority_NULL,
             NULL, NULL, false, 0, false, 0, NULL, NULL, NULL, false, 0);
