@@ -305,31 +305,35 @@ ue_network_identifier_t *populate_ue_connection_details(msaf_api_service_data_fl
     int rv;
     ue_network_identifier_t *ue_connection;
 
-    ue_connection = ogs_calloc(1, sizeof(ue_network_identifier_t));
+    ue_connection = ogs_calloc(1, sizeof(*ue_connection));
     ogs_assert(ue_connection);
 
     if (service_data_flow_information->domain_name) {
         ue_connection->ip_domain = msaf_strdup(service_data_flow_information->domain_name);
+    } else {
+        if (!strcmp(service_data_flow_information->flow_description->direction, "UPLINK")) {
+            rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->src_ip, service_data_flow_information->flow_description->src_port, 0);
+        } else if (!strcmp(service_data_flow_information->flow_description->direction, "DOWNLINK") || !strcmp(service_data_flow_information->flow_description->direction, "BIDIRECTIONAL")) {
+            ogs_info("%s: dst_ip", service_data_flow_information->flow_description->dst_ip);
+            rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->dst_ip, service_data_flow_information->flow_description->dst_port, 0);
+        } else {
+            ogs_error("Flow direction \"%s\" not implemented", service_data_flow_information->flow_description->direction);
+            ue_connection_details_free(ue_connection);
+            return NULL;
+        }
+
+        if (rv != OGS_OK) {
+            ogs_error("getaddrinfo failed");
+            ue_connection_details_free(ue_connection);
+            return NULL;
+        }
     }
 
-    if (!strcmp(service_data_flow_information->flow_description->direction, "UPLINK")) {
-
-        rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->src_ip, service_data_flow_information->flow_description->src_port, 0);
-    }
-
-    if (!strcmp(service_data_flow_information->flow_description->direction, "DOWNLINK")) {
-        ogs_info("%s: dst_ip", service_data_flow_information->flow_description->dst_ip);
-
-        rv = ogs_getaddrinfo(&ue_connection->address, AF_UNSPEC, service_data_flow_information->flow_description->dst_ip, service_data_flow_information->flow_description->dst_port, 0);
-    }
-
-    if (rv != OGS_OK) {
-        ogs_error("getaddrinfo failed");
+    if (ue_connection->address == NULL) {
+        ogs_error("Could not get the address for the UE connection");
+        ue_connection_details_free(ue_connection);
         return NULL;
     }
-
-    if (ue_connection->address == NULL)
-        ogs_error("Could not get the address for the UE connection");
 
     return ue_connection;
 
