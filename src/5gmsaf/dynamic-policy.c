@@ -583,9 +583,7 @@ static void dynamic_policy_set_enforcement_bit_rate(msaf_policy_template_node_t 
     if (msaf_policy_template->policy_template &&
         msaf_policy_template->policy_template->qo_s_specification) {
         
-        char *target_bitrate = msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl ? 
-                               msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl : 
-                               msaf_policy_template->policy_template->qo_s_specification->max_btr_dl;
+        char *target_bitrate = policy_template_max_dl_bit_rate(msaf_policy_template->policy_template->qo_s_specification);
         
         if (target_bitrate) {
             if (!dynamic_policy->qos_specification ||
