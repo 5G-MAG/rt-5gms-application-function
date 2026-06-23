@@ -244,7 +244,7 @@ void msaf_nw_assistance_session_update_pcf_on_timeout(msaf_network_assistance_se
 
     ogs_assert(na_sess);
     if (!na_sess->NetworkAssistanceSession->requested_qo_s) {
-        ogs_debug("no RequestedQoS NetworkAssistanceSession.RequestedQoS has cardinality [0..1] so mir_bw_dl_bit_rate is NULL");
+        ogs_debug("no requestedQoS: NetworkAssistanceSession.requestedQoS has cardinality [0..1] so mir_bw_dl_bit_rate is NULL");
     } else {
         mir_bw_dl_bit_rate = msaf_strdup(na_sess->NetworkAssistanceSession->requested_qo_s->mir_bw_dl_bit_rate);
     }
