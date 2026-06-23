@@ -330,7 +330,7 @@ ue_network_identifier_t *populate_ue_connection_details(msaf_api_service_data_fl
     }
 
     if (ue_connection->address == NULL) {
-        ogs_error("Could not get the address for the UE connection");
+        ogs_error("Could not get the address for the UE Service Data Flow at reference point M4");
         ue_connection_details_free(ue_connection);
         return NULL;
     }
