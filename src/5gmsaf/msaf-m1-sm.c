@@ -1445,7 +1445,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                              message->h.resource.component[1], message->h.resource.component[3]);
                                     ogs_error("%s", err);
                                     if (!nf_server_send_error(stream, 404, 3, message,
-                                                              "Policy template does not exists.", err, NULL,
+                                                              "Policy template does not exist.", err, NULL,
                                                               nf_server_invalid_param(ogs_strdup("{policyTemplateId}"), "Does not exist"),
                                                               api, app_meta)) {
                                         ogs_error("Failed to send error response for unknown policy template id.");
