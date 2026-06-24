@@ -36,6 +36,8 @@ static void msaf_dynamic_policy_remove(msaf_dynamic_policy_t *msaf_dynamic_polic
 static void ue_connection_details_free(ue_network_identifier_t *ue_connection);
 static char *set_max_bit_rate_compliant_with_policy_template(char *policy_template_m1_qos_bit_rate, char *m5_qos_bit_rate);
 static int calculate_max_bit_rate_for_enforcement(char *policy_template_m1_qos_bit_rate, char *m5_qos_bit_rate);
+static char *policy_template_max_dl_bit_rate(msaf_api_m1_qo_s_specification_t *m1_qos);
+static char *policy_template_max_ul_bit_rate(msaf_api_m1_qo_s_specification_t *m1_qos);
 static bool app_session_change_callback(pcf_app_session_t *app_session, void *user_data);
 static bool app_session_notification_callback(pcf_app_session_t *app_session, const OpenAPI_events_notification_t *notifications, void *user_data);
 static void display_notifications(const OpenAPI_events_notification_t *notifications);
@@ -244,7 +246,11 @@ int msaf_dynamic_policy_update_pcf(msaf_dynamic_policy_t *msaf_dynamic_policy, m
         dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(msaf_policy_template->policy_template->qo_s_specification->max_btr_dl, dynamic_policy->qos_specification->mar_bw_dl_bit_rate);
     }
     */
-    media_comps = update_media_component(msaf_policy_template->policy_template->qo_s_specification, dynamic_policy->qos_specification, dynamic_policy->media_type?dynamic_policy->media_type: OpenAPI_media_type_VIDEO);
+    media_comps = update_media_component(
+        msaf_policy_template->policy_template->qo_s_specification,
+        dynamic_policy->qos_specification,
+        dynamic_policy->media_type ? dynamic_policy->media_type : OpenAPI_media_type_VIDEO
+    );
 
     if (msaf_dynamic_policy->pcf_app_session) {
 
@@ -349,33 +355,15 @@ static OpenAPI_list_t *populate_media_component(msaf_api_m1_qo_s_specification_t
     MediaComponentList = OpenAPI_list_create();
     ogs_assert(MediaComponentList);
 
-    if (!requested_qos) {
-        if (m1_qos->max_auth_btr_dl) {
-            mar_bw_dl_bit_rate = m1_qos->max_auth_btr_dl;
-        } else if (m1_qos->max_btr_dl) {
-            mar_bw_dl_bit_rate = m1_qos->max_btr_dl;
-        }
+    mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(
+        policy_template_max_dl_bit_rate(m1_qos),
+        requested_qos ? requested_qos->mar_bw_dl_bit_rate : NULL
+    );
 
-        if (m1_qos->max_auth_btr_ul) {
-            mar_bw_ul_bit_rate = m1_qos->max_auth_btr_ul;
-        } else if (m1_qos->max_btr_ul) {
-            mar_bw_ul_bit_rate = m1_qos->max_btr_ul;
-        }
-
-    } else {
-
-        if (m1_qos->max_auth_btr_dl) {
-            mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_auth_btr_dl, requested_qos->mar_bw_dl_bit_rate);
-        } else if (m1_qos->max_btr_dl) {
-            mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_btr_dl, requested_qos->mar_bw_dl_bit_rate);
-        }
-
-        if (m1_qos->max_auth_btr_ul) {
-            mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_auth_btr_ul, requested_qos->mar_bw_ul_bit_rate);
-        } else if (m1_qos->max_btr_ul) {
-            mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_btr_ul, requested_qos->mar_bw_ul_bit_rate);
-        }
-    }
+    mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(
+        policy_template_max_ul_bit_rate(m1_qos),
+        requested_qos ? requested_qos->mar_bw_ul_bit_rate : NULL
+    );
 
     if (flow_description->src_ip || flow_description->src_port !=0 || flow_description->protocol != IPPROTO_IP ||
                 flow_description->dst_ip || flow_description->dst_port != 0) {
@@ -468,39 +456,21 @@ static OpenAPI_list_t *update_media_component(msaf_api_m1_qo_s_specification_t *
     OpenAPI_list_t *media_comps;
     OpenAPI_media_component_rm_t *media_comp;
     OpenAPI_map_t *media_comp_map;
-    char *mar_bw_dl_bit_rate;
-    char *mar_bw_ul_bit_rate;
+    char *mar_bw_dl_bit_rate = NULL;
+    char *mar_bw_ul_bit_rate = NULL;
 
     media_comps = OpenAPI_list_create();
     ogs_assert(media_comps);
 
-    if (!requested_qos) {
-        if (m1_qos->max_auth_btr_dl) {
-            mar_bw_dl_bit_rate = m1_qos->max_auth_btr_dl;
-        } else if (m1_qos->max_btr_dl) {
-            mar_bw_dl_bit_rate = m1_qos->max_btr_dl;
-        }
+    mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(
+            policy_template_max_dl_bit_rate(m1_qos),
+            requested_qos ? requested_qos->mar_bw_dl_bit_rate : NULL
+        );
 
-        if (m1_qos->max_auth_btr_ul) {
-            mar_bw_ul_bit_rate = m1_qos->max_auth_btr_ul;
-        } else if (m1_qos->max_btr_ul) {
-            mar_bw_ul_bit_rate = m1_qos->max_btr_ul;
-        }
-
-    } else {
-
-        if (m1_qos->max_auth_btr_dl) {
-            mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_auth_btr_dl, requested_qos->mar_bw_dl_bit_rate);
-        } else if (m1_qos->max_btr_dl) {
-            mar_bw_dl_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_btr_dl, requested_qos->mar_bw_dl_bit_rate);
-        }
-
-        if (m1_qos->max_auth_btr_ul) {
-            mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_auth_btr_ul, requested_qos->mar_bw_ul_bit_rate);
-        } else if (m1_qos->max_btr_ul) {
-            mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(m1_qos->max_btr_ul, requested_qos->mar_bw_ul_bit_rate);
-        }
-    }
+    mar_bw_ul_bit_rate = set_max_bit_rate_compliant_with_policy_template(
+            policy_template_max_ul_bit_rate(m1_qos),
+            requested_qos ? requested_qos->mar_bw_ul_bit_rate : NULL
+        );
 
     media_comp = OpenAPI_media_component_rm_create(NULL, NULL, NULL, NULL, NULL, false, 0,
             false, 0, NULL, false, 0.0, false, 0.0, NULL, OpenAPI_flow_status_NULL,
@@ -567,11 +537,30 @@ static char *set_max_bit_rate_compliant_with_policy_template(char *policy_templa
     uint64_t qos_bit_rate_m5;
     uint64_t qos_bit_rate_m1;
 
+    if (!policy_template_m1_qos_bit_rate)
+        return m5_qos_bit_rate;
+    if (!m5_qos_bit_rate)
+        return policy_template_m1_qos_bit_rate;
+
     qos_bit_rate_m5 = ogs_sbi_bitrate_from_string(m5_qos_bit_rate);
     qos_bit_rate_m1 = ogs_sbi_bitrate_from_string(policy_template_m1_qos_bit_rate);
     if (qos_bit_rate_m5 > qos_bit_rate_m1)
         return policy_template_m1_qos_bit_rate;
     return m5_qos_bit_rate;
+}
+
+static char *policy_template_max_dl_bit_rate(msaf_api_m1_qo_s_specification_t *m1_qos)
+{
+    if (!m1_qos) return NULL;
+    if (m1_qos->max_auth_btr_dl) return m1_qos->max_auth_btr_dl;
+    return m1_qos->max_btr_dl;
+}
+
+static char *policy_template_max_ul_bit_rate(msaf_api_m1_qo_s_specification_t *m1_qos)
+{
+    if (!m1_qos) return NULL;
+    if (m1_qos->max_auth_btr_ul) return m1_qos->max_auth_btr_ul;
+    return m1_qos->max_btr_ul;
 }
 
 static int calculate_max_bit_rate_for_enforcement(char *policy_template_m1_qos_bit_rate, char *m5_qos_bit_rate) {
@@ -587,14 +576,30 @@ static int calculate_max_bit_rate_for_enforcement(char *policy_template_m1_qos_b
 
 static void dynamic_policy_set_enforcement_bit_rate(msaf_policy_template_node_t *msaf_policy_template, msaf_api_dynamic_policy_t *dynamic_policy)
 {
+    ogs_assert(dynamic_policy);
+    ogs_assert(msaf_policy_template);
+    dynamic_policy->is_enforcement_bit_rate = false;
 
-    dynamic_policy->is_enforcement_bit_rate = true;
-    if (!dynamic_policy->qos_specification) {
-        dynamic_policy->enforcement_bit_rate = ogs_sbi_bitrate_from_string(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl);
-    } else {
-        dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl?msaf_policy_template->policy_template->qo_s_specification->max_auth_btr_dl: msaf_policy_template->policy_template->qo_s_specification->max_btr_dl, dynamic_policy->qos_specification->mar_bw_dl_bit_rate);
-   }
-
+    if (msaf_policy_template->policy_template &&
+        msaf_policy_template->policy_template->qo_s_specification) {
+        
+        char *target_bitrate = policy_template_max_dl_bit_rate(msaf_policy_template->policy_template->qo_s_specification);
+        
+        if (target_bitrate) {
+            if (!dynamic_policy->qos_specification ||
+                !dynamic_policy->qos_specification->mar_bw_dl_bit_rate) {
+                dynamic_policy->enforcement_bit_rate = ogs_sbi_bitrate_from_string(target_bitrate);
+                dynamic_policy->is_enforcement_bit_rate = true;
+            } else {
+                dynamic_policy->enforcement_bit_rate = calculate_max_bit_rate_for_enforcement(
+                    target_bitrate,
+                    dynamic_policy->qos_specification->mar_bw_dl_bit_rate);
+                dynamic_policy->is_enforcement_bit_rate = true;
+            }
+        } else {
+            ogs_debug("No valid target bitrate found");
+        }
+    }
 }
 
 static void create_dynamic_policy_app_session(const ogs_sockaddr_t *pcf_address, ue_network_identifier_t *ue_connection, OpenAPI_list_t *media_component, msaf_dynamic_policy_t *dynamic_policy)
