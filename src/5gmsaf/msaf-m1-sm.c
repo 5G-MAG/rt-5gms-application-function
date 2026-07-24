@@ -1381,6 +1381,19 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     return;
                                 }
 
+                                if (!message->h.resource.component[3]) {
+                                    char *err = ogs_msprintf("Provisioning session [%s]: Cannot perform update on Policy templates without a template id.",
+                                                             message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    if (!nf_server_send_error(stream, 404, 2, message,
+                                                              "Policy template does not exist.", err, NULL, NULL,
+                                                              api, app_meta)) {
+                                        ogs_error("Failed to send error response for missing policy template id.");
+                                    }
+                                    ogs_free(err);
+                                    break;
+                                }
+
                                 msaf_policy_template_node_t *msaf_policy_template;
                                 msaf_policy_template = msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session, message->h.resource.component[3]);
                                 if (msaf_policy_template) {
@@ -1427,6 +1440,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                                 api, app_meta));
                                         ogs_free(err);
                                     }
+                                } else {
+                                    char *err = ogs_msprintf("Provisioning session [%s] has no policy template [%s].",
+                                                             message->h.resource.component[1], message->h.resource.component[3]);
+                                    ogs_error("%s", err);
+                                    if (!nf_server_send_error(stream, 404, 3, message,
+                                                              "Policy template does not exist.", err, NULL,
+                                                              nf_server_invalid_param(ogs_strdup("{policyTemplateId}"), "Does not exist"),
+                                                              api, app_meta)) {
+                                        ogs_error("Failed to send error response for unknown policy template id.");
+                                    }
+                                    ogs_free(err);
                                 }
                             }
                         } else {

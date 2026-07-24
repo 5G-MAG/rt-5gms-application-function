@@ -457,6 +457,7 @@ msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioning
 msaf_policy_template_node_t *
 msaf_provisioning_session_find_policy_template_by_id(msaf_provisioning_session_t *provisioning_session, const char *policy_template_id)
 {
+    if (!policy_template_id) return NULL;
     if (!provisioning_session->policy_templates) return NULL;
     return (msaf_policy_template_node_t *) ogs_hash_get(provisioning_session->policy_templates, policy_template_id, OGS_HASH_KEY_STRING);
 }
