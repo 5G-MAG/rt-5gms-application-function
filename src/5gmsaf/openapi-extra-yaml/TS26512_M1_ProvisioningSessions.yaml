@@ -1,0 +1,138 @@
+openapi: 3.0.0
+info:
+  title: M1_ProvisioningSessions
+  version: 2.2.0
+  description: |
+    5GMS AF M1 Provisioning Sessions API
+    © 2024, 3GPP Organizational Partners (ARIB, ATIS, CCSA, ETSI, TSDSI, TTA, TTC).
+    All rights reserved.
+tags:
+  - name: M1_ProvisioningSessions
+    description: '5G Media Streaming: Provisioning (M1) APIs: Provisioning Sessions'
+externalDocs:
+  description: 'TS 26.512 V17.10.0; 5G Media Streaming (5GMS); Protocols'
+  url: 'https://www.3gpp.org/ftp/Specs/archive/26_series/26.512/'
+servers:
+  - url: '{apiRoot}/3gpp-m1/v2'
+    variables:
+      apiRoot:
+        default: https://example.com
+        description: See 3GPP TS 29.512 clause 6.1.
+paths:
+  /provisioning-sessions:
+    post:
+      operationId: createProvisioningSession
+      summary: 'Create a new Provisioning Session'
+      responses:
+        '201':
+          description: 'Provisioning Session Created'
+          headers:
+            Location:
+              description: 'URL including the resource identifier of the newly created Provisioning Session.'
+              required: true
+              schema:
+                $ref: 'TS26512_CommonData.yaml#/components/schemas/AbsoluteUrl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvisioningSession'
+  /provisioning-sessions/{provisioningSessionId}:
+    parameters:
+        - name: provisioningSessionId
+          in: path
+          required: true
+          schema:
+            $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+          description: 'The resource identifier of an existing Provisioning Session.'
+    get:
+      operationId: getProvisioningSessionById
+      summary: 'Retrieve an existing Provisioning Session'
+      responses:
+        '200':
+          description: 'Success'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvisioningSession'
+    delete:
+      operationId: destroyProvisioningSession
+      summary: 'Destroy an existing Provisioning Session'
+      responses:
+        '204':
+          description: 'Provisioning Session Destroyed'
+          # No Content
+components:
+  schemas:
+    ProvisioningSession:
+      type: object
+      description: "A representation of a Provisioning Session."
+      required:
+        - provisioningSessionId
+        - provisioningSessionType
+        - appId
+      properties:
+        provisioningSessionId:
+          readOnly: true
+          allOf:
+            - $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+        provisioningSessionType:
+          $ref: 'TS26512_CommonData.yaml#/components/schemas/ProvisioningSessionType'
+        aspId:
+          $ref: 'TS29514_Npcf_PolicyAuthorization.yaml#/components/schemas/AspId'
+        appId:
+          $ref: 'TS29571_CommonData.yaml#/components/schemas/ApplicationId'
+        # --- 5G-MAG local extension: RTC support ---------------------------
+        # externalServiceId/locationReporting are new fields introduced by
+        # TS 26.510 (the generalized Media AF spec RTC uses) that have no
+        # equivalent yet in the upstream TS26512_M1_ProvisioningSessions.yaml
+        # (verified against the pinned tag TSG109-Rel17). Added here as
+        # OPTIONAL (not in `required`, no default forcing a value) so
+        # existing 5GMS create-provisioning-session payloads that omit them
+        # keep validating and behaving exactly as before.
+        externalServiceId:
+          type: string
+        locationReporting:
+          type: boolean
+          default: false
+        serverCertificateIds:
+          readOnly: true
+          type: array
+          items:
+            $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+          minItems: 1
+          uniqueItems: true
+        contentPreparationTemplateIds:
+          readOnly: true
+          type: array
+          items:
+            $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+          minItems: 1
+          uniqueItems: true
+        metricsReportingConfigurationIds:
+          readOnly: true
+          type: array
+          items:
+            $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+          minItems: 1
+          uniqueItems: true
+        policyTemplateIds:
+          readOnly: true
+          type: array
+          items:
+            $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+          minItems: 1
+          uniqueItems: true
+        edgeResourcesConfigurationIds:
+          readOnly: true
+          type: array
+          items:
+            $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+          minItems: 1
+          uniqueItems: true
+        eventDataProcessingConfigurationIds:
+          readOnly: true
+          type: array
+          items:
+            $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+          minItems: 1
+          uniqueItems: true

@@ -1,0 +1,167 @@
+openapi: 3.0.0
+info:
+  title: Maf_Provisioning_RealTimeCommunication
+  version: 1.0.2
+  description: |
+    5G-MAG local addition: Real-Time media Communication Provisioning API.
+    This resource has no TS 26.512 equivalent -- it is a new addition, sourced
+    from 3GPP TS 26.510 clause 8.10 (Real-time Media Communication provisioning
+    API), which TS 26.113 clause 6.3 identifies as the normative definition for
+    reference point RTC-1. Adapted to this AF's existing M1 API conventions:
+    served under the same {apiRoot}/3gpp-m1/v2 base path as the rest of M1, no
+    OAuth2 security block (matching how the rest of this AF's M1 API is
+    currently unauthenticated), and referencing the existing
+    TS26512_CommonData.yaml common types instead of introducing a parallel
+    TS26510 CommonData dependency.
+    © 2025, 3GPP Organizational Partners (ARIB, ATIS, CCSA, ETSI, TSDSI, TTA, TTC).
+    All rights reserved.
+
+tags:
+  - name: Maf_Provisioning_RealTimeCommunication
+    description: '5G-MAG local addition: Real-Time media Communication Provisioning API'
+
+externalDocs:
+  description: 'TS 26.510 V19.2.0 clause 8.10; TS 26.113 V19.1.0 clause 6.3'
+  url: 'https://www.3gpp.org/ftp/Specs/archive/26_series/26.510/'
+
+servers:
+  - url: '{apiRoot}/3gpp-m1/v2'
+    variables:
+      apiRoot:
+        default: https://example.com
+        description: See 3GPP TS 29.512 clause 6.1.
+
+paths:
+  /provisioning-sessions/{provisioningSessionId}/rtc-configuration:
+    parameters:
+      - name: provisioningSessionId
+        in: path
+        required: true
+        schema:
+          $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+        description: 'The resource identifier of an existing Provisioning Session.'
+    post:
+      operationId: activateRealTimeCommunication
+      summary: 'Activate the Real-Time media Communication procedure for the specified Provisioning Session by providing the Real-Time media Communication Configuration'
+      requestBody:
+        description: 'A JSON representation of a Real-Time media Communication Configuration'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RTCConfiguration'
+      responses:
+        '201':
+          description: 'Real-Time media Communication Configuration Created'
+          headers:
+            Location:
+              description: 'URL of the newly created Real-Time media Communication Configuration (same as request URL).'
+              required: true
+              schema:
+                $ref: 'TS26512_CommonData.yaml#/components/schemas/AbsoluteUrl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RTCConfiguration'
+        '404':
+          description: 'Not Found'
+    get:
+      operationId: retrieveRTCConfiguration
+      summary: 'Retrieve the Real-Time media Communication Configuration of the specified Provisioning Session'
+      responses:
+        '200':
+          description: 'Success'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RTCConfiguration'
+        '404':
+          description: 'Not Found'
+    put:
+      operationId: replaceRTCConfiguration
+      summary: 'Replace the Real-Time media Communication Configuration for the specified Provisioning Session'
+      requestBody:
+        description: 'A JSON representation of a Real-Time media Communication Configuration'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RTCConfiguration'
+      responses:
+        '200':
+          description: 'Real-Time media Communication Configuration Updated'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RTCConfiguration'
+        '204':
+          description: 'Real-Time media Communication Configuration Unchanged'
+        '404':
+          description: 'Not Found'
+    # Note: no PATCH operation -- no other M1 sub-resource in this AF
+    # currently supports merge-patch/json-patch, so this stays consistent
+    # with the rest of the M1 API's supported method set rather than
+    # advertising an operation the C code doesn't implement.
+    delete:
+      operationId: destroyRTCConfiguration
+      summary: 'Destroy the current Real-Time media Communication Configuration of the specified Provisioning Session'
+      responses:
+        '204':
+          description: 'Real-Time media Communication Configuration Destroyed'
+        '404':
+          description: 'Not Found'
+
+components:
+  schemas:
+    RTCConfiguration:
+      type: object
+      description: "A representation of a Real-Time media Communication Configuration resource."
+      properties:
+        edgeResourcesConfiguration:
+          $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
+        enableStunService:
+          type: boolean
+          default: false
+        stunEndpoints:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ServiceEndpointAccessSpecification'
+        enableTurnService:
+          type: boolean
+          default: false
+        turnEndpoints:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ServiceEndpointAccessSpecification'
+        enableSwapService:
+          type: boolean
+          default: false
+        swapEndpoints:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ServiceEndpointAccessSpecification'
+
+    ServiceEndpointAccessSpecification:
+      type: object
+      description: "Access details used for provisioning a service endpoint."
+      allOf:
+        - $ref: 'TS26512_CommonData.yaml#/components/schemas/EndpointAddress'
+        - type: object
+          properties:
+            credentials:
+              type: object
+              required:
+                - username
+                - passphrase
+              properties:
+                username:
+                  type: string
+                  minLength: 1
+                passphrase:
+                  type: string
+                  minLength: 1
+            certificateId:
+              $ref: 'TS26512_CommonData.yaml#/components/schemas/ResourceId'
