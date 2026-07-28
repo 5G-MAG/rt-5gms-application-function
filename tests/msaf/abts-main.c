@@ -11,9 +11,9 @@ https://drive.google.com/file/d/1cinCiA778IErENZ3JN52VFW-1ffHpx7Z/view
 #include "af/init.h"
 #include "af/sbi-path.h"
 
-#include "tests.h"
+#include "context.h" /* declares extern int __msaf_log_domain; the one real definition is in context.c */
 
-int __msaf_log_domain;
+#include "tests.h"
 
 static void terminate(void)
 {
