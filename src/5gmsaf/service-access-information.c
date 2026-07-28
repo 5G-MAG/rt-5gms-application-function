@@ -26,13 +26,18 @@
 #include "openapi/model/msaf_api_content_hosting_configuration.h"
 #include "openapi/model/msaf_api_m5_media_entry_point.h"
 #include "openapi/model/msaf_api_provisioning_session.h"
+#include "openapi/model/msaf_api_rtc_configuration.h"
 #include "openapi/model/msaf_api_service_access_information_resource.h"
+#include "openapi/model/msaf_api_service_access_information_resource_rtc_client_configuration.h"
+#include "openapi/model/msaf_api_client_service_endpoint_access_parameters.h"
+#include "openapi/model/msaf_api_client_service_endpoint_access_parameters_all_of_credentials.h"
 #include "metrics-reporting-configuration.h"
 
 
 #include "service-access-information.h"
 
 static OpenAPI_list_t *_policy_templates_hash_to_list_of_ready_bindings(ogs_hash_t *policy_templates);
+static OpenAPI_list_t *_rtc_endpoints_to_client_list(OpenAPI_list_t *provisioned_endpoints);
 
 msaf_api_service_access_information_resource_t *
 msaf_context_service_access_information_create(msaf_provisioning_session_t *provisioning_session, bool is_tls, const char *svr_hostname)
@@ -43,6 +48,7 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
     msaf_api_service_access_information_resource_dynamic_policy_invocation_configuration_t *dpic = NULL;
     msaf_api_service_access_information_resource_client_consumption_reporting_configuration_t *ccrc = NULL;
     msaf_api_service_access_information_resource_network_assistance_configuration_t *nac = NULL;
+    msaf_api_service_access_information_resource_rtc_client_configuration_t *rtc_client_configuration = NULL;
     OpenAPI_list_t *entry_points = NULL;
     OpenAPI_list_t *cmrc_list = NULL;
 
@@ -220,11 +226,31 @@ msaf_context_service_access_information_create(msaf_provisioning_session_t *prov
         ogs_assert(nac);
     }
 
+    /* RTC client configuration -- mutually exclusive with streaming_access above (TS 26.113 clause 10.2):
+     * only an RTC-type provisioning session has an rtcConfiguration, and content-hosting-configuration
+     * (the source of streaming_access) is only ever provisioned on MS_DOWNLINK/MS_UPLINK sessions. */
+    if (provisioning_session->rtcConfiguration) {
+        const msaf_api_rtc_configuration_t *rtc_cfg = provisioning_session->rtcConfiguration;
+        OpenAPI_list_t *stun_endpoints, *turn_endpoints, *swap_endpoints;
+
+        ogs_debug("Adding rtcClientConfiguration to ServiceAccessInformation [%s]",
+                  provisioning_session->provisioningSessionId);
+
+        stun_endpoints = _rtc_endpoints_to_client_list(rtc_cfg->stun_endpoints);
+        turn_endpoints = _rtc_endpoints_to_client_list(rtc_cfg->turn_endpoints);
+        swap_endpoints = _rtc_endpoints_to_client_list(rtc_cfg->swap_endpoints);
+
+        rtc_client_configuration = msaf_api_service_access_information_resource_rtc_client_configuration_create(
+                    stun_endpoints, turn_endpoints, swap_endpoints);
+        ogs_assert(rtc_client_configuration);
+    }
+
     /* Create SAI */
     service_access_information = msaf_api_service_access_information_resource_create(
                 msaf_strdup(provisioning_session->provisioningSessionId),
-                msaf_api_provisioning_session_type_VAL_DOWNLINK,
+                provisioning_session->provisioningSessionType,
                 streaming_access,
+                rtc_client_configuration,
                 ccrc /* client_consumption_reporting_configuration */,
                 dpic /* dynamic_policy */,
                 cmrc_list /* OpenAPI_list_t client_metrics_reporting */,
@@ -273,6 +299,43 @@ const msaf_sai_cache_entry_t *msaf_context_retrieve_service_access_information(c
     return sai_entry;
 }
 
+
+static OpenAPI_list_t *_rtc_endpoints_to_client_list(OpenAPI_list_t *provisioned_endpoints)
+{
+    OpenAPI_list_t *client_endpoints;
+    OpenAPI_lnode_t *node;
+
+    if (!provisioned_endpoints || !provisioned_endpoints->first) return NULL;
+
+    client_endpoints = OpenAPI_list_create();
+    ogs_assert(client_endpoints);
+
+    OpenAPI_list_for_each(provisioned_endpoints, node) {
+        const msaf_api_service_endpoint_access_specification_t *src = node->data;
+        msaf_api_client_service_endpoint_access_parameters_all_of_credentials_t *credentials = NULL;
+        msaf_api_ipv6_addr_t *ipv6_addr = NULL;
+        msaf_api_client_service_endpoint_access_parameters_t *dst;
+
+        if (src->credentials) {
+            credentials = msaf_api_client_service_endpoint_access_parameters_all_of_credentials_create(
+                        msaf_strdup(src->credentials->username), msaf_strdup(src->credentials->passphrase));
+        }
+        if (src->ipv6_addr) {
+            ipv6_addr = msaf_api_ipv6_addr_create(msaf_strdup(src->ipv6_addr->value));
+        }
+
+        /* certificate_id is intentionally not carried across: it is an AF-internal provisioning
+         * reference (RTC-1) used to select the server certificate, not something the client needs
+         * (RTC-5/RTC-3) -- ClientServiceEndpointAccessParameters has no such field. */
+        dst = msaf_api_client_service_endpoint_access_parameters_create(
+                    msaf_strdup(src->hostname), msaf_strdup(src->ipv4_addr), ipv6_addr, src->port_number, credentials);
+        ogs_assert(dst);
+
+        OpenAPI_list_add(client_endpoints, dst);
+    }
+
+    return client_endpoints;
+}
 
 static OpenAPI_list_t *_policy_templates_hash_to_list_of_ready_bindings(ogs_hash_t *policy_templates)
 {
