@@ -22,6 +22,7 @@
 #include "openapi/model/msaf_api_consumption_reporting_configuration.h"
 #include "openapi/model/msaf_api_content_hosting_configuration.h"
 #include "openapi/model/msaf_api_provisioning_session.h"
+#include "openapi/model/msaf_api_rtc_configuration.h"
 
 #include "provisioning-session.h"
 
@@ -95,7 +96,8 @@ msaf_content_hosting_configuration_with_af_unique_cert_id(msaf_provisioning_sess
 }
 
 msaf_provisioning_session_t *
-msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id)
+msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id,
+                                  const char *external_service_id, bool location_reporting)
 {
     msaf_provisioning_session_t *msaf_provisioning_session;
     ogs_uuid_t uuid;
@@ -106,7 +108,7 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     prov_sess_type = msaf_strdup(provisioning_session_type);
     ogs_uuid_get(&uuid);
     ogs_uuid_format(id, &uuid);
-    provisioning_session = msaf_api_provisioning_session_create(msaf_strdup(id), msaf_api_provisioning_session_type_FromString(prov_sess_type), msaf_strdup(asp_id), msaf_strdup(external_app_id), NULL, NULL, NULL, NULL, NULL, NULL);
+    provisioning_session = msaf_api_provisioning_session_create(msaf_strdup(id), msaf_api_provisioning_session_type_FromString(prov_sess_type), msaf_strdup(asp_id), msaf_strdup(external_app_id), external_service_id?msaf_strdup(external_service_id):NULL, true, location_reporting, NULL, NULL, NULL, NULL, NULL, NULL);
     ogs_free(prov_sess_type);
 
     msaf_provisioning_session = ogs_calloc(1, sizeof(msaf_provisioning_session_t));
@@ -115,6 +117,8 @@ msaf_provisioning_session_create(const char *provisioning_session_type, const ch
     msaf_provisioning_session->provisioningSessionType = provisioning_session->provisioning_session_type;
     msaf_provisioning_session->aspId = msaf_strdup(provisioning_session->asp_id);
     msaf_provisioning_session->appId = msaf_strdup(provisioning_session->app_id);
+    msaf_provisioning_session->externalServiceId = provisioning_session->external_service_id?msaf_strdup(provisioning_session->external_service_id):NULL;
+    msaf_provisioning_session->locationReporting = provisioning_session->location_reporting;
     msaf_provisioning_session->httpMetadata.provisioningSession.received = time(NULL);
     msaf_provisioning_session->httpMetadata.provisioningSession.hash = calculate_provisioning_session_hash(provisioning_session);
 
@@ -148,11 +152,16 @@ void msaf_provisioning_session_free(msaf_provisioning_session_t *provisioning_se
     safe_ogs_free(provisioning_session->provisioningSessionId);
     safe_ogs_free(provisioning_session->aspId);
     safe_ogs_free(provisioning_session->appId);
+    safe_ogs_free(provisioning_session->externalServiceId);
     safe_ogs_free(provisioning_session->httpMetadata.provisioningSession.hash);
     if (provisioning_session->contentHostingConfiguration) {
         msaf_api_content_hosting_configuration_free(provisioning_session->contentHostingConfiguration);
     }
     safe_ogs_free(provisioning_session->httpMetadata.contentHostingConfiguration.hash);
+    if (provisioning_session->rtcConfiguration) {
+        msaf_api_rtc_configuration_free(provisioning_session->rtcConfiguration);
+    }
+    safe_ogs_free(provisioning_session->httpMetadata.rtcConfiguration.hash);
     msaf_consumption_report_configuration_deregister(provisioning_session);
 
     if (provisioning_session->sai_cache)
@@ -205,6 +214,9 @@ msaf_provisioning_session_get_json(const char *provisioning_session_id)
         provisioning_session->provisioning_session_type = msaf_provisioning_session->provisioningSessionType;
         provisioning_session->asp_id = msaf_provisioning_session->aspId;
         provisioning_session->app_id = msaf_provisioning_session->appId;
+        provisioning_session->external_service_id = msaf_provisioning_session->externalServiceId;
+        provisioning_session->is_location_reporting = true;
+        provisioning_session->location_reporting = msaf_provisioning_session->locationReporting;
 
         if (msaf_provisioning_session->certificate_map && ogs_hash_first(msaf_provisioning_session->certificate_map) != NULL) {
             ogs_hash_index_t *cert_node;
@@ -262,6 +274,8 @@ msaf_provisioning_session_parseRequestFromJSON(cJSON *json, const char **reason,
     cJSON *entry;
     const char *asp_id = NULL;
     const char *app_id;
+    const char *external_service_id = NULL;
+    bool location_reporting = false;
     msaf_api_provisioning_session_type_e prov_sess_type;
 
     if (reason) *reason = NULL;
@@ -314,7 +328,29 @@ msaf_provisioning_session_parseRequestFromJSON(cJSON *json, const char **reason,
     }
     app_id = entry->valuestring;
 
-    provisioning_session = msaf_provisioning_session_create(msaf_api_provisioning_session_type_ToString(prov_sess_type), asp_id, app_id);
+    entry = cJSON_GetObjectItemCaseSensitive(json, "externalServiceId");
+    if (entry) {
+        if (!cJSON_IsString(entry) && !cJSON_IsNull(entry)) {
+            ogs_error("msaf_provisioning_session_parseFromJSON() failed [external_service_id]");
+            if (reason) *reason = "Field \"externalServiceId\" is not a string or 'null'";
+            if (err_parameter) *err_parameter = ogs_strdup("externalServiceId");
+            return provisioning_session;
+        }
+        external_service_id = entry->valuestring;
+    }
+
+    entry = cJSON_GetObjectItemCaseSensitive(json, "locationReporting");
+    if (entry) {
+        if (!cJSON_IsBool(entry)) {
+            ogs_error("msaf_provisioning_session_parseFromJSON() failed [location_reporting]");
+            if (reason) *reason = "Field \"locationReporting\" is not a boolean";
+            if (err_parameter) *err_parameter = ogs_strdup("locationReporting");
+            return provisioning_session;
+        }
+        location_reporting = cJSON_IsTrue(entry);
+    }
+
+    provisioning_session = msaf_provisioning_session_create(msaf_api_provisioning_session_type_ToString(prov_sess_type), asp_id, app_id, external_service_id, location_reporting);
 #endif
 
     return provisioning_session;

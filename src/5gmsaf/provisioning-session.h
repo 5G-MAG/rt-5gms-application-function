@@ -25,6 +25,7 @@ extern "C" {
 
 typedef struct msaf_api_consumption_reporting_configuration_s msaf_api_consumption_reporting_configuration_t;
 typedef struct msaf_api_content_hosting_configuration_s msaf_api_content_hosting_configuration_t;
+typedef struct msaf_api_rtc_configuration_s msaf_api_rtc_configuration_t;
 
 typedef struct msaf_http_metadata_s {
     time_t received;
@@ -42,13 +43,17 @@ typedef struct msaf_provisioning_session_s {
     msaf_api_provisioning_session_type_e provisioningSessionType;
     char *aspId;
     char *appId;
+    char *externalServiceId; /* [null]: new in the RTC-aware ProvisioningSession, TS 26.510 clause 8.2 */
+    bool locationReporting;  /* new in the RTC-aware ProvisioningSession, TS 26.510 clause 8.2 */
     msaf_api_consumption_reporting_configuration_t *consumptionReportingConfiguration;
     msaf_api_content_hosting_configuration_t *contentHostingConfiguration;
+    msaf_api_rtc_configuration_t *rtcConfiguration; /* singleton RTC-1 sub-resource, TS 26.510 clause 8.10 */
     msaf_sai_cache_t *sai_cache;
     struct {
         msaf_http_metadata_t provisioningSession;
         msaf_http_metadata_t consumptionReportingConfiguration;
         msaf_http_metadata_t contentHostingConfiguration;
+        msaf_http_metadata_t rtcConfiguration;
     } httpMetadata;
     ogs_hash_t *certificate_map;          //Type: char* => n/a (just used as a set - external tool manages data)
     ogs_hash_t *policy_templates; /* key: policy template id, value: msaf_policy_template_node_t */
@@ -75,7 +80,8 @@ typedef struct msaf_policy_template_change_state_event_data_s {
     void *callback_user_data;
 } msaf_policy_template_change_state_event_data_t;
 
-extern msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id);
+extern msaf_provisioning_session_t *msaf_provisioning_session_create(const char *provisioning_session_type, const char *asp_id, const char *external_app_id,
+                                                const char *external_service_id /* [null] */, bool location_reporting);
 extern void msaf_provisioning_session_free(msaf_provisioning_session_t *provisioning_session);
 extern msaf_provisioning_session_t *msaf_provisioning_session_find_by_provisioningSessionId(const char *provisioningSessionId);
 extern msaf_provisioning_session_t *msaf_provisioning_session_parseRequestFromJSON(cJSON *json, const char **reason, char **err_parameter);

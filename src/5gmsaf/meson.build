@@ -80,6 +80,8 @@ libmsaf_dist_sources = files('''
     provisioning-session.c
     response-cache-control.h
     response-cache-control.c
+    rtc-configuration.h
+    rtc-configuration.c
     sai-cache.h
     sai-cache.c
     sbi-path.h
