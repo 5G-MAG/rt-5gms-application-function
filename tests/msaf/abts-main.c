@@ -20,6 +20,8 @@ static void terminate(void)
     ogs_msleep(50);
     af_terminate();
 
+    msaf_context_final();
+
     test_child_terminate();
     app_terminate();
 
@@ -33,6 +35,16 @@ static void initialize(const char *const argv[])
     rv = ogs_app_initialize(NULL, NULL, argv);
     ogs_assert(rv == OGS_OK);
     test_5gc_init();
+
+    /* Despite the name, af_initialize()/af_terminate() (from "af/init.h") do not initialize
+     * this project's 5GMS AF. They resolve to subprojects/open5gs/tests/af/init.c,
+     * open5gs's own generic 3GPP-"AF"-role test double built to drive open5gs's PCF
+     * (Npcf_PolicyAuthorization) and BSF (Nbsf_Management) test suites as a client peer --
+     * it never touches msaf_self(). Without this call, msaf_self()->provisioningSessions_map
+     * (and the rest of the real msaf context) stays NULL, and any test that creates a
+     * provisioning session (or otherwise touches msaf_self()) segfaults. Initialize the real
+     * context directly here instead of relying on af_initialize() for it. */
+    msaf_context_init();
 
     ogs_log_install_domain(&__msaf_log_domain, "test-msaf", ogs_core()->log.level);
 
