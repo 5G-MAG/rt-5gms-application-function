@@ -26,6 +26,7 @@
 #include "utilities.h"
 #include "metrics-reporting-configuration.h"
 #include "consumption-report-configuration.h"
+#include "rtc-configuration.h"
 #include "provisioning-session.h"
 #include "ContentProtocolsDiscovery_body.h"
 #include "openapi/api/TS26512_M1_ProvisioningSessionsAPI-info.h"
@@ -38,9 +39,11 @@
 #include "openapi/api/TS26512_M1_ContentProtocolsDiscoveryAPI-info.h"
 #include "openapi/api/TS26512_M1_PolicyTemplatesProvisioningAPI-info.h"
 #include "openapi/api/Maf_ManagementAPI-info.h"
+#include "openapi/api/TS26510_Maf_Provisioning_RealTimeCommunicationAPI-info.h"
 #include "openapi/model/msaf_api_content_hosting_configuration.h"
 #include "openapi/model/msaf_api_metrics_reporting_configuration.h"
 #include "openapi/model/msaf_api_consumption_reporting_configuration.h"
+#include "openapi/model/msaf_api_rtc_configuration.h"
 
 #include "msaf-m1-sm.h"
 
@@ -99,6 +102,13 @@ static const nf_server_interface_metadata_t
 };
 
 static void _discard_pending_content_hosting_configuration_upload(msaf_application_server_state_node_t *as_state, const char *resource_id);
+
+static const nf_server_interface_metadata_t
+m1_realtimecommunicationprovisioning_api_metadata = {
+    MAF_PROVISIONING_REALTIMECOMMUNICATION_API_NAME,
+    MAF_PROVISIONING_REALTIMECOMMUNICATION_API_VERSION
+};
+
 static void _policy_template_extra_validation(msaf_api_policy_template_t **policy_template, const char **parse_err, char **err_parameter);
 static void _policy_template_remove_read_only(msaf_api_policy_template_t *policy_template);
 
@@ -133,6 +143,7 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
     static const nf_server_interface_metadata_t *m1_servercertificatesprovisioning_api = &m1_servercertificatesprovisioning_api_metadata;
     static const nf_server_interface_metadata_t *m1_metricsreportingprovisioning_api = &m1_metricsreportingprovisioning_api_metadata;
     static const nf_server_interface_metadata_t *m1_consumptionreportingprovisioning_api = &m1_consumptionreportingprovisioning_api_metadata;
+    static const nf_server_interface_metadata_t *m1_realtimecommunicationprovisioning_api = &m1_realtimecommunicationprovisioning_api_metadata;
     static const nf_server_interface_metadata_t *m3_contenthostingprovisioning_api = &m3_contenthostingprovisioning_api_metatdata;
     static const nf_server_interface_metadata_t *m1_policytemplatesprovisioning_api = &m1_policytemplatesprovisioning_api_metadata;
     static const nf_server_interface_metadata_t *maf_management_api = &maf_management_api_metadata;
@@ -284,6 +295,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             SWITCH(message->h.resource.component[2])
                             CASE("consumption-reporting-configuration")
                                 api = m1_consumptionreportingprovisioning_api;
+                                break;
+                            CASE("rtc-configuration")
+                                api = m1_realtimecommunicationprovisioning_api;
                                 break;
                             CASE("metrics-reporting-configurations")
                                 api = m1_metricsreportingprovisioning_api;
@@ -553,6 +567,50 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_assert(true == nf_server_send_error(stream, 408, 2, message, "Already a ConsumptionReportingConfiguration registered.", err, NULL, NULL, api, app_meta));
                                         ogs_free(err);
                                         msaf_api_consumption_reporting_configuration_free(report_config);
+                                    } else {
+                                        ogs_sbi_response_t *response;
+
+                                        response = nf_server_new_response(message->h.uri, NULL,  0, NULL, 0, NULL, api, app_meta);
+                                        ogs_assert(response);
+                                        nf_server_populate_response(response, 0, NULL, 201);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    }
+                                }
+                            } else if (api == m1_realtimecommunicationprovisioning_api) {
+                                cJSON *json;
+
+                                ogs_debug("POST rtc-configuration");
+
+                                json = cJSON_Parse(request->http.content);
+                                if (!json) {
+                                    char *err;
+                                    err = ogs_msprintf("Bad RTCConfiguration for provisioning session [%s]", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, NULL, api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    msaf_api_rtc_configuration_t *rtc_config;
+                                    const char *parse_err = NULL;
+                                    char *err_param = NULL;
+
+                                    rtc_config = msaf_rtc_configuration_parseJSON(json, &parse_err, &err_param);
+                                    cJSON_Delete(json);
+
+                                    if (!rtc_config) {
+                                        char *err;
+                                        OpenAPI_list_t *invalid_params = NULL;
+                                        if (err_param) invalid_params = nf_server_invalid_param(err_param, parse_err);
+                                        err = ogs_msprintf("Bad RTCConfiguration for provisioning session [%s]: %s", message->h.resource.component[1], parse_err);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, invalid_params, api, app_meta));
+                                        ogs_free(err);
+                                    } else if (!msaf_rtc_configuration_register(msaf_provisioning_session, rtc_config)) {
+                                        char *err;
+                                        err = ogs_msprintf("Unable to register RTCConfiguration for provisioning session [%s]", message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 408, 2, message, "Already an RTCConfiguration registered.", err, NULL, NULL, api, app_meta));
+                                        ogs_free(err);
+                                        msaf_api_rtc_configuration_free(rtc_config);
                                     } else {
                                         ogs_sbi_response_t *response;
 
@@ -950,6 +1008,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             CASE("consumption-reporting-configuration")
                                 api = m1_consumptionreportingprovisioning_api;
                                 break;
+                            CASE("rtc-configuration")
+                                api = m1_realtimecommunicationprovisioning_api;
+                                break;
                             CASE("content-hosting-configuration")
                                 api = m1_contenthostingprovisioning_api;
                                 break;
@@ -1030,6 +1091,28 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     nf_server_populate_response(response, strlen(body), body, 200);
                                     ogs_assert(true == ogs_sbi_server_send_response(stream, response));
                                 }
+                            } else if (api == m1_realtimecommunicationprovisioning_api) {
+                                ogs_sbi_response_t *response;
+                                char *body;
+
+                                ogs_debug("GET RTCConfiguration");
+
+                                body = msaf_rtc_configuration_body(msaf_provisioning_session);
+                                if (!body) {
+                                    char *err;
+                                    err = ogs_msprintf("Provisioning Session [%s]: Unable to retrieve the RTC Configuration", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Unable to retrieve the RTC Configuration.", err, NULL, NULL, api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    response = nf_server_new_response(NULL, NULL,
+                                            msaf_rtc_configuration_last_modified(msaf_provisioning_session),
+                                            msaf_rtc_configuration_etag(msaf_provisioning_session),
+                                            0, NULL, api, app_meta);
+                                    ogs_assert(response);
+                                    nf_server_populate_response(response, strlen(body), body, 200);
+                                    ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                }
                             }
                         } else if (message->h.resource.component[1] && !message->h.resource.component[2]) {
                             msaf_provisioning_session_t *msaf_provisioning_session = NULL;
@@ -1071,6 +1154,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             SWITCH(message->h.resource.component[2])
                             CASE("consumption-reporting-configuration")
                                 api = m1_consumptionreportingprovisioning_api;
+                                break;
+                            CASE("rtc-configuration")
+                                api = m1_realtimecommunicationprovisioning_api;
                                 break;
                             CASE("metrics-reporting-configurations")
                                 api = m1_metricsreportingprovisioning_api;
@@ -1354,6 +1440,49 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     }
                                     cJSON_Delete(json);
                                 }
+                            } else if (api == m1_realtimecommunicationprovisioning_api) {
+                                cJSON *json;
+
+                                ogs_debug("PUT RTCConfiguration");
+
+                                json = cJSON_Parse(request->http.content);
+                                if (!json) {
+                                    char *err;
+                                    err = ogs_msprintf("Bad request body while updating RTCConfiguration for Provisioning Session [%s].", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, NULL, api, app_meta));
+                                    ogs_free(err);
+                                } else {
+                                    msaf_api_rtc_configuration_t *rtc_config;
+                                    const char *parse_err = NULL;
+                                    char *parameter;
+
+                                    rtc_config = msaf_rtc_configuration_parseJSON(json, &parse_err, &parameter);
+                                    if (!rtc_config) {
+                                        char *err;
+                                        OpenAPI_list_t *invalid_params = NULL;
+                                        if (parameter) invalid_params = nf_server_invalid_param(parameter, parse_err);
+                                        err = ogs_msprintf("Bad request body while updating RTCConfiguration for Provisioning Session [%s]: %s", message->h.resource.component[1], parse_err);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request.", err, NULL, invalid_params, api, app_meta));
+                                        ogs_free(err);
+                                    } else {
+                                        if (!msaf_rtc_configuration_update(msaf_provisioning_session, rtc_config)) {
+                                            char *err;
+                                            err = ogs_msprintf("No RTCConfiguration for Provisioning Session [%s].", message->h.resource.component[1]);
+                                            ogs_error("%s", err);
+                                            ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Not found.", err, NULL, NULL, api, app_meta));
+                                            ogs_free(err);
+                                        } else {
+                                            ogs_sbi_response_t *response;
+                                            response = nf_server_new_response(NULL, NULL, 0, NULL, 0, NULL, api, app_meta);
+                                            ogs_assert(response);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        }
+                                    }
+                                    cJSON_Delete(json);
+                                }
                             } else if (api == m1_policytemplatesprovisioning_api) {
                                 ogs_sbi_response_t *response;
                                 msaf_api_policy_template_t *policy_template;
@@ -1468,6 +1597,9 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                             SWITCH(message->h.resource.component[2])
                             CASE("consumption-reporting-configuration")
                                 api = m1_consumptionreportingprovisioning_api;
+                                break;
+                            CASE("rtc-configuration")
+                                api = m1_realtimecommunicationprovisioning_api;
                                 break;
                             CASE("metrics-reporting-configurations")
                                 api = m1_metricsreportingprovisioning_api;
@@ -1678,6 +1810,32 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request", err, NULL, NULL, api, app_meta));
                                     ogs_free(err);
                                 }
+                            } else if (api == m1_realtimecommunicationprovisioning_api) {
+                                if (!message->h.resource.component[3]) {
+                                    /* Delete RTC configuration */
+                                    if (msaf_rtc_configuration_deregister(provisioning_session)) {
+                                        /* Deleted RTC configuration successfully */
+                                        ogs_sbi_response_t *response;
+                                        response = nf_server_new_response(NULL, NULL,  0, NULL, 0, NULL, api, app_meta);
+                                        nf_server_populate_response(response, 0, NULL, 204);
+                                        ogs_assert(response);
+                                        ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                    } else {
+                                        /* Failed to delete RTC configuration - no configuration to delete */
+                                        char *err;
+                                        err = ogs_msprintf("Provisioning session [%s]: RTC Configuration not found.", message->h.resource.component[1]);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 404, 2, message, "Not Found", err, NULL, NULL, api, app_meta));
+                                        ogs_free(err);
+                                    }
+                                } else {
+                                    /* Delete RTCConfiguration sub-resource - undefined operation */
+                                    char *err;
+                                    err = ogs_msprintf("Provisioning session [%s]: Unknown RTC Configuration operation.", message->h.resource.component[1]);
+                                    ogs_error("%s", err);
+                                    ogs_assert(true == nf_server_send_error(stream, 400, 2, message, "Bad request", err, NULL, NULL, api, app_meta));
+                                    ogs_free(err);
+                                }
                             }
                         } else if (message->h.resource.component[1] && !message->h.resource.component[2]) {
                             msaf_provisioning_session_t *provisioning_session;
@@ -1839,6 +1997,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                                           OGS_SBI_HTTP_METHOD_OPTIONS;
                                             response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods,
                                                                               m1_consumptionreportingprovisioning_api, app_meta);
+                                            nf_server_populate_response(response, 0, NULL, 204);
+                                            ogs_assert(response);
+                                            ogs_assert(true == ogs_sbi_server_send_response(stream, response));
+                                        } else if (!strcmp(message->h.resource.component[2],"rtc-configuration")) {
+                                            static const char methods[] = OGS_SBI_HTTP_METHOD_POST ", "
+                                                                          OGS_SBI_HTTP_METHOD_GET ", "
+                                                                          OGS_SBI_HTTP_METHOD_PUT ", "
+                                                                          OGS_SBI_HTTP_METHOD_DELETE ", "
+                                                                          OGS_SBI_HTTP_METHOD_OPTIONS;
+                                            response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, methods,
+                                                                              m1_realtimecommunicationprovisioning_api, app_meta);
                                             nf_server_populate_response(response, 0, NULL, 204);
                                             ogs_assert(response);
                                             ogs_assert(true == ogs_sbi_server_send_response(stream, response));
