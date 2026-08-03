@@ -1132,12 +1132,6 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         cJSON_free(txt);
                                     }
 
-                                    if (msaf_provisioning_session->contentHostingConfiguration) {
-                                        msaf_api_content_hosting_configuration_free(msaf_provisioning_session->contentHostingConfiguration);
-                                        msaf_provisioning_session->contentHostingConfiguration = NULL;
-                                        msaf_sai_cache_clear(msaf_provisioning_session->sai_cache);
-                                    }
-
                                     rv = msaf_distribution_create(content_hosting_config, msaf_provisioning_session, &reason, &parameter);
                                     content_hosting_config = NULL;
                                     if (rv) {
