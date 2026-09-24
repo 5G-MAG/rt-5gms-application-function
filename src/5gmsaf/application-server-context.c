@@ -40,48 +40,44 @@ static void msaf_application_server_remove(msaf_application_server_node_t *msaf_
 int
 msaf_application_server_state_set_on_post( msaf_provisioning_session_t *provisioning_session)
 {
-    msaf_application_server_node_t *msaf_as;
     msaf_application_server_state_node_t *as_state;
     resource_id_node_t *chc;
     assigned_provisioning_sessions_node_t *assigned_provisioning_sessions;
     ogs_list_t *certs;
     ogs_lnode_t *node, *next_node;
 
-    msaf_as = ogs_list_first(&msaf_self()->config.applicationServers_list);
-    ogs_assert(msaf_as);
+    /* Every configured Application Server hosts this provisioning session's Content Hosting Configuration. */
+    ogs_list_init(&provisioning_session->application_server_states);
     ogs_list_for_each(&msaf_self()->application_server_states, as_state) {
-        if (as_state->application_server == msaf_as) {
-            msaf_application_server_state_ref_node_t *as_state_ref;
+        msaf_application_server_state_ref_node_t *as_state_ref;
 
-            certs = msaf_retrieve_certificates_from_map(provisioning_session);
-            if (certs) {
-                ogs_list_for_each_safe(certs, next_node, node) {
-                    ogs_list_remove(certs, node);
-                    ogs_list_add(&as_state->upload_certificates, node);
-                }
-                ogs_free(certs);
-            } else {
-                return 0;
+        certs = msaf_retrieve_certificates_from_map(provisioning_session);
+        if (certs) {
+            ogs_list_for_each_safe(certs, next_node, node) {
+                ogs_list_remove(certs, node);
+                ogs_list_add(&as_state->upload_certificates, node);
             }
-
-            chc = ogs_calloc(1, sizeof(resource_id_node_t));
-            ogs_assert(chc);
-            chc->state = msaf_strdup(provisioning_session->provisioningSessionId);
-            ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
-
-            assigned_provisioning_sessions = ogs_calloc(1, sizeof(assigned_provisioning_sessions_node_t));
-            ogs_assert(assigned_provisioning_sessions);
-            assigned_provisioning_sessions->assigned_provisioning_session = provisioning_session;
-            ogs_list_add(&as_state->assigned_provisioning_sessions, assigned_provisioning_sessions);
-
-            ogs_list_init(&provisioning_session->application_server_states);
-            as_state_ref = ogs_calloc(1, sizeof(msaf_application_server_state_ref_node_t));
-            ogs_assert(as_state_ref);
-            as_state_ref->as_state = as_state;
-            ogs_list_add(&provisioning_session->application_server_states, as_state_ref);
-
-            next_action_for_application_server(as_state);
+            ogs_free(certs);
+        } else {
+            return 0;
         }
+
+        chc = ogs_calloc(1, sizeof(resource_id_node_t));
+        ogs_assert(chc);
+        chc->state = msaf_strdup(provisioning_session->provisioningSessionId);
+        ogs_list_add(&as_state->upload_content_hosting_configurations, chc);
+
+        assigned_provisioning_sessions = ogs_calloc(1, sizeof(assigned_provisioning_sessions_node_t));
+        ogs_assert(assigned_provisioning_sessions);
+        assigned_provisioning_sessions->assigned_provisioning_session = provisioning_session;
+        ogs_list_add(&as_state->assigned_provisioning_sessions, assigned_provisioning_sessions);
+
+        as_state_ref = ogs_calloc(1, sizeof(msaf_application_server_state_ref_node_t));
+        ogs_assert(as_state_ref);
+        as_state_ref->as_state = as_state;
+        ogs_list_add(&provisioning_session->application_server_states, as_state_ref);
+
+        next_action_for_application_server(as_state);
     }
     return 1;
 }
