@@ -187,10 +187,37 @@ cert_store_check() {
     fi
 }
 
+host_part() {
+    local name="$1"
+    if [[ "$name" =~ ^\[(.*)\](:[0-9]+)?$ ]]; then
+	name="${BASH_REMATCH[1]}"
+    elif [[ "$name" =~ ^([^:]+):[0-9]+$ ]]; then
+	name="${BASH_REMATCH[1]}"
+    fi
+    echo "$name"
+}
+
+is_ip_literal() {
+    [[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || [[ "$1" == *:* && "$1" =~ ^[0-9a-fA-F:.]+$ ]]
+}
+
 fqdn_check() {
-    fqdn="$1"
+    fqdn="$(host_part "$1")"
+    if is_ip_literal "$fqdn"; then
+	return 0
+    fi
     if echo "$fqdn" | grep -viq '^[a-z0-9][-a-z0-9]*\(\.[a-z0-9][-a-z0-9]*\)*$'; then
-	error_exit 3 "Bad domain name: $fqdn"
+	error_exit 3 "Bad domain name: $1"
+    fi
+}
+
+# Clients only match an IP address against IP subjectAltNames, never DNS ones.
+san_entry() {
+    local host="$(host_part "$1")"
+    if is_ip_literal "$host"; then
+	echo "IP:$host"
+    else
+	echo "DNS:$host"
     fi
 }
 
@@ -200,15 +227,20 @@ new_csr() {
     shift 2
     cert_store_check "$cert_id"
     fqdn_check "$common_name"
+    common_name="$(host_part "$common_name")"
 
-    extra_domain_args=""
+    san_list="$(san_entry "$common_name")"
     while [ "$#" -gt "0" ]; do
 	fqdn_check "$1"
-	extra_domain_args=",DNS:$1"
+	san="$(san_entry "$1")"
+	case ",$san_list," in
+	*",$san,"*) ;;
+	*) san_list="$san_list,$san" ;;
+	esac
 	shift
     done
 
-    openssl req -new -newkey rsa:2048 -batch -nodes -keyout "$cert_store/private/$cert_id.pem" -out "$cert_store/csrs/$cert_id.pem" -subj "/C=GB/L=London/CN=$common_name" -addext "subjectAltName=DNS:$common_name$extra_domain_args" > /dev/null 2>&1
+    openssl req -new -newkey rsa:2048 -batch -nodes -keyout "$cert_store/private/$cert_id.pem" -out "$cert_store/csrs/$cert_id.pem" -subj "/C=GB/L=London/CN=$common_name" -addext "subjectAltName=$san_list" > /dev/null 2>&1
 
     ts=`stat -c '%Y' "$cert_store/csrs/$cert_id.pem"`
     timestamp=`TZ=GMT date --date=@$ts +'%a, %d %b %Y %H:%M:%S %Z'`
@@ -228,9 +260,11 @@ new_cert() {
     common_name="$2"
 
     cert_store_check "$cert_id"
+    fqdn_check "$common_name"
+    common_name="$(host_part "$common_name")"
 
     # Generate server cert to be signed
-    openssl req -new -nodes -x509 -days 90 -newkey rsa:2048 -keyout "$cert_store/private/$cert_id.pem" -out "$cert_store/public/$cert_id.pem" -subj "/C=GB/L=London/CN=$common_name" -addext "subjectAltName=DNS:$common_name"> /dev/null 2>&1
+    openssl req -new -nodes -x509 -days 90 -newkey rsa:2048 -keyout "$cert_store/private/$cert_id.pem" -out "$cert_store/public/$cert_id.pem" -subj "/C=GB/L=London/CN=$common_name" -addext "subjectAltName=$(san_entry "$common_name")"> /dev/null 2>&1
 
     ts=`stat -c '%Y' "$cert_store/public/$cert_id.pem"`
     timestamp=`TZ=GMT date --date=@"$ts" +'%a, %d %b %Y %H:%M:%S %Z'`
