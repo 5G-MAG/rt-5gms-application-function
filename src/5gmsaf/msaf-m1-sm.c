@@ -463,6 +463,17 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                         ogs_list_remove(&extra_domains_list, node);
                                         ogs_free(node);
                                     }
+
+                                    if (csr_cert->return_code) {
+                                        char *err;
+                                        err = ogs_msprintf("Certificate manager failed to create a certificate signing request for the Provisioning Session [%s] (exit code %d).", message->h.resource.component[1], csr_cert->return_code);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Certificate creation failed.", err, NULL, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        ogs_free(err);
+                                        msaf_certificate_free(csr_cert);
+                                        break;
+                                    }
+
                                     char *csr_cert_id = msaf_strdup(csr_cert->id);
                                     ogs_hash_set(msaf_provisioning_session->certificate_map, csr_cert_id, OGS_HASH_KEY_STRING, csr_cert_id);
                                     ogs_sbi_response_t *response;
@@ -503,6 +514,15 @@ void msaf_m1_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     ogs_sbi_response_t *response;
                                     char *location;
                                     new_cert = server_cert_new("newcert", canonical_domain_name, NULL);
+                                    if (new_cert->return_code) {
+                                        char *err;
+                                        err = ogs_msprintf("Certificate manager failed to create a certificate for the Provisioning Session [%s] (exit code %d).", message->h.resource.component[1], new_cert->return_code);
+                                        ogs_error("%s", err);
+                                        ogs_assert(true == nf_server_send_error(stream, 500, 2, message, "Certificate creation failed.", err, NULL, NULL, m1_servercertificatesprovisioning_api, app_meta));
+                                        ogs_free(err);
+                                        msaf_certificate_free(new_cert);
+                                        break;
+                                    }
                                     ogs_hash_set(msaf_provisioning_session->certificate_map, msaf_strdup(new_cert->id), OGS_HASH_KEY_STRING, msaf_strdup(new_cert->id));
 
                                     location = ogs_msprintf("%s/%s", request->h.uri, new_cert->id);
