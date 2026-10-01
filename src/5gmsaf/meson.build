@@ -147,7 +147,8 @@ libmsaf = static_library('msaf',
                     libapp_dep,
                     libscbsf_dep,
                     libscpcf_dep,
-                    libcrypt_dep],
+                    libcrypt_dep,
+                    libspdc_dep],
     install : false)
 
 libmsaf_dep = declare_dependency(
@@ -158,7 +159,8 @@ libmsaf_dep = declare_dependency(
                     libscbsf_dep,
                     libscpcf_dep,
                     libcrypt_dep,
-                    libpcre2])
+                    libpcre2,
+                    libspdc_dep])
 
 msaf_sources = files('''
     app.c
