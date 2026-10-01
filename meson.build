@@ -19,7 +19,7 @@ project('rt-5gms-application-function', 'c',
 
 open5gs_project=subproject('open5gs',required:true)
 svc_consumers_project=subproject('rt-5gc-service-consumers',required:true)
-
+dcaf_project = subproject('rt-data-collection-application-function', required: true)
 build_tests = open5gs_project.get_variable('build_tests')
 
 subdir('tools')

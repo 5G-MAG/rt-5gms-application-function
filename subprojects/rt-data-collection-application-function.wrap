@@ -1,0 +1,9 @@
+[wrap-git]
+directory = rt-data-collection-application-function
+url = https://github.com/5G-MAG/rt-data-collection-application-function.git
+# Pin revision containing integration fixes
+revision = 6c65268f82344a0409bc180aa197d554b8f9f3de
+clone-recursive = true
+
+[provide]
+dependency_names = spdc
