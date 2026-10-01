@@ -168,7 +168,8 @@ sbi:
 #    * That is, 'no_service_names' has no effect.
 #
 msaf:
-    open5gsIntegration: false    
+    open5gsIntegration: false
+    dcafIntegration: true
     sbi:
       - addr: 127.0.0.22
         port: 7777
@@ -201,6 +202,27 @@ msaf:
 #      deliveryBoost:
 #        minDlBitRate: 1 Mbps
 #        boostPeriod: 30
+
+dataCollection:
+  provisioning:
+    - addr: 127.0.0.33
+      port: 7777
+  directDataReporting:
+    - addr: 127.0.0.34
+      port: 7777
+  indirectDataReporting:
+    - addr: 127.0.0.35
+      port: 7777
+  applicationServerDataReporting:
+    - addr: 127.0.0.36
+      port: 7777
+  eventConsumerApplicationFunctionEventExposure:
+    - addr: 127.0.0.37
+      port: 7777
+  networkDataAnalyticsFunctionEventExposure:
+    - addr: 127.0.0.38
+      port: 7777
+  dataCollectionDir: /var/local/log/open5gs/reports
 
 
 # nrf:

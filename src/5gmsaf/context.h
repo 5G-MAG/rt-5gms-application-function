@@ -60,6 +60,7 @@ typedef enum msaf_configuration_server_ifc_e {
 
 typedef struct msaf_configuration_s {
     bool open5gsIntegration_flag;
+    bool dcaf_integration;
     ogs_list_t applicationServers_list;
     char *certificateManager;
     msaf_configuration_server_t servers[MSAF_SVR_NUM_IFCS];

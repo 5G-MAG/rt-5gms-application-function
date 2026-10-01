@@ -531,6 +531,8 @@ int msaf_context_parse_config(void)
                     /* handle config in sbi library */
                 } else if (!strcmp(msaf_key, "discovery")) {
                     /* handle config in sbi library */
+                } else if (!strcmp(msaf_key, "dcafIntegration")) {
+                    self->config.dcaf_integration = ogs_yaml_iter_bool(&msaf_iter);
                 } else if (!strcmp(msaf_key, "dataCollectionDir")) {
                     self->config.data_collection_dir = msaf_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "offerNetworkAssistance")) {

@@ -14,8 +14,11 @@
 #include "context.h"
 #include "sbi-path.h"
 #include "msaf-sm.h"
+#include "msaf-version.h"
 
 #include "init.h"
+
+#include <data-collection-sp/data-collection.h>
 
 static ogs_thread_t *thread;
 
@@ -23,6 +26,27 @@ static void msaf_main(void *data);
 static int msaf_set_time(void);
 
 static int initialized = 0;
+static int data_collection_initialized = 0;
+
+
+static const data_collection_configuration_t data_collection_configuration = {
+    .configuration_section = "dataCollection",
+
+    .disable_features =
+        DATA_COLLECTION_FEATURE_SERVER_DATA_REPORTING_PROVISIONING_R1 |
+        DATA_COLLECTION_FEATURE_SERVER_DATA_REPORTING_R2 |
+        DATA_COLLECTION_FEATURE_SERVER_DATA_REPORTING_R3,
+
+    .event_exposure_supported_features =
+        DATA_COLLECTION_SUPPORTED_FEATURE_EVENT_UE_COMMUNICATION,
+
+    .af_name = MSAF_NAME,
+    .af_version = MSAF_VERSION,
+    .af_type = "AF",
+
+    .data_report_handlers = NULL,
+    .event_generation_callback = NULL
+};
 
 int msaf_initialize()
 {
@@ -71,10 +95,34 @@ int msaf_initialize()
         ogs_debug("ogs_log_config_domain failed");
         return rv;
     }
+    if (msaf_self()->config.dcaf_integration) {
+    ogs_info("DCAF integration enabled");
+    rv = data_collection_initialise(
+        &data_collection_configuration);
+
+    if (rv != OGS_OK) {
+        ogs_error("DCAF initialization failed");
+        return rv;
+    }
+
+    data_collection_initialized = 1;
+    ogs_info("DCAF initialization succeeded");
+    } else {
+        ogs_info("DCAF integration disabled");
+    }
+    ogs_info("Initialising DCAF: %s", data_collection_version_full_string());
+    rv = data_collection_initialise(&data_collection_configuration);
+    if (rv != OGS_OK) {
+        ogs_error("data_collection_initialise() failed");
+        return rv;
+    }
+    data_collection_initialized = 1;
 
     rv = msaf_sbi_open();
     if (rv != 0) {
         ogs_debug("msaf_sbi_open() failed");
+        data_collection_finalise();
+        data_collection_initialized = 0;
         return OGS_ERROR;
     }
 
