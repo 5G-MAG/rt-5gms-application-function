@@ -40,6 +40,12 @@ libmsaf_dist_sources = files('''
     metrics-reporting-configuration.h
     consumption-report-configuration.c
     consumption-report-configuration.h
+
+    dcaf/consumption-report/consumption-report-handler.c
+    dcaf/consumption-report/consumption-report-handler.h
+    dcaf/integration.c
+    dcaf/integration.h
+    
     context.c
     context.h
     data-collection.c

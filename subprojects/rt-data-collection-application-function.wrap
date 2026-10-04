@@ -2,7 +2,7 @@
 directory = rt-data-collection-application-function
 url = https://github.com/5G-MAG/rt-data-collection-application-function.git
 # Pin revision containing integration fixes
-revision = 48008830d8b93f9bda205fcee1525bc1762177db
+revision = ed6839885abb67171b26ef834f41a64d2c15a004
 clone-recursive = true
 
 [provide]
