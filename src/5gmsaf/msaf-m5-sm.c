@@ -15,7 +15,6 @@
 #include "context.h"
 #include "certmgr.h"
 #include "data-collection.h"
-#include "dcaf/consumption-report/consumption-report-handler.h"
 #include "server.h"
 #include "sai-cache.h"
 #include "response-cache-control.h"
@@ -894,30 +893,13 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
 
                                             consumption_report = msaf_api_consumption_report_parseRequestFromJSON(json, &reason, &parameter);
                                             if (consumption_report) {
-                                                char *dcaf_error = NULL, *dcaf_parameter = NULL;
                                                 struct timespec ts;
                                                 char buf[32];
                                                 char *filetime = NULL;
-                                                if (!msaf_consumption_report_submit(provisioning_session, json,
-                                                                                    &dcaf_error, &dcaf_parameter)) {
-                                                    OpenAPI_list_t *invalid_params = dcaf_parameter ?
-                                                        nf_server_invalid_param(dcaf_parameter, dcaf_error) : NULL;
-                                                    int status = dcaf_parameter ? OGS_SBI_HTTP_STATUS_BAD_REQUEST :
-                                                        OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR;
-                                                    ogs_assert(true == nf_server_send_error(stream, status, 1, message,
-                                                        "Consumption reporting error", dcaf_error, NULL, invalid_params,
-                                                        m5_consumptionreporting_api, app_meta));
-                                                    ogs_free(dcaf_error);
-                                                    if (dcaf_parameter) ogs_free(dcaf_parameter);
-                                                    msaf_api_consumption_report_free(consumption_report);
-                                                    cJSON_Delete(json);
-                                                    break;
-                                                }
                                                 clock_gettime(CLOCK_REALTIME, &ts);
                                                 strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", gmtime(&ts.tv_sec));
                                                 filetime = ogs_msprintf("%s.%.6iZ", buf, (int)(ts.tv_nsec/1000));
-                                                if (msaf_self()->config.dcaf_integration ||
-                                                    msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
+                                                if (msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
                                                                     consumption_report->reporting_client_id, NULL, filetime,
                                                                     "json", request->http.content)) {
                                                     ogs_sbi_response_t *response;
