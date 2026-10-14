@@ -23,6 +23,9 @@ static cJSON *sample_json(const void *data);
 static struct timespec *sample_timestamp(const void *data);
 static char *sample_tag(const void *data);
 static char *sample_serialise(const void *data);
+static const char *sample_aggregation_name(const void *data);
+static ogs_list_t *sample_apply_aggregation(const char *function_name, const ogs_list_t *records);
+static void *sample_proportion_record(const void *record, const struct timespec *start, const struct timespec *end);
 static ogs_list_t *sample_context_ids(const void *data);
 static struct timespec *sample_start(const void *data);
 static struct timespec *sample_end(const void *data);
@@ -30,11 +33,11 @@ static bool parse_time(const char *text, struct timespec *result);
 
 /* Handler registration */
 
-static const char * const consumption_aggregations[] = { NULL };
+static const char * const consumption_aggregations[] = { "NONE", "COUNT", NULL};
 
 const data_collection_data_report_handler_t msaf_consumption_report_handler = {
-    .type_name = "ConsumptionReport",
-    .data_report_property = DATA_COLLECTION_DATA_REPORT_PROPERTY_APP_SPECIFIC,
+    .type_name = "Media Services Consumption Report",
+    .data_report_property = 0,
     .data_domain = "APPLICATION_SPECIFIC",
     .event_type = "MS_CONSUMPTION",
     .applicable_aggregations = consumption_aggregations,
@@ -45,9 +48,12 @@ const data_collection_data_report_handler_t msaf_consumption_report_handler = {
     .timestamp_for_report_data = sample_timestamp,
     .tag_for_report_data = sample_tag,
     .serialise_report_data = sample_serialise,
+    .aggregation_name = sample_aggregation_name,
+    .apply_aggregation = sample_apply_aggregation,
+    .proportion_record = sample_proportion_record,
     .context_ids = sample_context_ids,
     .sample_start = sample_start,
-    .sample_end = sample_end
+    .sample_end = sample_end,
 };
 
 /* Public API */
@@ -107,6 +113,27 @@ static char *sample_tag(const void *data)
 static char *sample_serialise(const void *data)
 {
     (void)data;
+    return NULL;
+}
+
+static const char *sample_aggregation_name(const void *data)
+{
+    (void)data;
+    return NULL;
+}
+
+static ogs_list_t *sample_apply_aggregation(const char *function_name, const ogs_list_t *records)
+{
+    (void)function_name;
+    (void)records;
+    return NULL;
+}
+
+static void *sample_proportion_record(const void *record, const struct timespec *start, const struct timespec *end)
+{
+    (void)record;
+    (void)start;
+    (void)end;
     return NULL;
 }
 
