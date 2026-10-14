@@ -20,7 +20,6 @@ static void *sample_proportion_record(const void *record, const struct timespec 
 static ogs_list_t *sample_context_ids(const void *data);
 static struct timespec *sample_start(const void *data);
 static struct timespec *sample_end(const void *data);
-static bool parse_time(const char *text, struct timespec *result);
 
 /* Handler registration */
 
@@ -152,13 +151,4 @@ static struct timespec *sample_end(const void *data)
 {
     (void)data;
     return NULL;
-}
-
-/* Time conversion */
-
-static bool parse_time(const char *text, struct timespec *result)
-{
-    (void)text;
-    (void)result;
-    return false;
 }
