@@ -4,15 +4,6 @@
 #include "consumption-report-handler.h"
 #include "openapi/model/msaf_api_consumption_report.h"
 
-/* Local types */
-
-typedef struct consumption_sample_s {
-    msaf_api_consumption_report_t *report;
-    struct timespec start;
-    struct timespec end;
-    struct timespec received;
-} consumption_sample_t;
-
 /* Local declarations */
 
 static void *sample_parse(const data_collection_reporting_session_t *session,
@@ -83,19 +74,23 @@ static void *sample_parse(const data_collection_reporting_session_t *session,
 
 static void *sample_clone(const void *data)
 {
-    (void)data;
-    return NULL;
+    const msaf_api_consumption_report_t *report = data;
+    if (!report) return NULL;
+    return msaf_api_consumption_report_copyRequest(NULL, report);
 }
 
 static void sample_free(void *data)
 {
-    (void)data;
+    msaf_api_consumption_report_t *report = data;
+    if (!report) return;
+    msaf_api_consumption_report_free(report);
 }
 
 static cJSON *sample_json(const void *data)
 {
-    (void)data;
-    return NULL;
+    const msaf_api_consumption_report_t *report = data;
+    if (!report) return NULL;
+    return msaf_api_consumption_report_convertRequestToJSON(report);
 }
 
 static struct timespec *sample_timestamp(const void *data)
@@ -112,8 +107,12 @@ static char *sample_tag(const void *data)
 
 static char *sample_serialise(const void *data)
 {
-    (void)data;
-    return NULL;
+    cJSON *json = sample_json(data);
+    char *text;
+    if (!json) return NULL;
+    text = cJSON_PrintUnformatted(json);
+    cJSON_Delete(json);
+    return text;
 }
 
 static const char *sample_aggregation_name(const void *data)
