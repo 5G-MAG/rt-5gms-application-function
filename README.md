@@ -96,9 +96,6 @@ To install the Application Function as a system process:
 ```bash
 cd ~/rt-5gms-application-function
 sudo meson install --no-rebuild -C build
-
-sudo mkdir -p /usr/local/var/log/open5gs/reports
-sudo chmod -R 777 /usr/local/var/log/open5gs/reports
 ```
 
 ## Running
