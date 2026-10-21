@@ -1,5 +1,6 @@
 /* License: 5G-MAG Public License (v1.0). See LICENSE. */
 #include "integration.h"
+#include "databucket.h"
 #include "consumption-report/consumption-report-handler.h"
 #include "msaf-version.h"
 
@@ -34,6 +35,7 @@ int msaf_dcaf_initialize(void)
 void msaf_dcaf_finalise(void)
 {
     data_collection_finalise();
+    msaf_databucket_clear();
 }
 
 bool msaf_dcaf_process_event(ogs_event_t *event)

@@ -15,6 +15,7 @@
 #include "context.h"
 #include "certmgr.h"
 #include "data-collection.h"
+#include "dcaf/databucket.h"
 #include "server.h"
 #include "sai-cache.h"
 #include "response-cache-control.h"
@@ -901,7 +902,9 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 filetime = ogs_msprintf("%s.%.6iZ", buf, (int)(ts.tv_nsec/1000));
                                                 if (msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
                                                                     consumption_report->reporting_client_id, NULL, filetime,
-                                                                    "json", request->http.content)) {
+                                                                    "json", request->http.content) &&
+                                                    msaf_databucket_add_consumption_report(message->h.resource.component[1],
+                                                                                          consumption_report, &ts)) {
                                                     ogs_sbi_response_t *response;
                                                     response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, NULL, m5_consumptionreporting_api, app_meta);
                                                     ogs_assert(response);

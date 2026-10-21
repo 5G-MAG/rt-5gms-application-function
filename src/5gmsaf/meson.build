@@ -41,6 +41,8 @@ libmsaf_dist_sources = files('''
     consumption-report-configuration.c
     consumption-report-configuration.h
 
+    dcaf/databucket.c
+    dcaf/databucket.h
     dcaf/consumption-report/consumption-report-handler.c
     dcaf/consumption-report/consumption-report-handler.h
     dcaf/integration.c
