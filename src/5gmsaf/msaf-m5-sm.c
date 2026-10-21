@@ -15,7 +15,7 @@
 #include "context.h"
 #include "certmgr.h"
 #include "data-collection.h"
-#include "dcaf/databucket.h"
+#include "dcaf/consumption-report/consumption-report-handler.h"
 #include "server.h"
 #include "sai-cache.h"
 #include "response-cache-control.h"
@@ -897,14 +897,19 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 struct timespec ts;
                                                 char buf[32];
                                                 char *filetime = NULL;
+                                                bool file_stored;
+                                                bool bucket_stored;
                                                 clock_gettime(CLOCK_REALTIME, &ts);
                                                 strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", gmtime(&ts.tv_sec));
                                                 filetime = ogs_msprintf("%s.%.6iZ", buf, (int)(ts.tv_nsec/1000));
-                                                if (msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
+                                                file_stored = msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
                                                                     consumption_report->reporting_client_id, NULL, filetime,
-                                                                    "json", request->http.content) &&
-                                                    msaf_databucket_add_consumption_report(message->h.resource.component[1],
-                                                                                          consumption_report, &ts)) {
+                                                                    "json", request->http.content);
+                                                bucket_stored = msaf_databucket_add(&msaf_consumption_report_bucket,
+                                                                                   message->h.resource.component[1],
+                                                                                   consumption_report, &ts);
+                                                if (bucket_stored) consumption_report = NULL;
+                                                if (file_stored && bucket_stored) {
                                                     ogs_sbi_response_t *response;
                                                     response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, NULL, m5_consumptionreporting_api, app_meta);
                                                     ogs_assert(response);
@@ -913,7 +918,10 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 } else {
                                                     char *err;
 
-                                                    err = ogs_msprintf("Failed to store Consumption Report for provisioning session [%s]", message->h.resource.component[1]);
+                                                    err = ogs_msprintf("Failed to store Consumption Report for provisioning session [%s] (file: %s, bucket: %s)",
+                                                                      message->h.resource.component[1],
+                                                                      file_stored ? "stored" : "failed",
+                                                                      bucket_stored ? "stored" : "failed");
                                                     ogs_error("%s", err);
                                                     ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1, message, "Data storage error", err, NULL, NULL, m5_consumptionreporting_api, app_meta));
                                                     ogs_free(err);

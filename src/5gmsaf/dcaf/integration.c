@@ -35,7 +35,7 @@ int msaf_dcaf_initialize(void)
 void msaf_dcaf_finalise(void)
 {
     data_collection_finalise();
-    msaf_databucket_clear();
+    msaf_databucket_clear(&msaf_consumption_report_bucket, msaf_consumption_report_data_free);
 }
 
 bool msaf_dcaf_process_event(ogs_event_t *event)

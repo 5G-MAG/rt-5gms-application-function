@@ -17,6 +17,7 @@
 
 #include "init.h"
 #include "dcaf/integration.h"
+#include "dcaf/consumption-report/consumption-report-handler.h"
 
 static ogs_thread_t *thread;
 
@@ -134,10 +135,18 @@ void msaf_terminate(void)
 
     msaf_sbi_close();
 
+    if (data_collection_initialized) {
+        msaf_dcaf_finalise();
+        data_collection_initialized = 0;
+    } else {
+        msaf_databucket_clear(&msaf_consumption_report_bucket, msaf_consumption_report_data_free);
+    }
+
     msaf_context_final();
     ogs_sbi_context_final();
 
     msaf_free_agent_name();
+    initialized = 0;
 }
 
 static void msaf_main(void *data)

@@ -9,7 +9,6 @@
 static void *sample_parse(const data_collection_reporting_session_t *session,
                           cJSON *json, char **error, char **error_class, char **parameter);
 static void *sample_clone(const void *data);
-static void sample_free(void *data);
 static cJSON *sample_json(const void *data);
 static struct timespec *sample_timestamp(const void *data);
 static char *sample_tag(const void *data);
@@ -33,7 +32,7 @@ const data_collection_data_report_handler_t msaf_consumption_report_handler = {
     .applicable_aggregations = consumption_aggregations,
     .parse_report_data = sample_parse,
     .clone_report_data = sample_clone,
-    .free_report_data = sample_free,
+    .free_report_data = msaf_consumption_report_data_free,
     .json_for_report_data = sample_json,
     .timestamp_for_report_data = sample_timestamp,
     .tag_for_report_data = sample_tag,
@@ -47,6 +46,8 @@ const data_collection_data_report_handler_t msaf_consumption_report_handler = {
 };
 
 /* Public API */
+
+msaf_databucket_t msaf_consumption_report_bucket;
 
 bool msaf_consumption_report_submit(msaf_provisioning_session_t *provisioning,
                                    cJSON *json, char **error, char **parameter)
@@ -78,7 +79,7 @@ static void *sample_clone(const void *data)
     return msaf_api_consumption_report_copyRequest(NULL, report);
 }
 
-static void sample_free(void *data)
+void msaf_consumption_report_data_free(void *data)
 {
     msaf_api_consumption_report_t *report = data;
     if (!report) return;

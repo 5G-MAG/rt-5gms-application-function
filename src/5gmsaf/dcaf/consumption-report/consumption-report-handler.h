@@ -3,9 +3,13 @@
 #define MSAF_CONSUMPTION_REPORT_HANDLER_H
 
 #include "data-collection-sp/data-collection.h"
+#include "dcaf/databucket.h"
 #include "provisioning-session.h"
 
 extern const data_collection_data_report_handler_t msaf_consumption_report_handler;
+extern msaf_databucket_t msaf_consumption_report_bucket;
+
+void msaf_consumption_report_data_free(void *data);
 
 bool msaf_consumption_report_submit(msaf_provisioning_session_t *provisioning,
                                    cJSON *json, char **error, char **parameter);
