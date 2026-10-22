@@ -68,7 +68,6 @@ typedef struct msaf_configuration_s {
     msaf_network_assistance_delivery_boost_t *network_assistance_delivery_boost;
     int  number_of_application_servers;
 
-    char *data_collection_dir;
     bool offerNetworkAssistance;
 } msaf_configuration_t;
 

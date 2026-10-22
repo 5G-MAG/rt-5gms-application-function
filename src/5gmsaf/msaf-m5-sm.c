@@ -14,14 +14,12 @@
 #include "sbi-path.h"
 #include "context.h"
 #include "certmgr.h"
-#include "data-collection.h"
 #include "dcaf/consumption-report/consumption-report-handler.h"
 #include "server.h"
 #include "sai-cache.h"
 #include "response-cache-control.h"
 #include "msaf-version.h"
 #include "msaf-sm.h"
-#include "data-collection.h"
 #include "network-assistance-session.h"
 #include "dynamic-policy.h"
 #include "utilities.h"
@@ -72,7 +70,6 @@ static bool
 is_dynamic_policy_create_request_valid(ogs_sbi_request_t *request, ogs_sbi_stream_t *stream, ogs_sbi_message_t *message,
                                        const nf_server_interface_metadata_t *m5_dynamicpolicy_api,
                                        const nf_server_app_metadata_t *app_meta);
-static char *parseXmlField(const char *xmlString, const char *fieldName);
 
 void msaf_m5_state_initial(ogs_fsm_t *s, msaf_event_t *e)
 {
@@ -789,26 +786,13 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                     CASE("application/xml")
 
                                         if (request->http.content) {
-                                            char *reportTime = parseXmlField(request->http.content, "reportTime");
-                                            char *recordingSessionId = parseXmlField(request->http.content, "recordingSessionId");
-                                            char *clientId = parseXmlField(request->http.content, "clientID");
-
-                                            if (msaf_data_collection_store(message->h.resource.component[1], "metrics_reports", clientId, recordingSessionId, reportTime, "xml", request->http.content)) {
-                                                ogs_sbi_response_t *response;
-                                                response = nf_server_new_response(request->h.uri, NULL, 0, NULL, 0, NULL,m5_metricsreporting_api, app_meta);
-                                                ogs_assert(response);
-                                                nf_server_populate_response(response, 0, NULL, 204);
-                                                ogs_assert(true == ogs_sbi_server_send_response(stream, response));
-                                            } else {
-                                                char *err;
-                                                err = ogs_msprintf( "Failed to store Metrics Report for provisioning session [%s]", provisioning_session_id);
-                                                ogs_error("%s", err);
-                                                ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1, message, "Data storage error", err, NULL, NULL, m5_metricsreporting_api, app_meta));
-                                                ogs_free(err);
+                                            // TODO: Implement data bucket for metrics reporting.
+                                            ogs_debug("Data bucket for metrics reporting is not implemented yet");
+                                            if (!nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_IMPLEMENTED, 1, message,
+                                                        "Not Implemented", "Metrics Report storage is not implemented", NULL, NULL,
+                                                        m5_metricsreporting_api, app_meta)) {
+                                                ogs_error("Failed to send Metrics Reporting response");
                                             }
-                                            if (reportTime) ogs_free(reportTime);
-                                            if (recordingSessionId) ogs_free(recordingSessionId);
-                                            if (clientId) ogs_free(clientId);
                                         } else {
                                             char *err;
                                             err = ogs_msprintf("Missing Metrics Report for provisioning session [%s]", provisioning_session_id);
@@ -895,21 +879,13 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                             consumption_report = msaf_api_consumption_report_parseRequestFromJSON(json, &reason, &parameter);
                                             if (consumption_report) {
                                                 struct timespec ts;
-                                                char buf[32];
-                                                char *filetime = NULL;
-                                                bool file_stored;
                                                 bool bucket_stored;
                                                 clock_gettime(CLOCK_REALTIME, &ts);
-                                                strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", gmtime(&ts.tv_sec));
-                                                filetime = ogs_msprintf("%s.%.6iZ", buf, (int)(ts.tv_nsec/1000));
-                                                file_stored = msaf_data_collection_store(message->h.resource.component[1], "consumption_reports",
-                                                                    consumption_report->reporting_client_id, NULL, filetime,
-                                                                    "json", request->http.content);
                                                 bucket_stored = msaf_databucket_add(&msaf_consumption_report_bucket,
                                                                                    message->h.resource.component[1],
                                                                                    consumption_report, &ts);
                                                 if (bucket_stored) consumption_report = NULL;
-                                                if (file_stored && bucket_stored) {
+                                                if (bucket_stored) {
                                                     ogs_sbi_response_t *response;
                                                     response = nf_server_new_response(request->h.uri, NULL,  0, NULL, 0, NULL, m5_consumptionreporting_api, app_meta);
                                                     ogs_assert(response);
@@ -918,15 +894,12 @@ void msaf_m5_state_functional(ogs_fsm_t *s, msaf_event_t *e)
                                                 } else {
                                                     char *err;
 
-                                                    err = ogs_msprintf("Failed to store Consumption Report for provisioning session [%s] (file: %s, bucket: %s)",
-                                                                      message->h.resource.component[1],
-                                                                      file_stored ? "stored" : "failed",
-                                                                      bucket_stored ? "stored" : "failed");
+                                                    err = ogs_msprintf("Failed to store Consumption Report for provisioning session [%s]",
+                                                                      message->h.resource.component[1]);
                                                     ogs_error("%s", err);
                                                     ogs_assert(true == nf_server_send_error(stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, 1, message, "Data storage error", err, NULL, NULL, m5_consumptionreporting_api, app_meta));
                                                     ogs_free(err);
                                                 }
-                                                ogs_free(filetime);
                                                 msaf_api_consumption_report_free(consumption_report);
                                             } else {
                                                 char *err;
@@ -1129,20 +1102,6 @@ static bool is_dynamic_policy_create_request_valid(ogs_sbi_request_t *request, o
     }
 
     return 1;
-}
-
-/* This will extract attribute values from incoming XML */
-static char *parseXmlField(const char *xmlString, const char *fieldName)
-{
-    char *startTag = malloc(strlen(fieldName) + 3);
-    char *endTag = "\"";
-    sprintf(startTag, "%s=\"", fieldName);
-    char *startPosition = strstr(xmlString, startTag), *endPosition, *fieldValue = NULL;
-    if (startPosition && (endPosition = strstr(startPosition += strlen(startTag), endTag))) {
-        fieldValue = ogs_strndup(startPosition, endPosition - startPosition);
-    }
-    free(startTag);
-    return fieldValue;
 }
 
 /* vim:ts=8:sts=4:sw=4:expandtab:

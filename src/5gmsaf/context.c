@@ -128,9 +128,6 @@ void msaf_context_final(void)
 
     msaf_pcf_cache_free(self->pcf_cache);
 
-    if (self->config.data_collection_dir)
-        ogs_free(self->config.data_collection_dir);
-
     msaf_application_server_remove_all();
 
     msaf_context_application_server_state_certificates_remove_all();
@@ -533,8 +530,6 @@ int msaf_context_parse_config(void)
                     /* handle config in sbi library */
                 } else if (!strcmp(msaf_key, "dcafIntegration")) {
                     self->config.dcaf_integration = ogs_yaml_iter_bool(&msaf_iter);
-                } else if (!strcmp(msaf_key, "dataCollectionDir")) {
-                    self->config.data_collection_dir = msaf_strdup(ogs_yaml_iter_value(&msaf_iter));
                 } else if (!strcmp(msaf_key, "offerNetworkAssistance")) {
                     self->config.offerNetworkAssistance = ogs_yaml_iter_bool(&msaf_iter);
                     msaf_context_network_assistance_session_init();
